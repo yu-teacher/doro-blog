@@ -23,6 +23,7 @@ public enum ErrorCode {
     SERIES_NOT_FOUND(HttpStatus.NOT_FOUND, "SERIES-404-01", "존재하지 않는 시리즈입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-404-01", "존재하지 않는 게시글입니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT-404-01", "존재하지 않는 댓글입니다."),
+    API_KEY_NOT_FOUND(HttpStatus.NOT_FOUND, "APIKEY-404-01", "존재하지 않는 API 키입니다."),
 
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "COMMON-409-01", "이미 존재하는 리소스입니다."),

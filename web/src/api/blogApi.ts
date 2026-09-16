@@ -14,6 +14,10 @@ import {
   UserTagSummary,
   UserActivity,
   UpdateProfilePayload,
+  ApiKey,
+  CreateApiKeyRequest,
+  CreateApiKeyResponse,
+  ApiKeyLog,
 } from './types';
 
 export const blogApi = {
@@ -296,6 +300,28 @@ export const blogApi = {
   async getUserActivity(username: string): Promise<UserActivity[]> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
     const res = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${cleanUsername}/activity`);
+    return res.data.data;
+  },
+
+  // === API Keys ===
+  async createApiKey(payload: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
+    const res = await apiClient.post<ApiResponse<CreateApiKeyResponse>>('/api-keys', payload);
+    return res.data.data;
+  },
+
+  async getMyApiKeys(): Promise<ApiKey[]> {
+    const res = await apiClient.get<ApiResponse<ApiKey[]>>('/api-keys');
+    return res.data.data;
+  },
+
+  async revokeApiKey(id: string): Promise<void> {
+    await apiClient.delete(`/api-keys/${id}`);
+  },
+
+  async getApiKeyLogs(apiKeyId?: string, page = 0, size = 20): Promise<PageResponse<ApiKeyLog>> {
+    const res = await apiClient.get<ApiResponse<PageResponse<ApiKeyLog>>>('/api-keys/logs', {
+      params: { apiKeyId, page, size },
+    });
     return res.data.data;
   },
 };

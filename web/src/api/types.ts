@@ -166,3 +166,41 @@ export interface TagItem {
   name: string;
   postCount: number;
 }
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  isActive: boolean;
+  isExpired: boolean;
+  createdAt: string;
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+  expireDays?: number | null;
+}
+
+export interface CreateApiKeyResponse {
+  id: string;
+  name: string;
+  apiKey: string;
+  keyPrefix: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeyLog {
+  id: string;
+  apiKeyId: string;
+  method: string;
+  endpoint: string;
+  statusCode: number;
+  ipAddress: string;
+  userAgent: string;
+  durationMs: number;
+  errorMessage: string | null;
+  createdAt: string;
+}

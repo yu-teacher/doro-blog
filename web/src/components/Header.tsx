@@ -18,6 +18,7 @@ import {
   Sun,
   Moon,
   ExternalLink,
+  Terminal,
 } from 'lucide-react';
 
 const DORO_PORTAL_URL = import.meta.env.VITE_DORO_PORTAL_URL || 'http://localhost:3000';
@@ -145,6 +146,16 @@ export const Header: React.FC = () => {
               <Search className="w-5 h-5" />
             </button>
 
+            {/* Developers API Link */}
+            <Link
+              to="/developers"
+              className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors flex items-center gap-1 text-xs font-semibold"
+              title="개발자 센터 (API & 자동화)"
+            >
+              <Terminal className="w-4 h-4 text-emerald-500" />
+              <span className="hidden md:inline text-slate-700 dark:text-slate-300">API</span>
+            </Link>
+
             {isAuthenticated ? (
               <>
                 <Link
@@ -203,6 +214,14 @@ export const Header: React.FC = () => {
                       >
                         <Bookmark className="w-4 h-4 text-gray-400 dark:text-slate-400" />
                         읽기 목록 (좋아요)
+                      </Link>
+
+                      <Link
+                        to="/developers"
+                        className="flex items-center gap-2.5 px-4 py-2 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <Terminal className="w-4 h-4 text-emerald-500" />
+                        개발자 센터 (API)
                       </Link>
 
                       <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
