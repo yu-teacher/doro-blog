@@ -21,7 +21,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/iam': {
-        target: 'http://192.168.0.101:8080',
+        target: 'http://localhost:28080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/iam/, ''),
       },

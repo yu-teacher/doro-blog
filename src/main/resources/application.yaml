@@ -5,7 +5,7 @@ spring:
   application:
     name: doro-blog
   datasource:
-    url: jdbc:postgresql://${DB_HOST:192.168.0.101}:${DB_PORT:5432}/${DB_NAME:service_blog}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:25432}/${DB_NAME:service_blog}
     username: ${DB_USER:doro_admin}
     password: ${DB_PASSWORD:doro_secret}
     driver-class-name: org.postgresql.Driver
@@ -32,11 +32,11 @@ spring:
 
 doro:
   iam:
-    jwks-uri: http://${IAM_HOST:192.168.0.101}:${IAM_PORT:8080}/.well-known/jwks.json
+    jwks-uri: http://${IAM_HOST:localhost}:${IAM_PORT:28080}/.well-known/jwks.json
   guard:
-    grpc-host: ${GUARD_GRPC_HOST:192.168.0.101}
+    grpc-host: ${GUARD_GRPC_HOST:localhost}
     grpc-port: ${GUARD_GRPC_PORT:9090}
-    http-url: http://${GUARD_HTTP_HOST:192.168.0.101}:${GUARD_HTTP_PORT:8081}
+    http-url: http://${GUARD_HTTP_HOST:localhost}:${GUARD_HTTP_PORT:28081}
 
 springdoc:
   api-docs:
