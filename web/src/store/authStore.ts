@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import axios from 'axios';
 import { UserProfile } from '../api/types';
 
 interface AuthState {
@@ -7,6 +8,8 @@ interface AuthState {
   isAuthenticated: boolean;
   setToken: (token: string | null) => void;
   setUser: (user: UserProfile | null) => void;
+  loginWithIam: (email: string, password: string) => Promise<void>;
+  signupWithIam: (email: string, password: string, name: string) => Promise<void>;
   loginWithMock: (username: string, email: string, userId: string) => void;
   logout: () => void;
 }
@@ -63,6 +66,25 @@ export const useAuthStore = create<AuthState>((set) => {
         localStorage.removeItem(STORAGE_KEY_USER);
       }
       set({ user });
+    },
+
+    loginWithIam: async (email: string, password: string) => {
+      const loginRes = await axios.post('/iam/api/v1/auth/login', { email, password });
+      const accessToken = loginRes.data.data.tokens.accessToken;
+
+      localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
+
+      const profileRes = await axios.get('/api/v1/users/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const userProfile = profileRes.data.data;
+
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userProfile));
+      set({ token: accessToken, user: userProfile, isAuthenticated: true });
+    },
+
+    signupWithIam: async (email: string, password: string, name: string) => {
+      await axios.post('/iam/api/v1/auth/signup', { email, password, name });
     },
 
     loginWithMock: (username, email, userId) => {
