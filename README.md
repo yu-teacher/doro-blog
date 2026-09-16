@@ -92,11 +92,16 @@ type blog_comment {
 | | `PUT` | `/api/v1/series/{seriesId}/sort` | 시리즈 내 글 순서 일괄 정렬 | `@DoroGuard` editor |
 | **Post** | `POST` | `/api/v1/posts` | 새 글 작성 / 출간 / 임시저장 | Authenticated |
 | | `GET` | `/api/v1/posts` | 전체 피드 (최신순/인기순/태그필터) | Public |
-| | `GET` | `/api/v1/posts/users/@{username}` | 작가의 출간 글 목록 | Public |
+| | `GET` | `/api/v1/posts/me` | 내 포스트 관리 목록 (status: ALL, DRAFT, PUBLISHED, PRIVATE, 페이징) | Authenticated |
+| | `GET` | `/api/v1/posts/trending` | 트렌딩 포스트 기간별 조회 (day, week, month, year, 페이징) | Public |
+| | `GET` | `/api/v1/posts/me/likes` | 내가 좋아요한 포스트 목록 (페이징) | Authenticated |
+| | `GET` | `/api/v1/posts/search` | 키워드 검색 (제목/요약/본문 대소문자 무관, 페이징) | Public |
+| | `GET` | `/api/v1/posts/users/@{username}` | 작가의 출간 글 목록 (페이징) | Public |
 | | `GET` | `/api/v1/posts/@{username}/{slug}` | 글 상세 조회 (마크다운 원문) | Public / ReBAC |
 | | `PUT` | `/api/v1/posts/{postId}` | 글 수정 | `@DoroGuard` editor |
 | | `DELETE` | `/api/v1/posts/{postId}` | 글 삭제 | `@DoroGuard` editor |
 | **Comment** | `POST` | `/api/v1/posts/{postId}/comments` | 루트 댓글 작성 | Authenticated |
+
 | | `POST` | `/api/v1/posts/{postId}/comments/{commentId}/replies` | 대댓글(답글) 작성 (2-Level) | Authenticated |
 | | `GET` | `/api/v1/posts/{postId}/comments` | 계층형 댓글 트리 조회 | Public |
 | | `PUT` | `/api/v1/comments/{commentId}` | 댓글 수정 | Author only |
