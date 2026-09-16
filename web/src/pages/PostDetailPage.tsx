@@ -155,34 +155,36 @@ export const PostDetailPage: React.FC = () => {
   return (
     <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Floating Side Action Bar (Desktop sticky) */}
-      <div className="hidden lg:flex flex-col items-center gap-4 fixed left-[max(1rem,calc(50%-480px))] top-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-full shadow-md z-10">
-        <button
-          onClick={handleToggleLike}
-          className={`flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all ${
-            isLiked
-              ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shadow-inner'
-              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-          }`}
-          title={isLiked ? '좋아요 취소' : '좋아요'}
-        >
-          <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
-          <span className="text-[11px] font-bold mt-0.5">{likeCount}</span>
-        </button>
+      <div className="hidden xl:block absolute right-full top-36 mr-6 2xl:mr-10 h-full">
+        <div className="sticky top-36 flex flex-col items-center gap-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-full shadow-md z-10">
+          <button
+            onClick={handleToggleLike}
+            className={`flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all ${
+              isLiked
+                ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shadow-inner'
+                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title={isLiked ? '좋아요 취소' : '좋아요'}
+          >
+            <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
+            <span className="text-[11px] font-bold mt-0.5">{likeCount}</span>
+          </button>
 
-        <div className="w-6 h-px bg-slate-200 dark:bg-slate-800" />
+          <div className="w-6 h-px bg-slate-200 dark:bg-slate-800" />
 
-        <button
-          onClick={handleShare}
-          className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative"
-          title="링크 복사"
-        >
-          <Share2 className="w-5 h-5" />
-          {copied && (
-            <span className="absolute left-14 bg-slate-900 text-white text-xs px-2.5 py-1 rounded whitespace-nowrap shadow-lg">
-              복사 완료!
-            </span>
-          )}
-        </button>
+          <button
+            onClick={handleShare}
+            className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative"
+            title="링크 복사"
+          >
+            <Share2 className="w-5 h-5" />
+            {copied && (
+              <span className="absolute left-14 bg-slate-900 text-white text-xs px-2.5 py-1 rounded whitespace-nowrap shadow-lg">
+                복사 완료!
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Article Header */}
@@ -291,8 +293,8 @@ export const PostDetailPage: React.FC = () => {
         <MarkdownViewer content={content} />
       </article>
 
-      {/* Mobile / Bottom Like & Share */}
-      <div className="flex lg:hidden items-center justify-center gap-4 py-6 border-y border-slate-200 dark:border-slate-800 my-8">
+      {/* Mobile / Tablet Bottom Like & Share */}
+      <div className="flex xl:hidden items-center justify-center gap-4 py-6 border-y border-slate-200 dark:border-slate-800 my-8">
         <button
           onClick={handleToggleLike}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
