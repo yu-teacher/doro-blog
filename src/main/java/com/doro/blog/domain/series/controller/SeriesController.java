@@ -38,6 +38,16 @@ public class SeriesController {
         return ApiResponse.success(seriesService.getSeriesByUsername(username));
     }
 
+    @Operation(summary = "슬러그 기반 시리즈 상세 조회 (공개)", description = "/series/users/@{username}/{slug} 주소로 시리즈 상세 및 소속 글 목록 조회")
+    @GetMapping("/users/@{username}/{slug}")
+    public ApiResponse<SeriesDetailResponse> getSeriesByUsernameAndSlug(
+            @PathVariable("username") String username,
+            @PathVariable("slug") String slug
+    ) {
+        return ApiResponse.success(seriesService.getSeriesByUsernameAndSlug(username, slug));
+    }
+
+
     @Operation(summary = "시리즈 상세 및 소속 글 목록 조회 (공개)", description = "시리즈 정보와 회차 순서(1, 2, 3...)로 정렬된 글 목록 조회")
     @GetMapping("/{seriesId}")
     public ApiResponse<SeriesDetailResponse> getSeriesDetail(@PathVariable("seriesId") UUID seriesId) {

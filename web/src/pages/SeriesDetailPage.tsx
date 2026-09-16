@@ -1,0 +1,131 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { blogApi } from '../api/blogApi';
+import type { SeriesDetail } from '../api/types';
+import { BookOpen, Calendar, ArrowLeft } from 'lucide-react';
+
+export const SeriesDetailPage: React.FC = () => {
+  const { username, slug } = useParams<{ username: string; slug: string }>();
+  const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
+
+  const [seriesDetail, setSeriesDetail] = useState<SeriesDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (cleanUsername && slug) {
+      loadSeries();
+    }
+  }, [cleanUsername, slug]);
+
+  const loadSeries = async () => {
+    if (!cleanUsername || !slug) return;
+    setLoading(true);
+    try {
+      const res = await blogApi.getSeriesBySlug(cleanUsername, slug);
+      setSeriesDetail(res);
+
+    } catch (err) {
+      console.error('Failed to load series detail', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 animate-pulse">
+        <div className="h-8 bg-slate-200 rounded w-1/3 mb-4" />
+        <div className="h-4 bg-slate-200 rounded w-1/2 mb-10" />
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-28 bg-white rounded-xl border border-slate-100 p-4" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!seriesDetail) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20">
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">시리즈를 찾을 수 없습니다</h2>
+        <Link
+          to={`/@${cleanUsername}`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 mt-4"
+        >
+          <ArrowLeft className="w-4 h-4" /> 블로그 홈으로 이동
+        </Link>
+      </div>
+    );
+  }
+
+  const { series, posts } = seriesDetail;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Series Header */}
+      <div className="border-b border-slate-200 pb-8 mb-8">
+        <Link
+          to={`/@${cleanUsername}?tab=series`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" /> @{cleanUsername}의 시리즈 목록
+        </Link>
+
+        <div className="flex items-center gap-3 text-emerald-600 font-bold mb-2">
+          <BookOpen className="w-6 h-6" />
+          <span className="text-sm uppercase tracking-wider">SERIES</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">{series.title}</h1>
+        {series.description && <p className="text-slate-600 leading-relaxed mb-4">{series.description}</p>}
+
+        <div className="flex items-center gap-3 text-xs text-slate-400">
+          <span className="font-semibold text-slate-700">총 {series.postCount}화</span>
+          <span>·</span>
+          <span>마지막 업데이트 {new Date(series.updatedAt).toLocaleDateString('ko-KR')}</span>
+        </div>
+      </div>
+
+      {/* Series Posts List */}
+      <div className="space-y-4">
+        {posts.length === 0 ? (
+          <p className="text-center text-slate-400 py-12">시리즈에 아직 등록된 포스트가 없습니다.</p>
+        ) : (
+          posts.map((post, idx) => (
+            <Link
+              key={post.id}
+              to={`/@${cleanUsername}/${post.slug}`}
+              className="flex items-start gap-5 p-5 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-sm transition-all group"
+            >
+              <div className="w-10 text-xl font-bold text-slate-300 group-hover:text-emerald-600 flex-shrink-0 pt-1">
+                {String(idx + 1).padStart(2, '0')}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors mb-1">
+                  {post.title}
+                </h3>
+                {post.summary && <p className="text-sm text-slate-500 line-clamp-2 mb-2">{post.summary}</p>}
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    {post.publishedAt
+                      ? new Date(post.publishedAt).toLocaleDateString('ko-KR')
+                      : '미출간'}
+                  </span>
+                </div>
+              </div>
+
+              {post.thumbnailUrl && (
+                <div className="w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 hidden sm:block">
+                  <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover" />
+                </div>
+              )}
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};

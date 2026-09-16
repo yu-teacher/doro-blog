@@ -66,6 +66,16 @@ public class PostController {
         return ApiResponse.success(postService.getPostDetail(username, slug, doroUser));
     }
 
+    @Operation(summary = "게시글 ID 단건 상세 조회 (마크다운 원문 포함)", description = "수정 등을 위한 포스트 ID 단건 조회")
+    @GetMapping("/{postId}")
+    public ApiResponse<PostDetailResponse> getPostById(
+            @PathVariable("postId") UUID postId,
+            @CurrentDoroUser DoroUser doroUser
+    ) {
+        return ApiResponse.success(postService.getPostById(postId, doroUser));
+    }
+
+
     @Operation(summary = "게시글 수정 (ReBAC 인가)", description = "DORO Guard ReBAC 검증: 글의 editor/author만 수정 가능")
     @DoroGuard(namespace = "blog_post", object = "#postId", relation = "editor")
     @PutMapping("/{postId}")

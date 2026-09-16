@@ -72,6 +72,19 @@ public class SeriesService {
     }
 
     @Transactional(readOnly = true)
+    public SeriesDetailResponse getSeriesByUsernameAndSlug(String username, String slug) {
+        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+
+        Series series = seriesRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+
+        return getSeriesDetail(series.getId());
+    }
+
+
+    @Transactional(readOnly = true)
     public SeriesDetailResponse getSeriesDetail(UUID seriesId) {
         Series series = seriesRepository.findById(seriesId)
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));

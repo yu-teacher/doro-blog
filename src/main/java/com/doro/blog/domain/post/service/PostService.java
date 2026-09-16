@@ -173,6 +173,34 @@ public class PostService {
     }
 
     @Transactional
+    public PostDetailResponse getPostById(UUID postId, DoroUser doroUser) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            boolean isAuthor = doroUser.isAuthenticated() && doroUser.userId().equals(post.getUser().getId());
+            if (!isAuthor) {
+                boolean hasAccess = doroUser.isAuthenticated() && guardClient.check(
+                        "blog_post", post.getId().toString(), "viewer", doroUser.userId().toString()
+                );
+                if (!hasAccess) {
+                    throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
+                }
+            }
+        }
+
+        boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
+        List<String> tags = tagService.getPostTagNames(post.getId());
+
+        return new PostDetailResponse(
+                PostSummaryResponse.from(post, tags),
+                post.getContent(),
+                likedByMe
+        );
+    }
+
+
+    @Transactional
     public PostSummaryResponse updatePost(UUID postId, UpdatePostRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
