@@ -17,9 +17,6 @@ import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -142,7 +139,7 @@ public class PostService {
 
     @Transactional
     public PostDetailResponse getPostDetail(String username, String slug, DoroUser doroUser) {
-        return getPostDetail(username, slug, doroUser, null, null);
+        return getPostDetail(username, slug, doroUser, true);
     }
 
     @Transactional
@@ -150,8 +147,7 @@ public class PostService {
             String username,
             String slug,
             DoroUser doroUser,
-            HttpServletRequest request,
-            HttpServletResponse response
+            boolean countView
     ) {
         String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
@@ -173,8 +169,9 @@ public class PostService {
             }
         }
 
-        // 조회수 중복 증가 방지 (Cookie 기반: 24시간 내 동일 포스트 중복 조회 방지)
-        handleViewCount(post, request, response);
+        if (countView) {
+            post.incrementViewCount();
+        }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
         List<String> tags = tagService.getPostTagNames(post.getId());
@@ -184,42 +181,6 @@ public class PostService {
                 post.getContent(),
                 likedByMe
         );
-    }
-
-    private void handleViewCount(Post post, HttpServletRequest request, HttpServletResponse response) {
-        if (request == null || response == null) {
-            post.incrementViewCount();
-            return;
-        }
-
-        Cookie[] cookies = request.getCookies();
-        Cookie viewCookie = null;
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("post_view".equals(cookie.getName())) {
-                    viewCookie = cookie;
-                    break;
-                }
-            }
-        }
-
-        String postTarget = "[" + post.getId() + "]";
-        if (viewCookie != null) {
-            if (!viewCookie.getValue().contains(postTarget)) {
-                post.incrementViewCount();
-                viewCookie.setValue(viewCookie.getValue() + "_" + postTarget);
-                viewCookie.setPath("/");
-                viewCookie.setMaxAge(60 * 60 * 24); // 24시간
-                response.addCookie(viewCookie);
-            }
-        } else {
-            post.incrementViewCount();
-            Cookie newCookie = new Cookie("post_view", postTarget);
-            newCookie.setPath("/");
-            newCookie.setMaxAge(60 * 60 * 24); // 24시간
-            newCookie.setHttpOnly(true);
-            response.addCookie(newCookie);
-        }
     }
 
     @Transactional

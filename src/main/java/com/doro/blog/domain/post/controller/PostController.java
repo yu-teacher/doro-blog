@@ -65,7 +65,49 @@ public class PostController {
             jakarta.servlet.http.HttpServletRequest request,
             jakarta.servlet.http.HttpServletResponse response
     ) {
-        return ApiResponse.success(postService.getPostDetail(username, slug, doroUser, request, response));
+        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        boolean shouldCount = checkAndSetViewCookie(cleanUsername + "/" + slug.toLowerCase().trim(), request, response);
+        return ApiResponse.success(postService.getPostDetail(username, slug, doroUser, shouldCount));
+    }
+
+    private boolean checkAndSetViewCookie(
+            String targetKey,
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response
+    ) {
+        if (request == null || response == null) {
+            return true;
+        }
+
+        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        jakarta.servlet.http.Cookie viewCookie = null;
+        if (cookies != null) {
+            for (jakarta.servlet.http.Cookie cookie : cookies) {
+                if ("post_view".equals(cookie.getName())) {
+                    viewCookie = cookie;
+                    break;
+                }
+            }
+        }
+
+        String target = "[" + targetKey + "]";
+        if (viewCookie != null) {
+            if (!viewCookie.getValue().contains(target)) {
+                viewCookie.setValue(viewCookie.getValue() + "_" + target);
+                viewCookie.setPath("/");
+                viewCookie.setMaxAge(60 * 60 * 24); // 24시간
+                response.addCookie(viewCookie);
+                return true;
+            }
+            return false;
+        } else {
+            jakarta.servlet.http.Cookie newCookie = new jakarta.servlet.http.Cookie("post_view", target);
+            newCookie.setPath("/");
+            newCookie.setMaxAge(60 * 60 * 24); // 24시간
+            newCookie.setHttpOnly(true);
+            response.addCookie(newCookie);
+            return true;
+        }
     }
 
     @Operation(summary = "게시글 ID 단건 상세 조회 (마크다운 원문 포함)", description = "수정 등을 위한 포스트 ID 단건 조회")
