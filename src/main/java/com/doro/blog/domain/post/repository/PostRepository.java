@@ -30,4 +30,30 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE pt.tag.name = :tagName AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC")
     Page<Post> findAllByTagName(@Param("tagName") String tagName, Pageable pageable);
+
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND (:status IS NULL OR p.status = :status) ORDER BY p.createdAt DESC")
+    Page<Post> findAllByUserIdAndOptionalStatus(
+            @Param("userId") UUID userId,
+            @Param("status") PostStatus status,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+    Page<Post> findTrendingPosts(
+            @Param("since") java.time.Instant since,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) ORDER BY p.publishedAt DESC")
+    Page<Post> searchPublishedPosts(
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("SELECT pl.post FROM PostLike pl WHERE pl.user.id = :userId AND pl.post.status = 'PUBLISHED' ORDER BY pl.createdAt DESC")
+    Page<Post> findLikedPostsByUserId(
+            @Param("userId") UUID userId,
+            Pageable pageable
+    );
 }
+

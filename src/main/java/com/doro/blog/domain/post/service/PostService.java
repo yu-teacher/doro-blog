@@ -211,4 +211,49 @@ public class PostService {
 
         postRepository.delete(post);
     }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getMyPosts(DoroUser doroUser, PostStatus status, int page, int size) {
+        if (!doroUser.isAuthenticated()) {
+            throw new BlogException(ErrorCode.UNAUTHORIZED);
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return postRepository.findAllByUserIdAndOptionalStatus(doroUser.userId(), status, pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getTrendingPosts(String timeframe, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        java.time.Instant since = switch (timeframe != null ? timeframe.toLowerCase() : "week") {
+            case "day" -> java.time.Instant.now().minus(java.time.Duration.ofDays(1));
+            case "month" -> java.time.Instant.now().minus(java.time.Duration.ofDays(30));
+            case "year" -> java.time.Instant.now().minus(java.time.Duration.ofDays(365));
+            default -> java.time.Instant.now().minus(java.time.Duration.ofDays(7));
+        };
+
+        return postRepository.findTrendingPosts(since, pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getMyLikedPosts(DoroUser doroUser, int page, int size) {
+        if (!doroUser.isAuthenticated()) {
+            throw new BlogException(ErrorCode.UNAUTHORIZED);
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return postRepository.findLikedPostsByUserId(doroUser.userId(), pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> searchPosts(String query, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (query == null || query.trim().isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return postRepository.searchPublishedPosts(query.trim(), pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
 }
+

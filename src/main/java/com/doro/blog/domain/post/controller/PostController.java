@@ -80,4 +80,46 @@ public class PostController {
         postService.deletePost(postId);
         return ApiResponse.success();
     }
+
+    @Operation(summary = "내 포스트 관리 목록 (인증, 페이징)", description = "내가 작성한 글 목록 조회 (status: ALL, DRAFT, PUBLISHED, PRIVATE)")
+    @GetMapping("/me")
+    public ApiResponse<Page<PostSummaryResponse>> getMyPosts(
+            @CurrentDoroUser DoroUser doroUser,
+            @RequestParam(name = "status", required = false) com.doro.blog.domain.post.entity.PostStatus status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(postService.getMyPosts(doroUser, status, page, size));
+    }
+
+    @Operation(summary = "트렌딩 포스트 기간별 조회 (공개, 페이징)", description = "지정 기간(day, week, month, year) 내 출간된 인기 글 랭킹 피드")
+    @GetMapping("/trending")
+    public ApiResponse<Page<PostSummaryResponse>> getTrendingPosts(
+            @RequestParam(name = "timeframe", defaultValue = "week") String timeframe,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(postService.getTrendingPosts(timeframe, page, size));
+    }
+
+    @Operation(summary = "내가 좋아요한 포스트 목록 (인증, 페이징)", description = "내가 좋아요(하트)를 누른 공개 글 읽기 목록 페이징 조회")
+    @GetMapping("/me/likes")
+    public ApiResponse<Page<PostSummaryResponse>> getMyLikedPosts(
+            @CurrentDoroUser DoroUser doroUser,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(postService.getMyLikedPosts(doroUser, page, size));
+    }
+
+    @Operation(summary = "키워드 검색 (공개, 페이징)", description = "제목, 요약문, 본문 키워드 대소문자 무시 검색")
+    @GetMapping("/search")
+    public ApiResponse<Page<PostSummaryResponse>> searchPosts(
+            @RequestParam(name = "q") String query,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(postService.searchPosts(query, page, size));
+    }
 }
+

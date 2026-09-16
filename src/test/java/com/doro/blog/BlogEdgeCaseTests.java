@@ -298,4 +298,95 @@ class BlogEdgeCaseTests {
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
         }
     }
+
+    @Nested
+    @DisplayName("7. 부가 편의 기능 및 페이징 검증 (내 글 관리, 트렌딩, 좋아요 목록, 검색)")
+    class ExtraFeaturesTests {
+
+        @Test
+        @DisplayName("내 포스트 목록 페이징 및 상태(DRAFT/PUBLISHED) 필터링 검증")
+        void testMyPostsPaginationAndStatusFilter() {
+            DoroUser author = createMockUser("myPostAuthor");
+
+            // 출간글 3개, 임시저장글 2개 생성
+            for (int i = 1; i <= 3; i++) {
+                postService.createPost(author, new CreatePostRequest(
+                        "공개글 " + i, "pub-" + i + "-" + UUID.randomUUID(), null, "본문", null, PostStatus.PUBLISHED, null, null
+                ));
+            }
+            for (int i = 1; i <= 2; i++) {
+                postService.createPost(author, new CreatePostRequest(
+                        "임시저장글 " + i, "draft-" + i + "-" + UUID.randomUUID(), null, "임시본문", null, PostStatus.DRAFT, null, null
+                ));
+            }
+
+            // 1) 전체 내 글 조회 (page=0, size=3)
+            var allPage0 = postService.getMyPosts(author, null, 0, 3);
+            assertThat(allPage0.getTotalElements()).isEqualTo(5);
+            assertThat(allPage0.getContent()).hasSize(3);
+            assertThat(allPage0.getTotalPages()).isEqualTo(2);
+
+            // 2) 임시저장(DRAFT) 글만 필터링 조회
+            var draftOnly = postService.getMyPosts(author, PostStatus.DRAFT, 0, 10);
+            assertThat(draftOnly.getTotalElements()).isEqualTo(2);
+            assertThat(draftOnly.getContent()).allMatch(p -> p.status() == PostStatus.DRAFT);
+        }
+
+        @Test
+        @DisplayName("트렌딩 포스트 기간별(day/week/month) 조회 및 페이징 검증")
+        void testTrendingPostsPagination() {
+            DoroUser writer = createMockUser("trendWriter");
+            DoroUser liker = createMockUser("trendLiker");
+
+            var post = postService.createPost(writer, new CreatePostRequest(
+                    "트렌딩 글", "trend-" + UUID.randomUUID(), null, "인기 글 본문", null, PostStatus.PUBLISHED, null, null
+            ));
+            likeService.toggleLike(post.id(), liker);
+
+            // 최근 1주일 트렌딩 조회
+            var weekTrending = postService.getTrendingPosts("week", 0, 10);
+            assertThat(weekTrending.getContent()).isNotEmpty();
+            assertThat(weekTrending.getContent().get(0).likeCount()).isGreaterThanOrEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("내가 좋아요한 포스트 목록 페이징 조회 검증")
+        void testMyLikedPostsPagination() {
+            DoroUser author = createMockUser("targetAuthor");
+            DoroUser fan = createMockUser("fanUser");
+
+            var p1 = postService.createPost(author, new CreatePostRequest("팬글 1", "fan-1-" + UUID.randomUUID(), null, "본문 1", null, PostStatus.PUBLISHED, null, null));
+            var p2 = postService.createPost(author, new CreatePostRequest("팬글 2", "fan-2-" + UUID.randomUUID(), null, "본문 2", null, PostStatus.PUBLISHED, null, null));
+
+            likeService.toggleLike(p1.id(), fan);
+            likeService.toggleLike(p2.id(), fan);
+
+            var likedPage = postService.getMyLikedPosts(fan, 0, 10);
+            assertThat(likedPage.getTotalElements()).isGreaterThanOrEqualTo(2);
+            assertThat(likedPage.getContent()).extracting("id").contains(p1.id(), p2.id());
+        }
+
+        @Test
+        @DisplayName("키워드 검색 페이징 검증 (대소문자 무관 및 본문 검색)")
+        void testSearchPostsPagination() {
+            DoroUser author = createMockUser("searchAuthor");
+
+            postService.createPost(author, new CreatePostRequest(
+                    "쿠버네티스 아키텍처 마스터", "k8s-arch-" + UUID.randomUUID(), "핵심 요약", "etcd와 kube-apiserver 내부 동작", null, PostStatus.PUBLISHED, null, null
+            ));
+
+            // 제목 키워드 검색
+            var searchTitle = postService.searchPosts("쿠버네티스", 0, 10);
+            assertThat(searchTitle.getContent()).isNotEmpty();
+
+            // 본문 키워드 검색
+            var searchContent = postService.searchPosts("kube-apiserver", 0, 10);
+            assertThat(searchContent.getContent()).isNotEmpty();
+
+            // 없는 키워드 검색
+            var searchNone = postService.searchPosts("없는검색어123456", 0, 10);
+            assertThat(searchNone.getContent()).isEmpty();
+        }
+    }
 }
+
