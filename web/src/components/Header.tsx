@@ -31,12 +31,29 @@ export const Header: React.FC = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
 
   // Form states
-  const [email, setEmail] = useState('yusm@doro.local');
-  const [password, setPassword] = useState('password1234!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMockOptions, setShowMockOptions] = useState(false);
+
+  const openLoginModal = () => {
+    setErrorMsg('');
+    setIsSignUpMode(false);
+    setEmail('');
+    setPassword('');
+    setName('');
+    setLoginModalOpen(true);
+  };
+
+  const closeLoginModal = () => {
+    setLoginModalOpen(false);
+    setErrorMsg('');
+    setEmail('');
+    setPassword('');
+    setName('');
+  };
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -205,11 +222,7 @@ export const Header: React.FC = () => {
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    setErrorMsg('');
-                    setIsSignUpMode(false);
-                    setLoginModalOpen(true);
-                  }}
+                  onClick={openLoginModal}
                   className="px-3.5 py-1.5 rounded-full text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   로그인
@@ -397,7 +410,7 @@ export const Header: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setLoginModalOpen(false)}
+              onClick={closeLoginModal}
               className="mt-4 w-full text-center text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
             >
               닫기
