@@ -433,36 +433,22 @@ export const ChannelPage: React.FC = () => {
         )}
       </div>
 
-      {/* Tab 1: Posts with Left Tag Sidebar */}
+      {/* Tab 1: Posts with Outer Left Tag Sidebar */}
       {currentTab === 'posts' && (
-        <div>
-          {/* Active Search/Filter Indicator */}
-          {(keyword || tagFilter) && (
-            <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-4 py-2 rounded-lg text-sm mb-6 border border-emerald-100 dark:border-emerald-800">
-              <span>
-                {keyword && <>검색어 <strong>"{keyword}"</strong> </>}
-                {tagFilter && <>태그 <strong>#{tagFilter}</strong> </>}
-                결과
-              </span>
-              <button onClick={handleClearFilter} className="text-xs text-emerald-700 dark:text-emerald-400 underline font-semibold">
-                필터 초기화
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Left Tag Sidebar (Velog Signature) */}
-            <aside className="w-full md:w-56 flex-shrink-0">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 sticky top-24">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100 pb-3 mb-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="relative">
+          {/* Outer Left Fixed Tag Sidebar (Desktop: >= 1280px / xl) */}
+          {userTags.length > 0 && (
+            <aside className="hidden xl:block absolute right-full mr-8 2xl:mr-12 top-0 h-full w-48 select-none">
+              <div className="sticky top-28 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100 pb-2.5 mb-2 border-b border-slate-100 dark:border-slate-800">
                   <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>태그 목록</span>
                 </div>
 
-                <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 text-xs">
+                <div className="flex flex-col gap-1 max-h-[calc(100vh-160px)] overflow-y-auto text-xs pr-1">
                   <button
                     onClick={() => handleTagClick('')}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-left font-medium transition-colors whitespace-nowrap md:whitespace-normal ${
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-left font-medium transition-colors ${
                       !tagFilter
                         ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -478,7 +464,7 @@ export const ChannelPage: React.FC = () => {
                       <button
                         key={t.name}
                         onClick={() => handleTagClick(t.name)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-left font-medium transition-colors whitespace-nowrap md:whitespace-normal ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-left font-medium transition-colors ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold'
                             : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -492,47 +478,90 @@ export const ChannelPage: React.FC = () => {
                 </div>
               </div>
             </aside>
+          )}
 
-            {/* Right: Posts Grid */}
-            <main className="flex-1 min-w-0 w-full">
-              {loading ? (
-                <div className="space-y-4 animate-pulse">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
+          {/* Active Search/Filter Indicator */}
+          {(keyword || tagFilter) && (
+            <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-4 py-2 rounded-lg text-sm mb-6 border border-emerald-100 dark:border-emerald-800">
+              <span>
+                {keyword && <>검색어 <strong>"{keyword}"</strong> </>}
+                {tagFilter && <>태그 <strong>#{tagFilter}</strong> </>}
+                결과
+              </span>
+              <button onClick={handleClearFilter} className="text-xs text-emerald-700 dark:text-emerald-400 underline font-semibold">
+                필터 초기화
+              </button>
+            </div>
+          )}
+
+          {/* Mobile / Tablet Horizontal Tag Chip Bar (< xl) */}
+          {userTags.length > 0 && (
+            <div className="xl:hidden mb-6 flex items-center gap-1.5 overflow-x-auto pb-2 text-xs">
+              <button
+                onClick={() => handleTagClick('')}
+                className={`px-3 py-1.5 rounded-full whitespace-nowrap font-medium transition-colors ${
+                  !tagFilter
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                전체보기 ({totalPostCount})
+              </button>
+              {userTags.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() => handleTagClick(t.name)}
+                  className={`px-3 py-1.5 rounded-full whitespace-nowrap font-medium transition-colors ${
+                    tagFilter === t.name
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  #{t.name} ({t.postCount})
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Main Posts Grid (Full Width) */}
+          <main className="w-full">
+            {loading ? (
+              <div className="space-y-4 animate-pulse">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
+                ))}
+              </div>
+            ) : posts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {posts.map((post) => (
+                    <PostCard key={post.id} post={post} channelUsername={cleanUsername} />
                   ))}
                 </div>
-              ) : posts.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {posts.map((post) => (
-                      <PostCard key={post.id} post={post} />
-                    ))}
-                  </div>
 
-                  {/* Infinite Scroll Sentinel */}
-                  <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
-                    {loadingMore && (
-                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
-                        <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
-                        <span>글을 더 불러오는 중...</span>
-                      </div>
-                    )}
-                    {!hasMore && posts.length > 0 && (
-                      <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
-                        <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                          모든 글을 불러왔습니다
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-slate-400 dark:text-slate-500">작성된 글이 없습니다.</p>
+                {/* Infinite Scroll Sentinel */}
+                <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                      <span>글을 더 불러오는 중...</span>
+                    </div>
+                  )}
+                  {!hasMore && posts.length > 0 && (
+                    <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
+                      <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                        모든 글을 불러왔습니다
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </main>
-          </div>
+              </>
+            ) : (
+              <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <p className="text-slate-400 dark:text-slate-500">작성된 글이 없습니다.</p>
+              </div>
+            )}
+          </main>
         </div>
       )}
 

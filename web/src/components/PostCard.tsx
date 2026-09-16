@@ -5,6 +5,7 @@ import { Heart, MessageSquare, BookOpen, Eye } from 'lucide-react';
 
 interface PostCardProps {
   post: PostSummary;
+  channelUsername?: string;
 }
 
 const formatDate = (dateStr?: string) => {
@@ -27,9 +28,13 @@ const formatDate = (dateStr?: string) => {
   });
 };
 
-export const PostCard: React.FC<PostCardProps> = ({ post }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => {
   const publishedDate = formatDate(post.publishedAt || post.createdAt);
   const authorName = post.nickname || post.username || '익명';
+
+  const getTagLink = (tag: string) => {
+    return channelUsername ? `/@${channelUsername}?tag=${encodeURIComponent(tag)}` : `/?tag=${encodeURIComponent(tag)}`;
+  };
 
   return (
     <article className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-xs hover:shadow-xl hover:border-emerald-200 dark:hover:border-slate-700 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-1">
@@ -58,25 +63,23 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
         {/* Series Badge */}
         {post.seriesTitle && (
-          <div className="absolute top-2.5 left-2.5 bg-slate-900/85 dark:bg-slate-950/85 backdrop-blur-md text-emerald-400 px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 shadow-xs border border-white/10 max-w-[85%]">
-            <BookOpen className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{post.seriesTitle}</span>
+          <div className="absolute top-2.5 left-2.5 bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+            <BookOpen className="w-3 h-3" />
+            <span className="truncate max-w-[140px]">{post.seriesTitle}</span>
           </div>
         )}
       </Link>
 
-      {/* 2. Card Body */}
+      {/* 2. Body */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
-          {/* Title */}
-          <Link to={`/@${post.username}/${post.slug}`} className="block">
-            <h2 className="font-bold text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+          <Link to={`/@${post.username}/${post.slug}`} className="block group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug tracking-tight">
               {post.title}
             </h2>
           </Link>
 
-          {/* Summary */}
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-normal">
             {post.summary || '게시글 내용 미리보기가 제공되지 않습니다.'}
           </p>
         </div>
@@ -88,7 +91,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
               {post.tags.slice(0, 4).map((tag) => (
                 <Link
                   key={tag}
-                  to={`/?tag=${encodeURIComponent(tag)}`}
+                  to={getTagLink(tag)}
                   onClick={(e) => e.stopPropagation()}
                   className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] rounded-md font-medium hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 >

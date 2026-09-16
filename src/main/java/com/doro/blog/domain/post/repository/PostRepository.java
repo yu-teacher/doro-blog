@@ -37,14 +37,14 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND pt.tag.name = :tag ORDER BY p.publishedAt DESC")
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) ORDER BY p.publishedAt DESC")
     Page<Post> findUserPostsByTag(
             @Param("userId") UUID userId,
             @Param("tag") String tag,
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND pt.tag.name = :tag " +
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) " +
            "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "ORDER BY p.publishedAt DESC")
     Page<Post> searchUserPostsByKeywordAndTag(
