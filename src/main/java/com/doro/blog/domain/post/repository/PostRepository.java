@@ -76,6 +76,22 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             @Param("userId") UUID userId,
             Pageable pageable
     );
+
+    long countByUserIdAndStatus(UUID userId, PostStatus status);
+
+    @Query("SELECT pt.tag.name AS name, COUNT(p.id) AS postCount " +
+           "FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
+           "WHERE p.user.id = :userId AND p.status = 'PUBLISHED' " +
+           "GROUP BY pt.tag.name " +
+           "ORDER BY COUNT(p.id) DESC, pt.tag.name ASC")
+    List<Object[]> countTagsByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT FUNCTION('TO_CHAR', p.publishedAt, 'YYYY-MM-DD') AS postDate, COUNT(p.id) AS postCount " +
+           "FROM Post p " +
+           "WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND p.publishedAt >= :since " +
+           "GROUP BY FUNCTION('TO_CHAR', p.publishedAt, 'YYYY-MM-DD') " +
+           "ORDER BY postDate ASC")
+    List<Object[]> countDailyPostsByUserIdSince(@Param("userId") UUID userId, @Param("since") java.time.Instant since);
 }
 
 

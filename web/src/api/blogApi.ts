@@ -10,6 +10,10 @@ import {
   TagItem,
   UserProfile,
   PostStatus,
+  FollowUser,
+  UserTagSummary,
+  UserActivity,
+  UpdateProfilePayload,
 } from './types';
 
 export const blogApi = {
@@ -235,16 +239,48 @@ export const blogApi = {
     return res.data.data;
   },
 
-  async updateMyProfile(data: {
-    nickname?: string;
-    bio?: string;
-    profileImageUrl?: string;
-    blogTitle?: string;
-    githubUrl?: string;
-    twitterUrl?: string;
-    websiteUrl?: string;
-  }): Promise<UserProfile> {
+  async updateMyProfile(data: UpdateProfilePayload): Promise<UserProfile> {
     const res = await apiClient.put<ApiResponse<UserProfile>>('/users/me', data);
+    return res.data.data;
+  },
+
+  async followUser(username: string): Promise<UserProfile> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.post<ApiResponse<UserProfile>>(`/users/${cleanUsername}/follow`);
+    return res.data.data;
+  },
+
+  async unfollowUser(username: string): Promise<UserProfile> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.delete<ApiResponse<UserProfile>>(`/users/${cleanUsername}/follow`);
+    return res.data.data;
+  },
+
+  async getFollowers(username: string, page = 0, size = 20): Promise<PageResponse<FollowUser>> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.get<ApiResponse<PageResponse<FollowUser>>>(`/users/${cleanUsername}/followers`, {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
+  async getFollowing(username: string, page = 0, size = 20): Promise<PageResponse<FollowUser>> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.get<ApiResponse<PageResponse<FollowUser>>>(`/users/${cleanUsername}/following`, {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
+  async getUserTags(username: string): Promise<UserTagSummary[]> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.get<ApiResponse<UserTagSummary[]>>(`/users/${cleanUsername}/tags`);
+    return res.data.data;
+  },
+
+  async getUserActivity(username: string): Promise<UserActivity[]> {
+    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+    const res = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${cleanUsername}/activity`);
     return res.data.data;
   },
 };

@@ -101,9 +101,44 @@ public class PostDtos {
         }
     }
 
+    public record AuthorBioResponse(
+            UUID id,
+            String username,
+            String nickname,
+            String profileImageUrl,
+            String bio,
+            String blogTitle,
+            String githubUrl,
+            String twitterUrl,
+            String websiteUrl,
+            String publicEmail,
+            String linkedinUrl,
+            int followerCount,
+            boolean isFollowing
+    ) {
+        public static AuthorBioResponse from(com.doro.blog.domain.user.entity.BlogUser user, boolean isFollowing) {
+            return new AuthorBioResponse(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getNickname(),
+                    user.getProfileImageUrl(),
+                    user.getBio(),
+                    user.getBlogTitle(),
+                    user.getGithubUrl(),
+                    user.getTwitterUrl(),
+                    user.getWebsiteUrl(),
+                    user.getPublicEmail(),
+                    user.getLinkedinUrl(),
+                    user.getFollowerCount(),
+                    isFollowing
+            );
+        }
+    }
+
     public record PostDetailResponse(
             PostSummaryResponse post,
             String content,
-            boolean likedByMe
+            boolean likedByMe,
+            AuthorBioResponse author
     ) {}
 }

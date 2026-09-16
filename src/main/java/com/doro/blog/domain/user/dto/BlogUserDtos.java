@@ -20,9 +20,19 @@ public class BlogUserDtos {
             String githubUrl,
             String twitterUrl,
             String websiteUrl,
+            String publicEmail,
+            String linkedinUrl,
+            String aboutMarkdown,
+            int followerCount,
+            int followingCount,
+            Boolean isFollowing,
             Instant createdAt
     ) {
         public static UserProfileResponse from(BlogUser user) {
+            return from(user, null);
+        }
+
+        public static UserProfileResponse from(BlogUser user, Boolean isFollowing) {
             return new UserProfileResponse(
                     user.getId(),
                     user.getUsername(),
@@ -34,6 +44,12 @@ public class BlogUserDtos {
                     user.getGithubUrl(),
                     user.getTwitterUrl(),
                     user.getWebsiteUrl(),
+                    user.getPublicEmail(),
+                    user.getLinkedinUrl(),
+                    user.getAboutMarkdown(),
+                    user.getFollowerCount(),
+                    user.getFollowingCount(),
+                    isFollowing,
                     user.getCreatedAt()
             );
         }
@@ -53,12 +69,35 @@ public class BlogUserDtos {
 
             String githubUrl,
             String twitterUrl,
-            String websiteUrl
+            String websiteUrl,
+            String publicEmail,
+            String linkedinUrl,
+            String aboutMarkdown
     ) {}
 
     public record UpdateUsernameRequest(
             @NotBlank(message = "username은 필수입니다.")
             @Size(min = 3, max = 50, message = "username은 3~50자 사이여야 합니다.")
             String username
+    ) {}
+
+    public record UserTagSummaryDto(
+            String name,
+            long postCount
+    ) {}
+
+    public record UserActivityDto(
+            String date,
+            long count
+    ) {}
+
+    public record FollowUserDto(
+            UUID id,
+            String username,
+            String nickname,
+            String profileImageUrl,
+            String bio,
+            boolean isFollowing,
+            Instant followedAt
     ) {}
 }

@@ -30,7 +30,46 @@ export interface UserProfile {
   githubUrl?: string;
   twitterUrl?: string;
   websiteUrl?: string;
+  publicEmail?: string;
+  linkedinUrl?: string;
+  aboutMarkdown?: string;
+  followerCount: number;
+  followingCount: number;
+  isFollowing?: boolean | null;
   createdAt: string;
+}
+
+export interface UpdateProfilePayload {
+  nickname?: string;
+  bio?: string;
+  profileImageUrl?: string;
+  blogTitle?: string;
+  githubUrl?: string;
+  twitterUrl?: string;
+  websiteUrl?: string;
+  publicEmail?: string;
+  linkedinUrl?: string;
+  aboutMarkdown?: string;
+}
+
+export interface FollowUser {
+  id: string;
+  username: string;
+  nickname: string;
+  profileImageUrl?: string;
+  bio?: string;
+  isFollowing: boolean;
+  followedAt: string;
+}
+
+export interface UserTagSummary {
+  name: string;
+  postCount: number;
+}
+
+export interface UserActivity {
+  date: string;
+  count: number;
 }
 
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'PRIVATE';
@@ -57,10 +96,27 @@ export interface PostSummary {
   tags: string[];
 }
 
+export interface AuthorBio {
+  id: string;
+  username: string;
+  nickname: string;
+  profileImageUrl?: string;
+  bio?: string;
+  blogTitle?: string;
+  githubUrl?: string;
+  twitterUrl?: string;
+  websiteUrl?: string;
+  publicEmail?: string;
+  linkedinUrl?: string;
+  followerCount: number;
+  isFollowing: boolean;
+}
+
 export interface PostDetail {
   post: PostSummary;
   content: string;
   likedByMe: boolean;
+  author?: AuthorBio;
 }
 
 export interface Series {

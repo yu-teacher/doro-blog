@@ -95,6 +95,8 @@ export const useAuthStore = create<AuthState>((set) => {
         email: email,
         nickname: username,
         blogTitle: `${username}.log`,
+        followerCount: 0,
+        followingCount: 0,
         createdAt: new Date().toISOString(),
       };
       localStorage.setItem(STORAGE_KEY_TOKEN, devToken);

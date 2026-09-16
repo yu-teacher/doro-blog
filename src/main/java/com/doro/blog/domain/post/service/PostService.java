@@ -36,6 +36,7 @@ public class PostService {
     private final BlogUserRepository userRepository;
     private final SeriesRepository seriesRepository;
     private final PostLikeRepository likeRepository;
+    private final com.doro.blog.domain.user.repository.UserFollowRepository followRepository;
     private final BlogUserService userService;
     private final TagService tagService;
     private final DoroGuardClient guardClient;
@@ -174,12 +175,14 @@ public class PostService {
         }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
+        boolean isFollowing = doroUser.isAuthenticated() && followRepository.existsByFollowerIdAndFollowingId(doroUser.userId(), user.getId());
         List<String> tags = tagService.getPostTagNames(post.getId());
 
         return new PostDetailResponse(
                 PostSummaryResponse.from(post, tags),
                 post.getContent(),
-                likedByMe
+                likedByMe,
+                AuthorBioResponse.from(user, isFollowing)
         );
     }
 
@@ -201,12 +204,14 @@ public class PostService {
         }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
+        boolean isFollowing = doroUser.isAuthenticated() && followRepository.existsByFollowerIdAndFollowingId(doroUser.userId(), post.getUser().getId());
         List<String> tags = tagService.getPostTagNames(post.getId());
 
         return new PostDetailResponse(
                 PostSummaryResponse.from(post, tags),
                 post.getContent(),
-                likedByMe
+                likedByMe,
+                AuthorBioResponse.from(post.getUser(), isFollowing)
         );
     }
 
