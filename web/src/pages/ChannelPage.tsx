@@ -124,8 +124,8 @@ export const ChannelPage: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Author Profile Header */}
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-10 border-b border-slate-200">
-        <div className="w-28 h-28 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-3xl overflow-hidden shadow-sm flex-shrink-0">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-10 border-b border-slate-200 dark:border-slate-800">
+        <div className="w-28 h-28 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center text-3xl overflow-hidden shadow-sm flex-shrink-0 border border-emerald-200 dark:border-emerald-800">
           {profile?.profileImageUrl ? (
             <img src={profile.profileImageUrl} alt={profile.nickname} className="w-full h-full object-cover" />
           ) : (
@@ -136,25 +136,25 @@ export const ChannelPage: React.FC = () => {
         <div className="flex-1 text-center sm:text-left">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
                 {profile?.nickname || cleanUsername}
               </h1>
-              <p className="text-sm font-mono text-slate-400 mt-0.5">@{cleanUsername}</p>
+              <p className="text-sm font-mono text-slate-400 dark:text-slate-500 mt-0.5">@{cleanUsername}</p>
             </div>
           </div>
 
-          <p className="text-slate-600 text-sm sm:text-base mt-3 max-w-2xl leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base mt-3 max-w-2xl leading-relaxed">
             {profile?.bio || '아직 소개글이 작성되지 않았습니다.'}
           </p>
 
           {/* Social Links */}
-          <div className="flex items-center justify-center sm:justify-start gap-4 mt-4 text-slate-400">
+          <div className="flex items-center justify-center sm:justify-start gap-4 mt-4 text-slate-400 dark:text-slate-500">
             {profile?.githubUrl && (
               <a
                 href={profile.githubUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-slate-900 transition-colors"
+                className="hover:text-slate-900 dark:hover:text-white transition-colors"
                 title="GitHub"
               >
                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -176,12 +176,11 @@ export const ChannelPage: React.FC = () => {
               </a>
             )}
             {profile?.websiteUrl && (
-
               <a
                 href={profile.websiteUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-emerald-600 transition-colors"
+                className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 title="Website"
               >
                 <Globe className="w-5 h-5" />
@@ -192,14 +191,14 @@ export const ChannelPage: React.FC = () => {
       </div>
 
       {/* Tabs: 글 vs 시리즈 */}
-      <div className="flex items-center justify-between mt-8 mb-6 border-b border-slate-200">
+      <div className="flex items-center justify-between mt-8 mb-6 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-8">
           <button
             onClick={() => handleTabChange('posts')}
             className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
               currentTab === 'posts'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-400 hover:text-slate-700'
+                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
             <FileText className="w-5 h-5" />
@@ -210,8 +209,8 @@ export const ChannelPage: React.FC = () => {
             onClick={() => handleTabChange('series')}
             className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
               currentTab === 'series'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-400 hover:text-slate-700'
+                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
             <BookOpen className="w-5 h-5" />
@@ -227,22 +226,22 @@ export const ChannelPage: React.FC = () => {
               placeholder="블로그 내 검색..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 rounded-full text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white border border-transparent focus:border-emerald-500 transition-all"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 dark:bg-slate-800 rounded-full text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 border border-transparent focus:border-emerald-500 transition-all"
             />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-2.5 top-2.5" />
           </form>
         )}
       </div>
 
       {/* Active Search / Filter Indicator */}
       {currentTab === 'posts' && (keyword || tagFilter) && (
-        <div className="flex items-center justify-between bg-emerald-50 text-emerald-800 px-4 py-2 rounded-lg text-sm mb-6 border border-emerald-100">
+        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-4 py-2 rounded-lg text-sm mb-6 border border-emerald-100 dark:border-emerald-800">
           <span>
             {keyword && <>검색어 <strong>"{keyword}"</strong> </>}
             {tagFilter && <>태그 <strong>#{tagFilter}</strong> </>}
             결과
           </span>
-          <button onClick={handleClearFilter} className="text-xs text-emerald-700 underline font-semibold">
+          <button onClick={handleClearFilter} className="text-xs text-emerald-700 dark:text-emerald-400 underline font-semibold">
             필터 초기화
           </button>
         </div>
@@ -254,7 +253,7 @@ export const ChannelPage: React.FC = () => {
           {loading ? (
             <div className="space-y-4 animate-pulse">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-40 bg-white rounded-xl border border-slate-100 p-6" />
+                <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
               ))}
             </div>
           ) : postsPage && postsPage.content.length > 0 ? (
@@ -271,7 +270,7 @@ export const ChannelPage: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(page - 1)}
                     disabled={postsPage.first}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -284,7 +283,7 @@ export const ChannelPage: React.FC = () => {
                         className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
                           page === idx
                             ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                         }`}
                       >
                         {idx + 1}
@@ -295,7 +294,7 @@ export const ChannelPage: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={postsPage.last}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -303,8 +302,8 @@ export const ChannelPage: React.FC = () => {
               )}
             </>
           ) : (
-            <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-              <p className="text-slate-400">작성된 글이 없습니다.</p>
+            <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <p className="text-slate-400 dark:text-slate-500">작성된 글이 없습니다.</p>
             </div>
           )}
         </div>
@@ -316,7 +315,7 @@ export const ChannelPage: React.FC = () => {
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-pulse">
               {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-44 bg-white rounded-xl border border-slate-100 p-6" />
+                <div key={i} className="h-44 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
               ))}
             </div>
           ) : seriesList.length > 0 ? (
@@ -325,30 +324,31 @@ export const ChannelPage: React.FC = () => {
                 <Link
                   key={series.id}
                   to={`/@${cleanUsername}/series/${series.slug}`}
-                  className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-md transition-all group flex flex-col justify-between"
+                  className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-md dark:hover:border-slate-700 transition-all group flex flex-col justify-between"
                 >
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors mb-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors mb-2">
                       {series.title}
                     </h3>
-                    <p className="text-sm text-slate-500 line-clamp-2">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
                       {series.description || '시리즈 설명이 없습니다.'}
                     </p>
                   </div>
-                  <div className="mt-6 flex items-center justify-between text-xs text-slate-400 border-t border-slate-100 pt-3">
-                    <span className="font-semibold text-emerald-600">{series.postCount}개의 포스트</span>
+                  <div className="mt-6 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{series.postCount}개의 포스트</span>
                     <span>최근 업데이트: {new Date(series.updatedAt).toLocaleDateString('ko-KR')}</span>
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-              <p className="text-slate-400">등록된 시리즈가 없습니다.</p>
+            <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <p className="text-slate-400 dark:text-slate-500">등록된 시리즈가 없습니다.</p>
             </div>
           )}
         </div>
       )}
+
     </div>
   );
 };

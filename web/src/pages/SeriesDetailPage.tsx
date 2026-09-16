@@ -64,24 +64,24 @@ export const SeriesDetailPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Series Header */}
-      <div className="border-b border-slate-200 pb-8 mb-8">
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-8 mb-8">
         <Link
           to={`/@${cleanUsername}?tab=series`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 mb-4"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline mb-4"
         >
           <ArrowLeft className="w-4 h-4" /> @{cleanUsername}의 시리즈 목록
         </Link>
 
-        <div className="flex items-center gap-3 text-emerald-600 font-bold mb-2">
+        <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400 font-bold mb-2">
           <BookOpen className="w-6 h-6" />
           <span className="text-sm uppercase tracking-wider">SERIES</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">{series.title}</h1>
-        {series.description && <p className="text-slate-600 leading-relaxed mb-4">{series.description}</p>}
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mb-4">{series.title}</h1>
+        {series.description && <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">{series.description}</p>}
 
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span className="font-semibold text-slate-700">총 {series.postCount}화</span>
+        <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
+          <span className="font-semibold text-slate-700 dark:text-slate-300">총 {series.postCount}화</span>
           <span>·</span>
           <span>마지막 업데이트 {new Date(series.updatedAt).toLocaleDateString('ko-KR')}</span>
         </div>
@@ -90,24 +90,24 @@ export const SeriesDetailPage: React.FC = () => {
       {/* Series Posts List */}
       <div className="space-y-4">
         {posts.length === 0 ? (
-          <p className="text-center text-slate-400 py-12">시리즈에 아직 등록된 포스트가 없습니다.</p>
+          <p className="text-center text-slate-400 dark:text-slate-500 py-12">시리즈에 아직 등록된 포스트가 없습니다.</p>
         ) : (
           posts.map((post, idx) => (
             <Link
               key={post.id}
               to={`/@${cleanUsername}/${post.slug}`}
-              className="flex items-start gap-5 p-5 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-sm transition-all group"
+              className="flex items-start gap-5 p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-sm transition-all group"
             >
-              <div className="w-10 text-xl font-bold text-slate-300 group-hover:text-emerald-600 flex-shrink-0 pt-1">
+              <div className="w-10 text-xl font-bold text-slate-300 dark:text-slate-700 group-hover:text-emerald-500 flex-shrink-0 pt-1">
                 {String(idx + 1).padStart(2, '0')}
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors mb-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500 transition-colors mb-1">
                   {post.title}
                 </h3>
-                {post.summary && <p className="text-sm text-slate-500 line-clamp-2 mb-2">{post.summary}</p>}
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+                {post.summary && <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-2">{post.summary}</p>}
+                <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>
                     {post.publishedAt
@@ -118,7 +118,7 @@ export const SeriesDetailPage: React.FC = () => {
               </div>
 
               {post.thumbnailUrl && (
-                <div className="w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 hidden sm:block">
+                <div className="w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-slate-800 hidden sm:block">
                   <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover" />
                 </div>
               )}
@@ -127,5 +127,6 @@ export const SeriesDetailPage: React.FC = () => {
         )}
       </div>
     </div>
+
   );
 };

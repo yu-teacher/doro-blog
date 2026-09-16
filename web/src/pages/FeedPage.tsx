@@ -94,15 +94,15 @@ export const FeedPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Top Header: Navigation Tabs & Timeframe Selection */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-6 gap-4">
         {/* Left: Tab Selectors (Trending / Latest) */}
         <div className="flex items-center gap-6">
           <button
             onClick={() => handleTabChange('trending')}
             className={`flex items-center gap-2 pb-2 text-lg font-bold transition-all relative ${
               !selectedTag && tab === 'trending'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-400 hover:text-slate-700'
+                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
             <TrendingUp className="w-5 h-5" />
@@ -113,8 +113,8 @@ export const FeedPage: React.FC = () => {
             onClick={() => handleTabChange('latest')}
             className={`flex items-center gap-2 pb-2 text-lg font-bold transition-all relative ${
               !selectedTag && tab === 'latest'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-400 hover:text-slate-700'
+                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
             <Clock className="w-5 h-5" />
@@ -122,12 +122,12 @@ export const FeedPage: React.FC = () => {
           </button>
 
           {selectedTag && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-semibold border border-emerald-200">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-semibold border border-emerald-200 dark:border-emerald-800">
               <Hash className="w-3.5 h-3.5" />
               <span>{selectedTag}</span>
               <button
                 onClick={() => handleTagClick(selectedTag)}
-                className="ml-1 text-emerald-500 hover:text-emerald-800"
+                className="ml-1 text-emerald-500 hover:text-emerald-800 dark:hover:text-emerald-200"
               >
                 ✕
               </button>
@@ -137,7 +137,7 @@ export const FeedPage: React.FC = () => {
 
         {/* Right: Timeframe Pills for Trending */}
         {!selectedTag && tab === 'trending' && (
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
             {[
               { id: 'day', label: '오늘' },
               { id: 'week', label: '이번 주' },
@@ -149,8 +149,8 @@ export const FeedPage: React.FC = () => {
                 onClick={() => handleTimeframeChange(tf.id)}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                   timeframe === tf.id
-                    ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {tf.label}
@@ -163,7 +163,7 @@ export const FeedPage: React.FC = () => {
       {/* Popular Tags Horizontal Bar */}
       {tags.length > 0 && (
         <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 flex-shrink-0">
+          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 flex-shrink-0">
             <TagIcon className="w-3.5 h-3.5" /> 태그:
           </span>
           {tags.map((t) => (
@@ -172,8 +172,8 @@ export const FeedPage: React.FC = () => {
               onClick={() => handleTagClick(t.name)}
               className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-colors ${
                 selectedTag === t.name
-                  ? 'bg-emerald-600 text-white font-semibold'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               #{t.name} <span className="opacity-70 ml-0.5">({t.postCount})</span>
@@ -186,10 +186,10 @@ export const FeedPage: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-xs border border-slate-100 p-4 animate-pulse h-80">
-              <div className="bg-slate-200 h-44 rounded-lg mb-4" />
-              <div className="h-4 bg-slate-200 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-slate-200 rounded w-1/2" />
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-100 dark:border-slate-800 p-4 animate-pulse h-80">
+              <div className="bg-slate-200 dark:bg-slate-800 h-44 rounded-lg mb-4" />
+              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
             </div>
           ))}
         </div>
@@ -207,7 +207,7 @@ export const FeedPage: React.FC = () => {
               <button
                 onClick={() => handlePageChange(page - 1)}
                 disabled={postsPage.first}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -220,7 +220,7 @@ export const FeedPage: React.FC = () => {
                     className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
                       page === idx
                         ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                     }`}
                   >
                     {idx + 1}
@@ -231,7 +231,7 @@ export const FeedPage: React.FC = () => {
               <button
                 onClick={() => handlePageChange(page + 1)}
                 disabled={postsPage.last}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -239,11 +239,12 @@ export const FeedPage: React.FC = () => {
           )}
         </>
       ) : (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 shadow-xs">
-          <p className="text-slate-400 text-lg">작성된 게시글이 없습니다.</p>
-          <p className="text-slate-300 text-sm mt-1">상단의 '새 글 작성' 버튼을 눌러 첫 글을 남겨보세요!</p>
+        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs">
+          <p className="text-slate-400 dark:text-slate-500 text-lg">작성된 게시글이 없습니다.</p>
+          <p className="text-slate-300 dark:text-slate-600 text-sm mt-1">상단의 '새 글 작성' 버튼을 눌러 첫 글을 남겨보세요!</p>
         </div>
       )}
+
     </div>
   );
 };

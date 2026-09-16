@@ -151,25 +151,25 @@ export const PostDetailPage: React.FC = () => {
   return (
     <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Floating Side Action Bar (Desktop sticky) */}
-      <div className="hidden lg:flex flex-col items-center gap-4 fixed left-[max(1rem,calc(50%-480px))] top-48 bg-white border border-slate-200 p-2.5 rounded-full shadow-md z-10">
+      <div className="hidden lg:flex flex-col items-center gap-4 fixed left-[max(1rem,calc(50%-480px))] top-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-full shadow-md z-10">
         <button
           onClick={handleToggleLike}
           className={`flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all ${
             isLiked
-              ? 'bg-rose-50 text-rose-600 shadow-inner'
-              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+              ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shadow-inner'
+              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
           }`}
           title={isLiked ? '좋아요 취소' : '좋아요'}
         >
-          <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600' : ''}`} />
+          <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
           <span className="text-[11px] font-bold mt-0.5">{likeCount}</span>
         </button>
 
-        <div className="w-6 h-px bg-slate-200" />
+        <div className="w-6 h-px bg-slate-200 dark:bg-slate-800" />
 
         <button
           onClick={handleShare}
-          className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors relative"
+          className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative"
           title="링크 복사"
         >
           <Share2 className="w-5 h-5" />
@@ -183,13 +183,13 @@ export const PostDetailPage: React.FC = () => {
 
       {/* Article Header */}
       <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight tracking-tight mb-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 leading-tight tracking-tight mb-4">
           {post.title}
         </h1>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500 pb-6 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500 dark:text-slate-400 pb-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <Link to={`/@${post.username}`} className="font-bold text-slate-800 hover:underline">
+            <Link to={`/@${post.username}`} className="font-bold text-slate-800 dark:text-slate-200 hover:underline">
               {post.nickname}
             </Link>
             <span>·</span>
@@ -214,13 +214,13 @@ export const PostDetailPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Link
                 to={`/edit/${post.id}`}
-                className="flex items-center gap-1 text-slate-500 hover:text-emerald-600 px-2 py-1 rounded transition-colors text-xs font-medium"
+                className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium"
               >
                 <Edit3 className="w-3.5 h-3.5" /> 수정
               </Link>
               <button
                 onClick={handleDeletePost}
-                className="flex items-center gap-1 text-slate-500 hover:text-rose-600 px-2 py-1 rounded transition-colors text-xs font-medium"
+                className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1 rounded transition-colors text-xs font-medium"
               >
                 <Trash2 className="w-3.5 h-3.5" /> 삭제
               </button>
@@ -235,7 +235,7 @@ export const PostDetailPage: React.FC = () => {
               <Link
                 key={tag}
                 to={`/?tag=${encodeURIComponent(tag)}`}
-                className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-full transition-colors"
+                className="text-xs font-semibold px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-full transition-colors"
               >
                 #{tag}
               </Link>
@@ -246,25 +246,25 @@ export const PostDetailPage: React.FC = () => {
 
       {/* Series Info Box (Velog style) */}
       {seriesDetail && (
-        <div className="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
-          <div className="flex items-center gap-2 text-emerald-700 font-bold mb-3 text-base">
+        <div className="mb-8 p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold mb-3 text-base">
             <BookOpen className="w-5 h-5" />
             <Link to={`/@${post.username}/series/${seriesDetail.series.slug}`} className="hover:underline">
               {seriesDetail.series.title}
             </Link>
           </div>
-          <ol className="space-y-1.5 text-sm text-slate-600">
+          <ol className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
             {seriesDetail.posts.map((p, idx) => {
               const isCurrent = p.id === post.id;
               return (
                 <li key={p.id} className="flex items-center gap-2">
-                  <span className={`text-xs font-semibold ${isCurrent ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-semibold ${isCurrent ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-slate-500'}`}>
                     {idx + 1}.
                   </span>
                   {isCurrent ? (
-                    <span className="text-emerald-700 font-bold">{p.title} (현재 글)</span>
+                    <span className="text-emerald-700 dark:text-emerald-300 font-bold">{p.title} (현재 글)</span>
                   ) : (
-                    <Link to={`/@${post.username}/${p.slug}`} className="hover:text-slate-900 hover:underline truncate">
+                    <Link to={`/@${post.username}/${p.slug}`} className="hover:text-slate-900 dark:hover:text-slate-200 hover:underline truncate">
                       {p.title}
                     </Link>
                   )}
@@ -288,13 +288,13 @@ export const PostDetailPage: React.FC = () => {
       </article>
 
       {/* Mobile / Bottom Like & Share */}
-      <div className="flex lg:hidden items-center justify-center gap-4 py-6 border-y border-slate-200 my-8">
+      <div className="flex lg:hidden items-center justify-center gap-4 py-6 border-y border-slate-200 dark:border-slate-800 my-8">
         <button
           onClick={handleToggleLike}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
             isLiked
               ? 'bg-rose-500 text-white shadow-md'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
           }`}
         >
           <Heart className={`w-4 h-4 ${isLiked ? 'fill-white' : ''}`} />
@@ -303,7 +303,7 @@ export const PostDetailPage: React.FC = () => {
 
         <button
           onClick={handleShare}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-sm transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-sm transition-all"
         >
           <Share2 className="w-4 h-4" />
           <span>{copied ? '복사됨!' : '공유하기'}</span>
@@ -311,9 +311,9 @@ export const PostDetailPage: React.FC = () => {
       </div>
 
       {/* Author Bio Card */}
-      <div className="flex items-center gap-5 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs mt-12">
+      <div className="flex items-center gap-5 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs mt-12">
         <Link to={`/@${post.username}`} className="flex-shrink-0">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-xl overflow-hidden">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center text-xl overflow-hidden">
             {post.profileImageUrl ? (
               <img src={post.profileImageUrl} alt={post.nickname} className="w-full h-full object-cover" />
             ) : (
@@ -322,15 +322,16 @@ export const PostDetailPage: React.FC = () => {
           </div>
         </Link>
         <div className="flex-1 min-w-0">
-          <Link to={`/@${post.username}`} className="font-bold text-slate-900 text-lg hover:underline block">
+          <Link to={`/@${post.username}`} className="font-bold text-slate-900 dark:text-slate-100 text-lg hover:underline block">
             {post.nickname}
           </Link>
-          <p className="text-xs text-slate-400 mt-0.5">@{post.username}</p>
-          <p className="text-sm text-slate-600 mt-2 line-clamp-2">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@{post.username}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">
             지식을 기록하고 나누는 것을 즐기는 DORO 블로거입니다.
           </p>
         </div>
       </div>
+
 
       {/* Comments */}
       <CommentSection

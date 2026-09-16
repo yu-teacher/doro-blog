@@ -85,10 +85,10 @@ export const MyPostsPage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-8">내 포스트 관리</h1>
+      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-8">내 포스트 관리</h1>
 
       {/* Management Navigation Tabs */}
-      <div className="flex items-center gap-6 border-b border-slate-200 mb-8 overflow-x-auto">
+      <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
         {[
           { id: 'published', label: '출간한 글', icon: FileText },
           { id: 'draft', label: '임시 글', icon: FileEdit },
@@ -103,8 +103,8 @@ export const MyPostsPage: React.FC = () => {
               onClick={() => handleTabChange(item.id)}
               className={`flex items-center gap-2 pb-3 text-sm sm:text-base font-bold transition-all relative flex-shrink-0 ${
                 isActive
-                  ? 'text-emerald-600 border-b-2 border-emerald-600'
-                  : 'text-slate-400 hover:text-slate-700'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -118,7 +118,7 @@ export const MyPostsPage: React.FC = () => {
       {loading ? (
         <div className="space-y-4 animate-pulse">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-28 bg-white rounded-xl border border-slate-100 p-6" />
+            <div key={i} className="h-28 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
           ))}
         </div>
       ) : tab === 'likes' ? (
@@ -136,7 +136,7 @@ export const MyPostsPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={postsPage.first}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -147,8 +147,8 @@ export const MyPostsPage: React.FC = () => {
                       onClick={() => handlePageChange(idx)}
                       className={`w-9 h-9 rounded-lg text-sm font-semibold ${
                         page === idx
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       {idx + 1}
@@ -158,7 +158,7 @@ export const MyPostsPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={postsPage.last}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -166,8 +166,8 @@ export const MyPostsPage: React.FC = () => {
             )}
           </>
         ) : (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-            <p className="text-slate-400">좋아요를 누른 포스트가 없습니다.</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <p className="text-slate-400 dark:text-slate-500">좋아요를 누른 포스트가 없습니다.</p>
           </div>
         )
       ) : (
@@ -178,24 +178,24 @@ export const MyPostsPage: React.FC = () => {
               {postsPage.content.map((post) => (
                 <div
                   key={post.id}
-                  className="p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {post.status === 'DRAFT' && (
-                        <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded">
+                        <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded">
                           임시저장
                         </span>
                       )}
                       {post.status === 'PRIVATE' && (
-                        <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-200 text-slate-700 rounded">
+                        <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded">
                           비공개
                         </span>
                       )}
-                      <h3 className="text-lg font-bold text-slate-900 truncate">{post.title}</h3>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 truncate">{post.title}</h3>
                     </div>
 
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                       작성일: {new Date(post.createdAt).toLocaleDateString('ko-KR')}
                       {post.publishedAt && ` · 출간일: ${new Date(post.publishedAt).toLocaleDateString('ko-KR')}`}
                       {` · 조회 ${post.viewCount} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`}
@@ -207,7 +207,7 @@ export const MyPostsPage: React.FC = () => {
                     {post.status !== 'DRAFT' && (
                       <Link
                         to={`/@${post.username}/${post.slug}`}
-                        className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors"
+                        className="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                         title="글 보기"
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -215,14 +215,14 @@ export const MyPostsPage: React.FC = () => {
                     )}
                     <Link
                       to={`/edit/${post.id}`}
-                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                       title="글 수정"
                     >
                       <Edit3 className="w-4 h-4" />
                     </Link>
                     <button
                       onClick={() => handleDeletePost(post.id)}
-                      className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
                       title="글 삭제"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -238,7 +238,7 @@ export const MyPostsPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={postsPage.first}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -249,8 +249,8 @@ export const MyPostsPage: React.FC = () => {
                       onClick={() => handlePageChange(idx)}
                       className={`w-9 h-9 rounded-lg text-sm font-semibold ${
                         page === idx
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       {idx + 1}
@@ -260,7 +260,7 @@ export const MyPostsPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={postsPage.last}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -268,11 +268,12 @@ export const MyPostsPage: React.FC = () => {
             )}
           </>
         ) : (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-            <p className="text-slate-400">해당 상태의 포스트가 없습니다.</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <p className="text-slate-400 dark:text-slate-500">해당 상태의 포스트가 없습니다.</p>
           </div>
         )
       )}
     </div>
+
   );
 };

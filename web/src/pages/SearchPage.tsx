@@ -62,15 +62,15 @@ export const SearchPage: React.FC = () => {
             placeholder="검색어를 입력하세요 (제목, 내용, 태그)..."
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-base placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs transition-all"
+            className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-slate-100 text-base placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 shadow-xs transition-all"
           />
-          <Search className="w-5 h-5 text-slate-400 absolute left-4 top-4" />
+          <Search className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute left-4 top-4" />
         </form>
 
         {query && (
-          <p className="text-sm text-slate-500 mt-3 text-center">
-            <strong>"{query}"</strong> 검색 결과{' '}
-            {postsPage && <span className="text-emerald-600 font-bold">{postsPage.totalElements}건</span>}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">
+            <strong className="text-slate-800 dark:text-slate-200">"{query}"</strong> 검색 결과{' '}
+            {postsPage && <span className="text-emerald-600 dark:text-emerald-400 font-bold">{postsPage.totalElements}건</span>}
           </p>
         )}
       </div>
@@ -79,7 +79,7 @@ export const SearchPage: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-80 bg-white rounded-xl border border-slate-100 p-4" />
+            <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4" />
           ))}
         </div>
       ) : postsPage && postsPage.content.length > 0 ? (
@@ -96,7 +96,7 @@ export const SearchPage: React.FC = () => {
               <button
                 onClick={() => handlePageChange(page - 1)}
                 disabled={postsPage.first}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -105,10 +105,10 @@ export const SearchPage: React.FC = () => {
                   <button
                     key={idx}
                     onClick={() => handlePageChange(idx)}
-                    className={`w-9 h-9 rounded-lg text-sm font-semibold ${
+                    className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
                       page === idx
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     {idx + 1}
@@ -118,7 +118,7 @@ export const SearchPage: React.FC = () => {
               <button
                 onClick={() => handlePageChange(page + 1)}
                 disabled={postsPage.last}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -126,13 +126,13 @@ export const SearchPage: React.FC = () => {
           )}
         </>
       ) : query ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-          <p className="text-slate-400 text-lg">검색 결과가 없습니다.</p>
-          <p className="text-slate-300 text-sm mt-1">다른 검색어를 입력해 보세요.</p>
+        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <p className="text-slate-400 dark:text-slate-500 text-lg">검색 결과가 없습니다.</p>
+          <p className="text-slate-300 dark:text-slate-600 text-sm mt-1">다른 검색어를 입력해 보세요.</p>
         </div>
       ) : (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-          <p className="text-slate-400">검색어를 입력하여 게시글을 찾아보세요.</p>
+        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <p className="text-slate-400 dark:text-slate-500">검색어를 입력하여 게시글을 찾아보세요.</p>
         </div>
       )}
     </div>

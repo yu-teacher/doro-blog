@@ -206,26 +206,26 @@ export const EditorPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Top Split Editor Area */}
       <div className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-64px)]">
         {/* Left Side: Markdown Writing Pane */}
-        <div className="w-full lg:w-1/2 flex flex-col p-6 sm:p-10 border-r border-slate-200 overflow-y-auto">
+        <div className="w-full lg:w-1/2 flex flex-col p-6 sm:p-10 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
           <input
             type="text"
             placeholder="제목을 입력하세요"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="text-3xl sm:text-4xl font-extrabold text-slate-900 placeholder:text-slate-300 focus:outline-none mb-4 w-full"
+            className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none mb-4 w-full bg-transparent"
           />
 
           {/* Tags input bar */}
-          <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+          <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
             {tags.map((t) => (
               <span
                 key={t}
                 onClick={() => handleRemoveTag(t)}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-full text-xs font-semibold cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-full text-xs font-semibold cursor-pointer transition-colors"
                 title="클릭하여 태그 삭제"
               >
                 #{t} ✕
@@ -237,7 +237,7 @@ export const EditorPage: React.FC = () => {
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleAddTag}
-              className="text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none flex-1 min-w-[200px]"
+              className="text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none flex-1 min-w-[200px] bg-transparent"
             />
           </div>
 
@@ -246,20 +246,20 @@ export const EditorPage: React.FC = () => {
             placeholder="당신의 이야기를 적어보세요... (Markdown 문법 지원)"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="flex-1 w-full resize-none text-slate-800 text-base leading-relaxed placeholder:text-slate-300 focus:outline-none font-mono min-h-[300px]"
+            className="flex-1 w-full resize-none text-slate-800 dark:text-slate-100 text-base leading-relaxed placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none font-mono min-h-[300px] bg-transparent"
           />
         </div>
 
         {/* Right Side: Live Markdown Preview */}
-        <div className="hidden lg:block w-1/2 p-10 bg-slate-50 overflow-y-auto">
+        <div className="hidden lg:block w-1/2 p-10 bg-slate-50 dark:bg-slate-900/50 overflow-y-auto">
           <div className="max-w-2xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-6 break-words">
-              {title || <span className="text-slate-300">제목 미리보기</span>}
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mb-6 break-words">
+              {title || <span className="text-slate-300 dark:text-slate-700">제목 미리보기</span>}
             </h1>
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-8">
                 {tags.map((t) => (
-                  <span key={t} className="text-xs px-2.5 py-1 bg-slate-200 text-slate-700 rounded-full font-medium">
+                  <span key={t} className="text-xs px-2.5 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full font-medium">
                     #{t}
                   </span>
                 ))}
@@ -271,10 +271,10 @@ export const EditorPage: React.FC = () => {
       </div>
 
       {/* Bottom Sticky Action Toolbar */}
-      <footer className="h-16 bg-white border-t border-slate-200 px-6 flex items-center justify-between z-20">
+      <footer className="h-16 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between z-20">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-sm transition-colors"
+          className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium text-sm transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> 나가기
         </button>
@@ -283,7 +283,7 @@ export const EditorPage: React.FC = () => {
           <button
             onClick={handleSaveDraft}
             disabled={saving}
-            className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
           >
             임시저장
           </button>
@@ -298,12 +298,12 @@ export const EditorPage: React.FC = () => {
 
       {/* Velog-style Publish Dialog Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-slate-900 dark:text-slate-100">
             {/* Modal Left: Post Thumbnail & Summary Preview */}
-            <div className="w-full md:w-1/2 p-8 bg-slate-50 border-r border-slate-100 flex flex-col justify-between">
+            <div className="w-full md:w-1/2 p-8 bg-slate-50 dark:bg-slate-950/50 border-r border-slate-100 dark:border-slate-800 flex flex-col justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4">포스트 미리보기</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">포스트 미리보기</h3>
 
                 {/* Thumbnail input/preview */}
                 <div className="mb-4">
@@ -318,7 +318,7 @@ export const EditorPage: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="aspect-video bg-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 gap-2 mb-2">
+                    <div className="aspect-video bg-slate-200 dark:bg-slate-800 rounded-xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2 mb-2">
                       <ImageIcon className="w-8 h-8" />
                       <span className="text-xs">썸네일 이미지 URL을 입력하세요</span>
                     </div>
@@ -329,13 +329,13 @@ export const EditorPage: React.FC = () => {
                     placeholder="썸네일 이미지 URL (https://...)"
                     value={thumbnailUrl}
                     onChange={(e) => setThumbnailUrl(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
 
                 {/* Summary / Excerpt */}
                 <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span>포스트 한 줄 소개</span>
                     <span>{summary.length}/150</span>
                   </div>
@@ -345,7 +345,7 @@ export const EditorPage: React.FC = () => {
                     value={summary}
                     onChange={(e) => setSummary(e.target.value)}
                     placeholder="당신의 포스트를 짧게 소개해 보세요."
-                    className="w-full p-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none text-slate-800"
+                    className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
                   />
                 </div>
               </div>
@@ -356,15 +356,15 @@ export const EditorPage: React.FC = () => {
               <div className="space-y-6">
                 {/* Visibility */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">공개 설정</label>
+                  <label className="block text-sm font-bold text-slate-900 dark:text-white mb-2">공개 설정</label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setStatus('PUBLISHED')}
                       className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         status === 'PUBLISHED'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <Globe className="w-4 h-4" /> 전체 공개
@@ -374,8 +374,8 @@ export const EditorPage: React.FC = () => {
                       onClick={() => setStatus('PRIVATE')}
                       className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         status === 'PRIVATE'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <Lock className="w-4 h-4" /> 비공개
@@ -385,14 +385,14 @@ export const EditorPage: React.FC = () => {
 
                 {/* Custom Slug */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-1">URL 슬러그</label>
-                  <div className="flex items-center text-xs text-slate-500 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
+                  <label className="block text-sm font-bold text-slate-900 dark:text-white mb-1">URL 슬러그</label>
+                  <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
                     <span className="font-mono">/@{user?.username}/</span>
                     <input
                       type="text"
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
-                      className="bg-transparent font-mono text-slate-800 focus:outline-none flex-1 font-semibold"
+                      className="bg-transparent font-mono text-slate-800 dark:text-slate-100 focus:outline-none flex-1 font-semibold"
                     />
                   </div>
                 </div>
@@ -400,13 +400,13 @@ export const EditorPage: React.FC = () => {
                 {/* Series Selection */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-emerald-600" /> 시리즈 설정
+                    <label className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> 시리즈 설정
                     </label>
                     <button
                       type="button"
                       onClick={() => setShowNewSeriesInput(!showNewSeriesInput)}
-                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold"
+                      className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-semibold"
                     >
                       {showNewSeriesInput ? '취소' : '+ 새 시리즈 생성'}
                     </button>
@@ -419,7 +419,7 @@ export const EditorPage: React.FC = () => {
                         placeholder="새 시리즈 이름"
                         value={newSeriesTitle}
                         onChange={(e) => setNewSeriesTitle(e.target.value)}
-                        className="flex-1 text-xs p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        className="flex-1 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                       <button
                         type="button"
@@ -434,7 +434,7 @@ export const EditorPage: React.FC = () => {
                   <select
                     value={selectedSeriesId}
                     onChange={(e) => setSelectedSeriesId(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   >
                     <option value="">시리즈에 추가하지 않음</option>
                     {seriesList.map((s) => (
@@ -447,11 +447,11 @@ export const EditorPage: React.FC = () => {
               </div>
 
               {/* Bottom Buttons */}
-              <div className="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowPublishModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors"
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
                 >
                   취소
                 </button>
@@ -469,6 +469,7 @@ export const EditorPage: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
