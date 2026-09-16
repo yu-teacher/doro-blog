@@ -1,28 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
-import type { PostSummary, PageResponse, TagItem } from '../api/types';
+import type { PostSummary, TagItem } from '../api/types';
 import { PostCard } from '../components/PostCard';
-import { TrendingUp, Clock, Tag as TagIcon, ChevronLeft, ChevronRight, Hash } from 'lucide-react';
+import { TrendingUp, Clock, Tag as TagIcon, Hash, Loader2 } from 'lucide-react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const FeedPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'trending';
   const timeframe = searchParams.get('timeframe') || 'week';
   const selectedTag = searchParams.get('tag') || '';
-  const page = parseInt(searchParams.get('page') || '0', 10);
 
-  const [postsPage, setPostsPage] = useState<PageResponse<PostSummary> | null>(null);
+  const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [page, setPage] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const [tags, setTags] = useState<TagItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
   useEffect(() => {
     fetchTags();
   }, []);
-
-  useEffect(() => {
-    fetchPosts();
-  }, [tab, timeframe, selectedTag, page]);
 
   const fetchTags = async () => {
     try {
@@ -33,25 +32,60 @@ export const FeedPage: React.FC = () => {
     }
   };
 
-  const fetchPosts = async () => {
-    setLoading(true);
+  // Initial load or tab/tag/timeframe change
+  useEffect(() => {
+    const fetchInitialPosts = async () => {
+      setLoading(true);
+      setPage(0);
+      try {
+        let res;
+        if (selectedTag) {
+          res = await blogApi.getPostsByTag(selectedTag, 0, 12);
+        } else if (tab === 'trending') {
+          res = await blogApi.getTrendingPosts(timeframe, 0, 12);
+        } else {
+          res = await blogApi.getLatestPosts(0, 12);
+        }
+        setPosts(res.content || []);
+        setHasMore(!res.last);
+      } catch (err) {
+        console.error('Failed to fetch posts', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialPosts();
+  }, [tab, timeframe, selectedTag]);
+
+  // Load more function for infinite scroll
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
     try {
       let res;
       if (selectedTag) {
-        res = await blogApi.getPostsByTag(selectedTag, page, 12);
+        res = await blogApi.getPostsByTag(selectedTag, nextPage, 12);
       } else if (tab === 'trending') {
-        res = await blogApi.getTrendingPosts(timeframe, page, 12);
+        res = await blogApi.getTrendingPosts(timeframe, nextPage, 12);
       } else {
-        res = await blogApi.getLatestPosts(page, 12);
+        res = await blogApi.getLatestPosts(nextPage, 12);
       }
-      setPostsPage(res);
-
+      setPosts((prev) => [...prev, ...res.content]);
+      setPage(nextPage);
+      setHasMore(!res.last);
     } catch (err) {
-      console.error('Failed to fetch posts', err);
+      console.error('Failed to load more posts', err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [loading, loadingMore, hasMore, page, selectedTag, tab, timeframe]);
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: loadMore,
+    enabled: hasMore && !loading && !loadingMore,
+  });
 
   const handleTabChange = (newTab: string) => {
     const params = new URLSearchParams();
@@ -59,7 +93,6 @@ export const FeedPage: React.FC = () => {
     if (newTab === 'trending') {
       params.set('timeframe', timeframe);
     }
-    params.set('page', '0');
     setSearchParams(params);
   };
 
@@ -67,7 +100,6 @@ export const FeedPage: React.FC = () => {
     const params = new URLSearchParams();
     params.set('tab', 'trending');
     params.set('timeframe', newTf);
-    params.set('page', '0');
     setSearchParams(params);
   };
 
@@ -80,15 +112,7 @@ export const FeedPage: React.FC = () => {
     } else {
       params.set('tag', tagName);
     }
-    params.set('page', '0');
     setSearchParams(params);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', newPage.toString());
-    setSearchParams(params);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -193,50 +217,30 @@ export const FeedPage: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : postsPage && postsPage.content.length > 0 ? (
+      ) : posts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {postsPage.content.map((post) => (
+            {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>
 
-          {/* Pagination Controls */}
-          {postsPage.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-12">
-              <button
-                onClick={() => handlePageChange(page - 1)}
-                disabled={postsPage.first}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center gap-1">
-                {[...Array(postsPage.totalPages)].map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handlePageChange(idx)}
-                    className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
-                      page === idx
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
+          {/* Infinite Scroll Sentinel & Loading Indicator */}
+          <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                <span>글을 더 불러오는 중...</span>
               </div>
-
-              <button
-                onClick={() => handlePageChange(page + 1)}
-                disabled={postsPage.last}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+            )}
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
+                <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  모든 포스트를 불러왔습니다
+                </span>
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs">

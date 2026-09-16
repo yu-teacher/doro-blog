@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
-import type { PostSummary, PageResponse, PostStatus } from '../api/types';
+import type { PostSummary, PostStatus } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import {
   FileText,
@@ -12,9 +12,9 @@ import {
   Edit3,
   Trash2,
   ExternalLink,
-  ChevronLeft,
-  ChevronRight,
+  Loader2,
 } from 'lucide-react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const MyPostsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -22,10 +22,12 @@ export const MyPostsPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
 
   const tab = searchParams.get('tab') || 'published'; // 'published' | 'draft' | 'private' | 'likes'
-  const page = parseInt(searchParams.get('page') || '0', 10);
 
-  const [postsPage, setPostsPage] = useState<PageResponse<PostSummary> | null>(null);
+  const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [page, setPage] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,36 +36,69 @@ export const MyPostsPage: React.FC = () => {
       return;
     }
 
-    loadPosts();
-  }, [tab, page, isAuthenticated]);
+    const fetchInitial = async () => {
+      setLoading(true);
+      setPage(0);
+      try {
+        let res;
+        if (tab === 'likes') {
+          res = await blogApi.getMyLikedPosts(0, 10);
+        } else {
+          const statusMap: Record<string, PostStatus> = {
+            published: 'PUBLISHED',
+            draft: 'DRAFT',
+            private: 'PRIVATE',
+          };
+          res = await blogApi.getMyPosts(statusMap[tab] || 'PUBLISHED', 0, 10);
+        }
+        setPosts(res.content || []);
+        setHasMore(!res.last);
+      } catch (err) {
+        console.error('Failed to load my posts', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadPosts = async () => {
-    setLoading(true);
+    fetchInitial();
+  }, [tab, isAuthenticated, navigate]);
+
+  const loadMore = useCallback(async () => {
+    if (!isAuthenticated || loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
     try {
       let res;
       if (tab === 'likes') {
-        res = await blogApi.getMyLikedPosts(page, 10);
+        res = await blogApi.getMyLikedPosts(nextPage, 10);
       } else {
         const statusMap: Record<string, PostStatus> = {
           published: 'PUBLISHED',
           draft: 'DRAFT',
           private: 'PRIVATE',
         };
-        res = await blogApi.getMyPosts(statusMap[tab] || 'PUBLISHED', page, 10);
+        res = await blogApi.getMyPosts(statusMap[tab] || 'PUBLISHED', nextPage, 10);
       }
-      setPostsPage(res);
+      setPosts((prev) => [...prev, ...res.content]);
+      setPage(nextPage);
+      setHasMore(!res.last);
     } catch (err) {
-      console.error('Failed to load my posts', err);
+      console.error('Failed to load more posts', err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [isAuthenticated, loading, loadingMore, hasMore, page, tab]);
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: loadMore,
+    enabled: hasMore && !loading && !loadingMore,
+  });
 
   const handleDeletePost = async (id: string) => {
     if (!confirm('정말로 이 글을 삭제하시겠습니까?')) return;
     try {
       await blogApi.deletePost(id);
-      loadPosts();
+      setPosts((prev) => prev.filter((p) => p.id !== id));
     } catch (err: any) {
       alert(err.response?.data?.error?.message || '삭제에 실패했습니다.');
     }
@@ -72,15 +107,7 @@ export const MyPostsPage: React.FC = () => {
   const handleTabChange = (newTab: string) => {
     const p = new URLSearchParams();
     p.set('tab', newTab);
-    p.set('page', '0');
     setSearchParams(p);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    const p = new URLSearchParams(searchParams);
-    p.set('page', newPage.toString());
-    setSearchParams(p);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -123,47 +150,30 @@ export const MyPostsPage: React.FC = () => {
         </div>
       ) : tab === 'likes' ? (
         // Liked Posts view (rendered with PostCard grid)
-        postsPage && postsPage.content.length > 0 ? (
+        posts.length > 0 ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {postsPage.content.map((post) => (
+              {posts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>
 
-            {postsPage.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-12">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={postsPage.first}
-                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-1">
-                  {[...Array(postsPage.totalPages)].map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handlePageChange(idx)}
-                      className={`w-9 h-9 rounded-lg text-sm font-semibold ${
-                        page === idx
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {idx + 1}
-                    </button>
-                  ))}
+            {/* Infinite Scroll Sentinel & Loading Indicator */}
+            <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                  <span>포스트를 더 불러오는 중...</span>
                 </div>
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={postsPage.last}
-                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+              )}
+              {!hasMore && posts.length > 0 && (
+                <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
+                  <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    모든 포스트를 불러왔습니다
+                  </span>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -172,10 +182,10 @@ export const MyPostsPage: React.FC = () => {
         )
       ) : (
         // Author's post list with management controls
-        postsPage && postsPage.content.length > 0 ? (
+        posts.length > 0 ? (
           <>
             <div className="space-y-4">
-              {postsPage.content.map((post) => (
+              {posts.map((post) => (
                 <div
                   key={post.id}
                   className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -232,40 +242,22 @@ export const MyPostsPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Pagination */}
-            {postsPage.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-12">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={postsPage.first}
-                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-1">
-                  {[...Array(postsPage.totalPages)].map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handlePageChange(idx)}
-                      className={`w-9 h-9 rounded-lg text-sm font-semibold ${
-                        page === idx
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {idx + 1}
-                    </button>
-                  ))}
+            {/* Infinite Scroll Sentinel & Loading Indicator */}
+            <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                  <span>포스트를 더 불러오는 중...</span>
                 </div>
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={postsPage.last}
-                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+              )}
+              {!hasMore && posts.length > 0 && (
+                <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
+                  <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    모든 포스트를 불러왔습니다
+                  </span>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -274,6 +266,5 @@ export const MyPostsPage: React.FC = () => {
         )
       )}
     </div>
-
   );
 };

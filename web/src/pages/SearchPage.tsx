@@ -1,55 +1,77 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
-import type { PostSummary, PageResponse } from '../api/types';
+import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  const page = parseInt(searchParams.get('page') || '0', 10);
 
   const [inputVal, setInputVal] = useState(query);
-  const [postsPage, setPostsPage] = useState<PageResponse<PostSummary> | null>(null);
+  const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [totalElements, setTotalElements] = useState<number>(0);
+  const [page, setPage] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     setInputVal(query);
-    if (query.trim()) {
-      handleSearch(query.trim(), page);
-    } else {
-      setPostsPage(null);
+    if (!query.trim()) {
+      setPosts([]);
+      setTotalElements(0);
+      setHasMore(false);
+      return;
     }
-  }, [query, page]);
 
-  const handleSearch = async (q: string, p: number) => {
-    setLoading(true);
+    const fetchInitial = async () => {
+      setLoading(true);
+      setPage(0);
+      try {
+        const res = await blogApi.searchPosts(query.trim(), 0, 12);
+        setPosts(res.content || []);
+        setTotalElements(res.totalElements);
+        setHasMore(!res.last);
+      } catch (err) {
+        console.error('Failed to search posts', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitial();
+  }, [query]);
+
+  const loadMore = useCallback(async () => {
+    if (!query.trim() || loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
     try {
-      const res = await blogApi.searchPosts(q, p, 12);
-      setPostsPage(res);
-
+      const res = await blogApi.searchPosts(query.trim(), nextPage, 12);
+      setPosts((prev) => [...prev, ...res.content]);
+      setPage(nextPage);
+      setHasMore(!res.last);
     } catch (err) {
-      console.error('Failed to search posts', err);
+      console.error('Failed to load more search results', err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [query, loading, loadingMore, hasMore, page]);
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: loadMore,
+    enabled: hasMore && !loading && !loadingMore,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputVal.trim()) return;
     const params = new URLSearchParams();
     params.set('q', inputVal.trim());
-    params.set('page', '0');
     setSearchParams(params);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', newPage.toString());
-    setSearchParams(params);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -70,7 +92,7 @@ export const SearchPage: React.FC = () => {
         {query && (
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">
             <strong className="text-slate-800 dark:text-slate-200">"{query}"</strong> 검색 결과{' '}
-            {postsPage && <span className="text-emerald-600 dark:text-emerald-400 font-bold">{postsPage.totalElements}건</span>}
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">{totalElements}건</span>
           </p>
         )}
       </div>
@@ -82,48 +104,30 @@ export const SearchPage: React.FC = () => {
             <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4" />
           ))}
         </div>
-      ) : postsPage && postsPage.content.length > 0 ? (
+      ) : posts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {postsPage.content.map((post) => (
+            {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>
 
-          {/* Pagination */}
-          {postsPage.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-12">
-              <button
-                onClick={() => handlePageChange(page - 1)}
-                disabled={postsPage.first}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-1">
-                {[...Array(postsPage.totalPages)].map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handlePageChange(idx)}
-                    className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
-                      page === idx
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
+          {/* Infinite Scroll Sentinel & Loading Indicator */}
+          <div ref={sentinelRef} className="py-8 flex flex-col items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                <span>검색 결과를 더 불러오는 중...</span>
               </div>
-              <button
-                onClick={() => handlePageChange(page + 1)}
-                disabled={postsPage.last}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+            )}
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
+                <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  모든 검색 결과를 불러왔습니다
+                </span>
+              </div>
+            )}
+          </div>
         </>
       ) : query ? (
         <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
