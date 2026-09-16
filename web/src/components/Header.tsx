@@ -77,6 +77,20 @@ export const Header: React.FC = () => {
     }
   };
 
+  const handleFastRealLogin = async (fastEmail: string) => {
+    setErrorMsg('');
+    setLoading(true);
+    try {
+      await loginWithIam(fastEmail, 'Password1234!');
+      setLoginModalOpen(false);
+    } catch (err: any) {
+      console.error('Fast login error', err);
+      setErrorMsg('빠른 로그인에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 transition-colors">
@@ -319,34 +333,32 @@ export const Header: React.FC = () => {
                 onClick={() => setShowMockOptions(!showMockOptions)}
                 className="w-full flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
               >
-                <span>개발 테스트용 모크 계정 전환</span>
+                <span>테스트 계정 5개 빠른 로그인 (DORO IAM 실계정)</span>
                 <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showMockOptions ? 'rotate-90' : ''}`} />
               </button>
 
               {showMockOptions && (
-                <div className="mt-3 space-y-1.5 animate-in fade-in">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      loginWithMock('yu-teacher', 'yu-teacher@doro.local', '9fa5f6cd-2327-4207-b973-40c185c161da');
-                      setLoginModalOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700/60 rounded-lg text-xs text-gray-700 dark:text-slate-300 flex justify-between items-center"
-                  >
-                    <span>@yu-teacher (작가)</span>
-                    <span className="text-[10px] text-gray-400 dark:text-slate-500">Mock</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      loginWithMock('reader', 'reader@doro.local', '4e3cef2d-644b-4981-8bdc-7ca71ce67ec3');
-                      setLoginModalOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700/60 rounded-lg text-xs text-gray-700 dark:text-slate-300 flex justify-between items-center"
-                  >
-                    <span>@reader (독자)</span>
-                    <span className="text-[10px] text-gray-400 dark:text-slate-500">Mock</span>
-                  </button>
+                <div className="mt-3 space-y-1.5 animate-in fade-in max-h-56 overflow-y-auto">
+                  {[
+                    { email: 'frontend_dev@doro.local', name: '김리액트 (@frontend_dev)', role: '프론트엔드' },
+                    { email: 'backend_hero@doro.local', name: '박스프링 (@backend_hero)', role: '백엔드' },
+                    { email: 'ai_researcher@doro.local', name: '이러닝 (@ai_researcher)', role: 'AI리서처' },
+                    { email: 'devops_ninja@doro.local', name: '최쿠버 (@devops_ninja)', role: '데브옵스' },
+                    { email: 'fullstack_star@doro.local', name: '정풀스택 (@fullstack_star)', role: '풀스택' },
+                  ].map((u) => (
+                    <button
+                      key={u.email}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleFastRealLogin(u.email)}
+                      className="w-full text-left px-3 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700/60 rounded-lg text-xs text-slate-700 dark:text-slate-300 flex justify-between items-center transition-colors"
+                    >
+                      <span className="font-medium truncate">{u.name}</span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded flex-shrink-0 ml-2">
+                        {u.role}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
