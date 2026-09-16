@@ -387,6 +387,43 @@ class BlogEdgeCaseTests {
             var searchNone = postService.searchPosts("없는검색어123456", 0, 10);
             assertThat(searchNone.getContent()).isEmpty();
         }
+
+        @Test
+        @DisplayName("특정 작가의 블로그 채널 내 키워드 검색 및 태그 필터 페이징 검증")
+        void testSpecificUserPostsSearchAndFilter() {
+            DoroUser author1 = createMockUser("authorOne");
+            DoroUser author2 = createMockUser("authorTwo");
+
+            // author1이 쓴 글들
+            postService.createPost(author1, new CreatePostRequest(
+                    "Spring Boot 3 마이그레이션", "spring-boot-3-" + UUID.randomUUID(), null, "Spring 본문", null, PostStatus.PUBLISHED, null, List.of("Spring")
+            ));
+            postService.createPost(author1, new CreatePostRequest(
+                    "React 19 Server Components", "react-19-" + UUID.randomUUID(), null, "React 본문", null, PostStatus.PUBLISHED, null, List.of("React")
+            ));
+
+            // author2가 쓴 글 (동일한 Spring 키워드)
+            postService.createPost(author2, new CreatePostRequest(
+                    "다른 작가의 Spring 글", "other-spring-" + UUID.randomUUID(), null, "Spring 본문", null, PostStatus.PUBLISHED, null, List.of("Spring")
+            ));
+
+            String author1Username = author1.email().split("@")[0];
+
+            // 1. author1 채널 전체 글 목록
+            var allAuthor1 = postService.getUserPosts(author1Username, null, null, 0, 10);
+            assertThat(allAuthor1.getTotalElements()).isEqualTo(2);
+
+            // 2. author1 채널 내에서만 "Spring" 키워드 검색 -> author2의 글은 제외되어야 함
+            var searchAuthor1 = postService.getUserPosts(author1Username, "Spring", null, 0, 10);
+            assertThat(searchAuthor1.getTotalElements()).isEqualTo(1);
+            assertThat(searchAuthor1.getContent().get(0).title()).isEqualTo("Spring Boot 3 마이그레이션");
+
+            // 3. author1 채널 내에서만 "React" 태그 필터
+            var tagAuthor1 = postService.getUserPosts(author1Username, null, "React", 0, 10);
+            assertThat(tagAuthor1.getTotalElements()).isEqualTo(1);
+            assertThat(tagAuthor1.getContent().get(0).title()).isEqualTo("React 19 Server Components");
+        }
     }
 }
+
 

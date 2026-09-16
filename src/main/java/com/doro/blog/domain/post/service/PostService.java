@@ -112,15 +112,30 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PostSummaryResponse> getUserPosts(String username, int page, int size) {
+    public Page<PostSummaryResponse> getUserPosts(String username, String query, String tag, int page, int size) {
         String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
         Pageable pageable = PageRequest.of(page, size);
-        return postRepository.findAllByUserIdAndStatusOrderByPublishedAtDesc(user.getId(), PostStatus.PUBLISHED, pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        String keyword = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
+        String normalizedTag = (tag != null && !tag.trim().isEmpty()) ? tag.trim().toLowerCase() : null;
+
+        Page<Post> posts;
+        if (keyword != null && normalizedTag != null) {
+            posts = postRepository.searchUserPostsByKeywordAndTag(user.getId(), keyword, normalizedTag, pageable);
+        } else if (keyword != null) {
+            posts = postRepository.searchUserPostsByKeyword(user.getId(), keyword, pageable);
+        } else if (normalizedTag != null) {
+            posts = postRepository.findUserPostsByTag(user.getId(), normalizedTag, pageable);
+        } else {
+            posts = postRepository.findAllByUserIdAndStatusOrderByPublishedAtDesc(user.getId(), PostStatus.PUBLISHED, pageable);
+        }
+
+        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
     }
+
+
 
     @Transactional
     public PostDetailResponse getPostDetail(String username, String slug, DoroUser doroUser) {
@@ -218,9 +233,13 @@ public class PostService {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
         Pageable pageable = PageRequest.of(page, size);
-        return postRepository.findAllByUserIdAndOptionalStatus(doroUser.userId(), status, pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        Page<Post> posts = (status != null)
+                ? postRepository.findAllByUserIdAndStatusOrderByCreatedAtDesc(doroUser.userId(), status, pageable)
+                : postRepository.findAllByUserIdOrderByCreatedAtDesc(doroUser.userId(), pageable);
+
+        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
     }
+
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getTrendingPosts(String timeframe, int page, int size) {

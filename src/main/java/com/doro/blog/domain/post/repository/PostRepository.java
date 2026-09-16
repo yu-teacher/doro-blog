@@ -24,19 +24,40 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Page<Post> findAllByUserIdAndStatusOrderByPublishedAtDesc(UUID userId, PostStatus status, Pageable pageable);
 
+    Page<Post> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, PostStatus status, Pageable pageable);
+
     Page<Post> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.status = 'PUBLISHED' " +
+           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "ORDER BY p.publishedAt DESC")
+    Page<Post> searchUserPostsByKeyword(
+            @Param("userId") UUID userId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND pt.tag.name = :tag ORDER BY p.publishedAt DESC")
+    Page<Post> findUserPostsByTag(
+            @Param("userId") UUID userId,
+            @Param("tag") String tag,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND pt.tag.name = :tag " +
+           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "ORDER BY p.publishedAt DESC")
+    Page<Post> searchUserPostsByKeywordAndTag(
+            @Param("userId") UUID userId,
+            @Param("keyword") String keyword,
+            @Param("tag") String tag,
+            Pageable pageable
+    );
 
     List<Post> findAllBySeriesIdOrderBySeriesOrderAsc(UUID seriesId);
 
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE pt.tag.name = :tagName AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC")
     Page<Post> findAllByTagName(@Param("tagName") String tagName, Pageable pageable);
-
-    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND (:status IS NULL OR p.status = :status) ORDER BY p.createdAt DESC")
-    Page<Post> findAllByUserIdAndOptionalStatus(
-            @Param("userId") UUID userId,
-            @Param("status") PostStatus status,
-            Pageable pageable
-    );
 
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
     Page<Post> findTrendingPosts(
@@ -56,4 +77,5 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             Pageable pageable
     );
 }
+
 

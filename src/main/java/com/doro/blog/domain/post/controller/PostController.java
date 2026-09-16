@@ -43,15 +43,18 @@ public class PostController {
         return ApiResponse.success(postService.getFeed(sort, tag, page, size));
     }
 
-    @Operation(summary = "특정 작가의 출간 글 목록 조회 (공개)", description = "특정 작가의 공개 출간 글 목록 페이징 조회")
+    @Operation(summary = "특정 작가의 출간 글 목록 및 채널 내 검색 (공개, 페이징)", description = "특정 작가의 공개 출간 글 목록을 키워드(q) 또는 태그(tag)로 필터링하여 페이징 조회")
     @GetMapping("/users/@{username}")
     public ApiResponse<Page<PostSummaryResponse>> getUserPosts(
             @PathVariable("username") String username,
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(name = "tag", required = false) String tag,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size
     ) {
-        return ApiResponse.success(postService.getUserPosts(username, page, size));
+        return ApiResponse.success(postService.getUserPosts(username, query, tag, page, size));
     }
+
 
     @Operation(summary = "게시글 상세 조회 (마크다운 원문 포함)", description = "/@{username}/{slug} 주소로 글 상세 조회. 비공개 글은 ReBAC 인가 검증 수행")
     @GetMapping("/@{username}/{slug}")
