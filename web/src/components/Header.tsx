@@ -17,7 +17,11 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  ExternalLink,
 } from 'lucide-react';
+
+const DORO_PORTAL_URL = import.meta.env.VITE_DORO_PORTAL_URL || 'http://localhost:3000';
+const DORO_SIGNUP_URL = `${DORO_PORTAL_URL}/signup`;
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, loginWithIam, signupWithIam, loginWithMock, logout } = useAuthStore();
@@ -199,15 +203,27 @@ export const Header: React.FC = () => {
                 </div>
               </>
             ) : (
-              <button
-                onClick={() => {
-                  setErrorMsg('');
-                  setLoginModalOpen(true);
-                }}
-                className="px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-xs"
-              >
-                로그인
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setErrorMsg('');
+                    setIsSignUpMode(false);
+                    setLoginModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-full text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  로그인
+                </button>
+                <a
+                  href={DORO_SIGNUP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-xs"
+                >
+                  <span>회원가입</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-85" />
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -312,18 +328,35 @@ export const Header: React.FC = () => {
               </button>
             </form>
 
-            {/* Toggle Mode */}
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUpMode(!isSignUpMode);
-                  setErrorMsg('');
-                }}
-                className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
-              >
-                {isSignUpMode ? '이미 계정이 있으신가요? 로그인하기' : '계정이 없으신가요? 1초 회원가입'}
-              </button>
+            {/* DORO Central Portal Sign Up Guidance */}
+            <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-800 text-center space-y-2">
+              <div className="text-xs text-gray-600 dark:text-slate-400 flex items-center justify-center gap-1.5 flex-wrap">
+                <span>계정이 없으신가요?</span>
+                <a
+                  href={DORO_SIGNUP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                >
+                  <span>도로(DORO) 통합 회원가입</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+              <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                DORO 통합 ID 가입 시 블로그 및 도로 플랫폼 전체 서비스를 이용할 수 있습니다.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUpMode(!isSignUpMode);
+                    setErrorMsg('');
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+                >
+                  {isSignUpMode ? '← 로그인 폼으로 돌아가기' : '모달에서 바로 빠른 가입하기'}
+                </button>
+              </div>
             </div>
 
             {/* Dev Fast Switch Accordion */}
