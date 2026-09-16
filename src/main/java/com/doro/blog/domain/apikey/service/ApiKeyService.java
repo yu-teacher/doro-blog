@@ -8,7 +8,7 @@ import com.doro.blog.domain.apikey.entity.ApiKeyLog;
 import com.doro.blog.domain.apikey.repository.ApiKeyLogRepository;
 import com.doro.blog.domain.apikey.repository.ApiKeyRepository;
 import com.doro.blog.domain.user.entity.BlogUser;
-import com.doro.blog.domain.user.repository.BlogUserRepository;
+import com.doro.blog.domain.user.service.BlogUserService;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +37,7 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyLogRepository apiKeyLogRepository;
-    private final BlogUserRepository userRepository;
+    private final BlogUserService blogUserService;
 
     private static final String KEY_PREFIX = "doro_live_";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -48,8 +48,7 @@ public class ApiKeyService {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
 
-        BlogUser user = userRepository.findById(doroUser.userId())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+        BlogUser user = blogUserService.getOrCreateUser(doroUser);
 
         // 1. Generate cryptographically secure random token
         byte[] randomBytes = new byte[24];
