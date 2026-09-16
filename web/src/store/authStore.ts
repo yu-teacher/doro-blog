@@ -6,6 +6,9 @@ interface AuthState {
   token: string | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
+  loginModalOpen: boolean;
+  openLoginModal: () => void;
+  closeLoginModal: () => void;
   setToken: (token: string | null) => void;
   setUser: (user: UserProfile | null) => void;
   loginWithIam: (email: string, password: string) => Promise<void>;
@@ -48,6 +51,9 @@ export const useAuthStore = create<AuthState>((set) => {
     token: savedToken,
     user: savedUser,
     isAuthenticated: !!savedToken,
+    loginModalOpen: false,
+    openLoginModal: () => set({ loginModalOpen: true }),
+    closeLoginModal: () => set({ loginModalOpen: false }),
 
     setToken: (token) => {
       if (token) {

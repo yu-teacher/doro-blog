@@ -23,6 +23,8 @@ import {
   Edit3,
   Tag,
   Sparkles,
+  Bookmark,
+  Heart,
 } from 'lucide-react';
 
 export const ChannelPage: React.FC = () => {
@@ -31,7 +33,7 @@ export const ChannelPage: React.FC = () => {
   const { user: currentUser, isAuthenticated } = useAuthStore();
 
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username || '';
-  const currentTab = (searchParams.get('tab') as 'posts' | 'series' | 'about') || 'posts';
+  const currentTab = (searchParams.get('tab') as 'posts' | 'series' | 'about' | 'likes') || 'posts';
   const tagFilter = searchParams.get('tag') || '';
   const keyword = searchParams.get('q') || '';
 
@@ -42,6 +44,7 @@ export const ChannelPage: React.FC = () => {
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [userTags, setUserTags] = useState<UserTagSummary[]>([]);
   const [activities, setActivities] = useState<UserActivity[]>([]);
+  const [likedPosts, setLikedPosts] = useState<PostSummary[]>([]);
 
   const [searchInput, setSearchInput] = useState(keyword);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,8 @@ export const ChannelPage: React.FC = () => {
       fetchInitialPosts();
     } else if (currentTab === 'series') {
       loadSeries();
+    } else if (currentTab === 'likes') {
+      fetchLikedPosts();
     }
   }, [cleanUsername, currentTab, tagFilter, keyword]);
 
@@ -162,6 +167,18 @@ export const ChannelPage: React.FC = () => {
     }
   };
 
+  const fetchLikedPosts = async () => {
+    setLoading(true);
+    try {
+      const res = await blogApi.getMyLikedPosts(0, 30);
+      setLikedPosts(res.content || []);
+    } catch (err) {
+      console.error('Failed to load liked posts', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleToggleFollow = async () => {
     if (!isAuthenticated) {
       alert('로그인이 필요합니다.');
@@ -184,7 +201,7 @@ export const ChannelPage: React.FC = () => {
     }
   };
 
-  const handleTabChange = (newTab: 'posts' | 'series' | 'about') => {
+  const handleTabChange = (newTab: 'posts' | 'series' | 'about' | 'likes') => {
     const p = new URLSearchParams(searchParams);
     p.set('tab', newTab);
     setSearchParams(p);
@@ -416,6 +433,20 @@ export const ChannelPage: React.FC = () => {
             <Sparkles className="w-5 h-5" />
             <span>소개</span>
           </button>
+
+          {isMyChannel && (
+            <button
+              onClick={() => handleTabChange('likes')}
+              className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
+                currentTab === 'likes'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Bookmark className="w-5 h-5" />
+              <span>관심 글</span>
+            </button>
+          )}
         </div>
 
         {/* In-channel search input (when on Posts tab) */}
@@ -637,6 +668,33 @@ export const ChannelPage: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Tab 4: Liked / Saved Posts (Personal Interest Archive) */}
+      {currentTab === 'likes' && (
+        <div className="animate-in fade-in duration-200">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6" />
+              ))}
+            </div>
+          ) : likedPosts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {likedPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <Heart className="w-10 h-10 text-rose-400 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400 font-medium">아직 좋아요를 누른 관심 글이 없습니다.</p>
+              <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
+                피드에서 마음에 드는 기술 글에 좋아요(하트)를 누르면 이곳에 보관됩니다.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

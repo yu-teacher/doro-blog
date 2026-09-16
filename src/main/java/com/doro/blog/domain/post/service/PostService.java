@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -317,6 +318,69 @@ public class PostService {
         }
         return postRepository.searchPublishedPosts(query.trim(), pageable)
                 .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getFollowingPosts(DoroUser doroUser, int page, int size) {
+        if (!doroUser.isAuthenticated()) {
+            throw new BlogException(ErrorCode.UNAUTHORIZED);
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return postRepository.findFollowingPosts(doroUser.userId(), pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PostSummaryResponse> getRelatedPosts(String username, String slug, int limit) {
+        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+
+        Post post = postRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        List<String> tags = tagService.getPostTagNames(post.getId())
+                .stream().map(String::toLowerCase).toList();
+
+        List<UUID> excludeIds = new ArrayList<>();
+        excludeIds.add(post.getId());
+
+        List<Post> related = new ArrayList<>();
+        if (!tags.isEmpty()) {
+            List<Post> tagPosts = postRepository.findRelatedPostsByTags(post.getId(), tags, PageRequest.of(0, limit));
+            for (Post p : tagPosts) {
+                if (!excludeIds.contains(p.getId()) && related.size() < limit) {
+                    related.add(p);
+                    excludeIds.add(p.getId());
+                }
+            }
+        }
+
+        // 1차 폴백: 같은 작가의 다른 최신 글
+        if (related.size() < limit) {
+            List<Post> authorPosts = postRepository.findOtherPostsByAuthor(user.getId(), excludeIds, PageRequest.of(0, limit - related.size()));
+            for (Post p : authorPosts) {
+                if (!excludeIds.contains(p.getId()) && related.size() < limit) {
+                    related.add(p);
+                    excludeIds.add(p.getId());
+                }
+            }
+        }
+
+        // 2차 폴백: 전체 인기 트렌딩 글
+        if (related.size() < limit) {
+            List<Post> trendingPosts = postRepository.findTrendingPostsExcluding(excludeIds, PageRequest.of(0, limit - related.size()));
+            for (Post p : trendingPosts) {
+                if (!excludeIds.contains(p.getId()) && related.size() < limit) {
+                    related.add(p);
+                    excludeIds.add(p.getId());
+                }
+            }
+        }
+
+        return related.stream()
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())))
+                .toList();
     }
 }
 

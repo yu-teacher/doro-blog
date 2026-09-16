@@ -32,6 +32,21 @@ export const blogApi = {
     return res.data.data;
   },
 
+  async getFollowingPosts(page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/following', {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
+  async getRelatedPosts(username: string, slug: string, limit = 4): Promise<PostSummary[]> {
+    const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+    const res = await apiClient.get<ApiResponse<PostSummary[]>>(`/posts/@${cleanUsername}/${slug}/related`, {
+      params: { limit },
+    });
+    return res.data.data;
+  },
+
   async getPostDetail(username: string, slug: string): Promise<PostDetail> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
     const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${cleanUsername}/${slug}`);

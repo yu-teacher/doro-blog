@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
-import type { PostDetail, Comment, SeriesDetail } from '../api/types';
+import type { PostDetail, Comment, SeriesDetail, PostSummary } from '../api/types';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { CommentSection } from '../components/CommentSection';
+import { PostCard } from '../components/PostCard';
 import {
   Heart,
   Share2,
@@ -21,6 +22,7 @@ import {
   Globe,
   Mail,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 
 export const PostDetailPage: React.FC = () => {
@@ -37,6 +39,7 @@ export const PostDetailPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [authorFollowing, setAuthorFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [relatedPosts, setRelatedPosts] = useState<PostSummary[]>([]);
 
   // Clean username if prefixed with @
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
@@ -72,6 +75,14 @@ export const PostDetailPage: React.FC = () => {
         } catch (sErr) {
           console.error('Failed to load series', sErr);
         }
+      }
+
+      // Load related recommendations
+      try {
+        const rel = await blogApi.getRelatedPosts(cleanUsername, slug, 4);
+        setRelatedPosts(rel || []);
+      } catch (rErr) {
+        console.error('Failed to load related posts', rErr);
       }
     } catch (err) {
       console.error('Failed to load post', err);
@@ -419,6 +430,24 @@ export const PostDetailPage: React.FC = () => {
         )}
       </div>
 
+
+      {/* Related Posts Recommendation Grid */}
+      {relatedPosts.length > 0 && (
+        <section className="mt-14 mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              함께 읽으면 좋은 연관 글
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {relatedPosts.map((rel) => (
+              <PostCard key={rel.id} post={rel} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Comments */}
       <CommentSection

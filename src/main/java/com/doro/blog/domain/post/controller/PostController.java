@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "3. Post (게시글 및 출간)", description = "마크다운 아티클 작성, 출간, 피드 및 상세 조회 API")
@@ -177,6 +178,26 @@ public class PostController {
             @RequestParam(name = "size", defaultValue = "20") int size
     ) {
         return ApiResponse.success(postService.searchPosts(query, page, size));
+    }
+
+    @Operation(summary = "내가 팔로우하는 작가들의 피드 (인증, 페이징)", description = "팔로우한 작가들이 최근 발행한 글 피드 목록")
+    @GetMapping("/following")
+    public ApiResponse<Page<PostSummaryResponse>> getFollowingPosts(
+            @CurrentDoroUser DoroUser doroUser,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(postService.getFollowingPosts(doroUser, page, size));
+    }
+
+    @Operation(summary = "함께 읽으면 좋은 연관 글 추천 (공개)", description = "태그 일치도 및 작가 연관 기반 추천 글 목록 조회 (최대 4편)")
+    @GetMapping("/@{username}/{slug}/related")
+    public ApiResponse<List<PostSummaryResponse>> getRelatedPosts(
+            @PathVariable("username") String username,
+            @PathVariable("slug") String slug,
+            @RequestParam(name = "limit", defaultValue = "4") int limit
+    ) {
+        return ApiResponse.success(postService.getRelatedPosts(username, slug, limit));
     }
 }
 

@@ -24,10 +24,9 @@ const DORO_PORTAL_URL = import.meta.env.VITE_DORO_PORTAL_URL || 'http://localhos
 const DORO_SIGNUP_URL = `${DORO_PORTAL_URL}/signup`;
 
 export const Header: React.FC = () => {
-  const { user, isAuthenticated, loginWithIam, signupWithIam, loginWithMock, logout } = useAuthStore();
+  const { user, isAuthenticated, loginModalOpen, openLoginModal, closeLoginModal, loginWithIam, signupWithIam, loginWithMock, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
 
   // Form states
@@ -38,17 +37,17 @@ export const Header: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showMockOptions, setShowMockOptions] = useState(false);
 
-  const openLoginModal = () => {
+  const handleOpenLoginModal = () => {
     setErrorMsg('');
     setIsSignUpMode(false);
     setEmail('');
     setPassword('');
     setName('');
-    setLoginModalOpen(true);
+    openLoginModal();
   };
 
-  const closeLoginModal = () => {
-    setLoginModalOpen(false);
+  const handleCloseLoginModal = () => {
+    closeLoginModal();
     setErrorMsg('');
     setEmail('');
     setPassword('');
@@ -85,7 +84,7 @@ export const Header: React.FC = () => {
       } else {
         await loginWithIam(email.trim(), password);
       }
-      setLoginModalOpen(false);
+      closeLoginModal();
     } catch (err: any) {
       console.error('Auth error', err);
       const msg =
@@ -103,7 +102,7 @@ export const Header: React.FC = () => {
     setLoading(true);
     try {
       await loginWithIam(fastEmail, 'Password1234!');
-      setLoginModalOpen(false);
+      closeLoginModal();
     } catch (err: any) {
       console.error('Fast login error', err);
       setErrorMsg('빠른 로그인에 실패했습니다.');
@@ -222,7 +221,7 @@ export const Header: React.FC = () => {
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={openLoginModal}
+                  onClick={handleOpenLoginModal}
                   className="px-3.5 py-1.5 rounded-full text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   로그인
@@ -251,11 +250,11 @@ export const Header: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
               />
               <button
                 type="submit"
-                className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors"
               >
                 검색
               </button>
@@ -267,7 +266,7 @@ export const Header: React.FC = () => {
       {/* Real DORO IAM Login / SignUp Modal */}
       {loginModalOpen && (
         <div
-          onClick={closeLoginModal}
+          onClick={handleCloseLoginModal}
           className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer"
         >
           <div
@@ -416,7 +415,7 @@ export const Header: React.FC = () => {
             </div>
 
             <button
-              onClick={closeLoginModal}
+              onClick={handleCloseLoginModal}
               className="mt-4 w-full text-center text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
             >
               닫기

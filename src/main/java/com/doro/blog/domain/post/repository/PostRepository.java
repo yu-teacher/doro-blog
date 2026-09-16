@@ -92,6 +92,35 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
            "GROUP BY FUNCTION('TO_CHAR', p.publishedAt, 'YYYY-MM-DD') " +
            "ORDER BY postDate ASC")
     List<Object[]> countDailyPostsByUserIdSince(@Param("userId") UUID userId, @Param("since") java.time.Instant since);
+
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.user.id IN (" +
+           "  SELECT uf.followingId FROM com.doro.blog.domain.user.entity.UserFollow uf WHERE uf.followerId = :userId" +
+           ") ORDER BY p.publishedAt DESC")
+    Page<Post> findFollowingPosts(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
+           "WHERE p.id != :postId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) IN :tagNames " +
+           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+    List<Post> findRelatedPostsByTags(
+            @Param("postId") UUID postId,
+            @Param("tagNames") List<String> tagNames,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p WHERE p.user.id = :authorId AND p.status = 'PUBLISHED' AND p.id NOT IN :excludeIds " +
+           "ORDER BY p.publishedAt DESC")
+    List<Post> findOtherPostsByAuthor(
+            @Param("authorId") UUID authorId,
+            @Param("excludeIds") List<UUID> excludeIds,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.id NOT IN :excludeIds " +
+           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+    List<Post> findTrendingPostsExcluding(
+            @Param("excludeIds") List<UUID> excludeIds,
+            Pageable pageable
+    );
 }
 
 
