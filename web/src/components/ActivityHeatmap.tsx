@@ -86,9 +86,9 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ activities, au
 
       {/* Heatmap Grid - 100% responsive, no horizontal scrollbar */}
       <div className="w-full py-1">
-        <div className="flex w-full items-center justify-between gap-[2px] sm:gap-[3px]">
+        <div className="flex w-full items-center justify-between gap-[1px] sm:gap-[2px] md:gap-[3px]">
           {calendarGrid.map((week, wIdx) => (
-            <div key={wIdx} className="flex-1 flex flex-col gap-[2px] sm:gap-[3px]">
+            <div key={wIdx} className="flex-1 flex flex-col gap-[1px] sm:gap-[2px] md:gap-[3px]">
               {week.map((day, dIdx) => (
                 <div
                   key={dIdx}
