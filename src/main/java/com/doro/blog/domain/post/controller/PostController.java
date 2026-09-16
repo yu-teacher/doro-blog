@@ -61,9 +61,11 @@ public class PostController {
     public ApiResponse<PostDetailResponse> getPostDetail(
             @PathVariable("username") String username,
             @PathVariable("slug") String slug,
-            @CurrentDoroUser DoroUser doroUser
+            @CurrentDoroUser DoroUser doroUser,
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response
     ) {
-        return ApiResponse.success(postService.getPostDetail(username, slug, doroUser));
+        return ApiResponse.success(postService.getPostDetail(username, slug, doroUser, request, response));
     }
 
     @Operation(summary = "게시글 ID 단건 상세 조회 (마크다운 원문 포함)", description = "수정 등을 위한 포스트 ID 단건 조회")

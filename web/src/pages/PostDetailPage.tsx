@@ -34,9 +34,13 @@ export const PostDetailPage: React.FC = () => {
 
   // Clean username if prefixed with @
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
+  const currentPostKey = `${cleanUsername}/${slug}`;
+  const fetchingRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (cleanUsername && slug) {
+      if (fetchingRef.current === currentPostKey) return;
+      fetchingRef.current = currentPostKey;
       loadPost();
     }
   }, [cleanUsername, slug]);
