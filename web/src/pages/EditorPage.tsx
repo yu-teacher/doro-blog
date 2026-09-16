@@ -298,8 +298,14 @@ export const EditorPage: React.FC = () => {
 
       {/* Velog-style Publish Dialog Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-slate-900 dark:text-slate-100">
+        <div
+          onClick={() => setShowPublishModal(false)}
+          className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-slate-900 dark:text-slate-100 cursor-default"
+          >
             {/* Modal Left: Post Thumbnail & Summary Preview */}
             <div className="w-full md:w-1/2 p-8 bg-slate-50 dark:bg-slate-950/50 border-r border-slate-100 dark:border-slate-800 flex flex-col justify-between">
               <div>

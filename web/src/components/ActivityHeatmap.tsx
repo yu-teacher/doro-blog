@@ -84,11 +84,11 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ activities, au
         </span>
       </div>
 
-      {/* Heatmap Grid */}
-      <div className="overflow-x-auto pb-2">
-        <div className="inline-flex gap-1.5 min-w-[700px]">
+      {/* Heatmap Grid - 100% responsive, no horizontal scrollbar */}
+      <div className="w-full py-1">
+        <div className="flex w-full items-center justify-between gap-[2px] sm:gap-[3px]">
           {calendarGrid.map((week, wIdx) => (
-            <div key={wIdx} className="flex flex-col gap-1.5">
+            <div key={wIdx} className="flex-1 flex flex-col gap-[2px] sm:gap-[3px]">
               {week.map((day, dIdx) => (
                 <div
                   key={dIdx}
@@ -104,7 +104,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ activities, au
                     }
                   }}
                   onMouseLeave={() => setHoveredCell(null)}
-                  className={`w-3.5 h-3.5 rounded-xs transition-all cursor-pointer ${getColorClass(day.count)}`}
+                  className={`aspect-square w-full rounded-[2px] transition-all cursor-pointer ${getColorClass(day.count)}`}
                 />
               ))}
             </div>

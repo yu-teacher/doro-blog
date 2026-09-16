@@ -266,8 +266,14 @@ export const Header: React.FC = () => {
 
       {/* Real DORO IAM Login / SignUp Modal */}
       {loginModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95 text-slate-900 dark:text-slate-100">
+        <div
+          onClick={closeLoginModal}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95 text-slate-900 dark:text-slate-100 cursor-default"
+          >
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg mb-1">
               <ShieldCheck className="w-6 h-6" />
               <span>DORO ID {isSignUpMode ? '회원가입' : '로그인'}</span>
