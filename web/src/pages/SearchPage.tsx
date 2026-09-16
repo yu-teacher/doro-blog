@@ -31,7 +31,7 @@ export const SearchPage: React.FC = () => {
       setLoading(true);
       setPage(0);
       try {
-        const res = await blogApi.searchPosts(query.trim(), 0, 12);
+        const res = await blogApi.searchPosts(query.trim(), 0, 15);
         setPosts(res.content || []);
         setTotalElements(res.totalElements);
         setHasMore(!res.last);
@@ -50,7 +50,7 @@ export const SearchPage: React.FC = () => {
     setLoadingMore(true);
     const nextPage = page + 1;
     try {
-      const res = await blogApi.searchPosts(query.trim(), nextPage, 12);
+      const res = await blogApi.searchPosts(query.trim(), nextPage, 15);
       setPosts((prev) => [...prev, ...res.content]);
       setPage(nextPage);
       setHasMore(!res.last);
@@ -75,7 +75,7 @@ export const SearchPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-[1728px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Big Search Input */}
       <div className="max-w-2xl mx-auto mb-12">
         <form onSubmit={handleSubmit} className="relative">
@@ -99,14 +99,14 @@ export const SearchPage: React.FC = () => {
 
       {/* Search Results Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6 animate-pulse">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4" />
           ))}
         </div>
       ) : posts.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6">
             {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
