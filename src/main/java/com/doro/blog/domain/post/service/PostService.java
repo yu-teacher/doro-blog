@@ -1,0 +1,214 @@
+package com.doro.blog.domain.post.service;
+
+import com.doro.blog.common.exception.BlogException;
+import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.domain.like.repository.PostLikeRepository;
+import com.doro.blog.domain.post.dto.PostDtos.*;
+import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.entity.PostStatus;
+import com.doro.blog.domain.post.repository.PostRepository;
+import com.doro.blog.domain.series.entity.Series;
+import com.doro.blog.domain.series.repository.SeriesRepository;
+import com.doro.blog.domain.tag.service.TagService;
+import com.doro.blog.domain.user.entity.BlogUser;
+import com.doro.blog.domain.user.repository.BlogUserRepository;
+import com.doro.blog.domain.user.service.BlogUserService;
+import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
+import com.hunnit_beasts.doro.sdk.domain.DoroUser;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PostService {
+
+    private final PostRepository postRepository;
+    private final BlogUserRepository userRepository;
+    private final SeriesRepository seriesRepository;
+    private final PostLikeRepository likeRepository;
+    private final BlogUserService userService;
+    private final TagService tagService;
+    private final DoroGuardClient guardClient;
+
+    @Transactional
+    public PostSummaryResponse createPost(DoroUser doroUser, CreatePostRequest request) {
+        BlogUser user = userService.getOrCreateUser(doroUser);
+
+        String slug = (request.slug() != null && !request.slug().isBlank())
+                ? request.slug().toLowerCase().trim().replaceAll("[^a-z0-9가-힣_-]", "-")
+                : request.title().toLowerCase().trim().replaceAll("[^a-z0-9가-힣_-]", "-");
+
+        if (postRepository.existsByUserIdAndSlug(user.getId(), slug)) {
+            slug = slug + "-" + (System.currentTimeMillis() % 10000);
+        }
+
+        String summary = request.summary();
+        if (summary == null || summary.isBlank()) {
+            summary = request.content().length() > 150
+                    ? request.content().substring(0, 150).replaceAll("[#*`\\n]", " ").trim() + "..."
+                    : request.content().replaceAll("[#*`\\n]", " ").trim();
+        }
+
+        PostStatus status = request.status() != null ? request.status() : PostStatus.DRAFT;
+
+        Series series = null;
+        Integer seriesOrder = null;
+        if (request.seriesId() != null) {
+            series = seriesRepository.findById(request.seriesId())
+                    .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+            seriesOrder = series.getPostCount() + 1;
+            series.incrementPostCount();
+        }
+
+        Post post = Post.builder()
+                .user(user)
+                .series(series)
+                .seriesOrder(seriesOrder)
+                .title(request.title())
+                .slug(slug)
+                .summary(summary)
+                .content(request.content())
+                .thumbnailUrl(request.thumbnailUrl())
+                .status(status)
+                .publishedAt(status == PostStatus.PUBLISHED ? Instant.now() : null)
+                .build();
+
+        Post saved = postRepository.save(post);
+
+        // 태그 동기화
+        tagService.syncPostTags(saved, request.tags());
+
+        // Zanzibar ReBAC 관계 튜플 등록: blog_post:<id>#author@user:<userId>
+        guardClient.writeTuple("blog_post", saved.getId().toString(), "author", "user", user.getId().toString());
+
+        List<String> tags = tagService.getPostTagNames(saved.getId());
+        return PostSummaryResponse.from(saved, tags);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getFeed(String sort, String tag, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Post> posts;
+
+        if (tag != null && !tag.isBlank()) {
+            posts = postRepository.findAllByTagName(tag.trim().toLowerCase(), pageable);
+        } else if ("popular".equalsIgnoreCase(sort)) {
+            posts = postRepository.findAllByStatusOrderByLikeCountDesc(PostStatus.PUBLISHED, pageable);
+        } else {
+            posts = postRepository.findAllByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable);
+        }
+
+        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getUserPosts(String username, int page, int size) {
+        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+
+        Pageable pageable = PageRequest.of(page, size);
+        return postRepository.findAllByUserIdAndStatusOrderByPublishedAtDesc(user.getId(), PostStatus.PUBLISHED, pageable)
+                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+    }
+
+    @Transactional
+    public PostDetailResponse getPostDetail(String username, String slug, DoroUser doroUser) {
+        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+
+        Post post = postRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        // 비공개/임시저장 글 열람 인가 검증
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            boolean isAuthor = doroUser.isAuthenticated() && doroUser.userId().equals(user.getId());
+            if (!isAuthor) {
+                boolean hasAccess = doroUser.isAuthenticated() && guardClient.check(
+                        "blog_post", post.getId().toString(), "viewer", doroUser.userId().toString()
+                );
+                if (!hasAccess) {
+                    throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
+                }
+            }
+        }
+
+        // 조회수 증가
+        post.incrementViewCount();
+
+        boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
+        List<String> tags = tagService.getPostTagNames(post.getId());
+
+        return new PostDetailResponse(
+                PostSummaryResponse.from(post, tags),
+                post.getContent(),
+                likedByMe
+        );
+    }
+
+    @Transactional
+    public PostSummaryResponse updatePost(UUID postId, UpdatePostRequest request) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        String slug = (request.slug() != null && !request.slug().isBlank())
+                ? request.slug().toLowerCase().trim()
+                : post.getSlug();
+
+        String summary = request.summary();
+        if (summary == null || summary.isBlank()) {
+            summary = request.content().length() > 150
+                    ? request.content().substring(0, 150).replaceAll("[#*`\\n]", " ").trim() + "..."
+                    : request.content().replaceAll("[#*`\\n]", " ").trim();
+        }
+
+        // 시리즈 변경 처리
+        if (request.seriesId() != null && (post.getSeries() == null || !post.getSeries().getId().equals(request.seriesId()))) {
+            if (post.getSeries() != null) {
+                post.getSeries().decrementPostCount();
+            }
+            Series newSeries = seriesRepository.findById(request.seriesId())
+                    .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+            post.assignSeries(newSeries, newSeries.getPostCount() + 1);
+            newSeries.incrementPostCount();
+        } else if (request.seriesId() == null && post.getSeries() != null) {
+            post.getSeries().decrementPostCount();
+            post.removeSeries();
+        }
+
+        post.update(request.title(), slug, summary, request.content(), request.thumbnailUrl(), request.status());
+
+        if (request.tags() != null) {
+            tagService.syncPostTags(post, request.tags());
+        }
+
+        List<String> tags = tagService.getPostTagNames(post.getId());
+        return PostSummaryResponse.from(post, tags);
+    }
+
+    @Transactional
+    public void deletePost(UUID postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        if (post.getSeries() != null) {
+            post.getSeries().decrementPostCount();
+        }
+
+        // Zanzibar ReBAC 관계 튜플 삭제
+        guardClient.deleteTuple("blog_post", postId.toString(), "author", "user", post.getUser().getId().toString());
+
+        postRepository.delete(post);
+    }
+}

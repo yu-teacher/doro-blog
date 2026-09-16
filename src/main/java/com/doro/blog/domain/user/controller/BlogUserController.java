@@ -1,0 +1,54 @@
+package com.doro.blog.domain.user.controller;
+
+import com.doro.blog.common.response.ApiResponse;
+import com.doro.blog.domain.user.dto.BlogUserDtos.UpdateProfileRequest;
+import com.doro.blog.domain.user.dto.BlogUserDtos.UpdateUsernameRequest;
+import com.doro.blog.domain.user.dto.BlogUserDtos.UserProfileResponse;
+import com.doro.blog.domain.user.service.BlogUserService;
+import com.hunnit_beasts.doro.sdk.annotation.CurrentDoroUser;
+import com.hunnit_beasts.doro.sdk.domain.DoroUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "1. User & Blog Channel", description = "작가 프로필 및 블로그 홈 채널 API")
+@RestController
+@RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
+public class BlogUserController {
+
+    private final BlogUserService userService;
+
+    @Operation(summary = "작가 채널 프로필 조회 (공개)", description = "/@{username} 주소로 작가 프로필 정보 조회")
+    @GetMapping("/@{username}")
+    public ApiResponse<UserProfileResponse> getProfileByUsername(@PathVariable("username") String username) {
+        return ApiResponse.success(userService.getProfileByUsername(username));
+    }
+
+    @Operation(summary = "내 프로필 조회 (인증)", description = "현재 로그인된 작가의 프로필 조회 및 JIT 동기화")
+    @GetMapping("/me")
+    public ApiResponse<UserProfileResponse> getMyProfile(@CurrentDoroUser DoroUser doroUser) {
+        userService.getOrCreateUser(doroUser);
+        return ApiResponse.success(userService.getProfileById(doroUser.userId()));
+    }
+
+    @Operation(summary = "내 프로필 수정", description = "한 줄 소개, 블로그 타이틀, 소셜 링크 수정")
+    @PutMapping("/me")
+    public ApiResponse<UserProfileResponse> updateMyProfile(
+            @CurrentDoroUser DoroUser doroUser,
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        return ApiResponse.success(userService.updateProfile(doroUser, request));
+    }
+
+    @Operation(summary = "내 고유 username 슬러그 변경", description = "URL 경로 식별자(@username) 변경")
+    @PutMapping("/me/username")
+    public ApiResponse<UserProfileResponse> updateMyUsername(
+            @CurrentDoroUser DoroUser doroUser,
+            @Valid @RequestBody UpdateUsernameRequest request
+    ) {
+        return ApiResponse.success(userService.updateUsername(doroUser, request.username()));
+    }
+}

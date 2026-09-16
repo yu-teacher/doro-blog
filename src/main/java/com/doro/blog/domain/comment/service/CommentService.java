@@ -1,0 +1,137 @@
+package com.doro.blog.domain.comment.service;
+
+import com.doro.blog.common.exception.BlogException;
+import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.domain.comment.dto.CommentDtos.*;
+import com.doro.blog.domain.comment.entity.Comment;
+import com.doro.blog.domain.comment.repository.CommentRepository;
+import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.repository.PostRepository;
+import com.doro.blog.domain.user.entity.BlogUser;
+import com.doro.blog.domain.user.service.BlogUserService;
+import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
+import com.hunnit_beasts.doro.sdk.domain.DoroUser;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CommentService {
+
+    private final CommentRepository commentRepository;
+    private final PostRepository postRepository;
+    private final BlogUserService userService;
+    private final DoroGuardClient guardClient;
+
+    @Transactional
+    public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        BlogUser user = userService.getOrCreateUser(doroUser);
+
+        Comment comment = Comment.builder()
+                .post(post)
+                .user(user)
+                .parent(null)
+                .content(request.content())
+                .build();
+
+        Comment saved = commentRepository.save(comment);
+        post.incrementCommentCount();
+
+        // Zanzibar ReBAC 튜플 등록:
+        // 1. blog_comment:<id>#author@user:<userId>
+        // 2. blog_comment:<id>#post@blog_post:<postId> (이를 통해 post#author가 can_delete 권한을 획득)
+        guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
+        guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
+
+        return CommentResponse.from(saved);
+    }
+
+    @Transactional
+    public CommentResponse createReply(UUID postId, UUID parentCommentId, DoroUser doroUser, CreateReplyRequest request) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        BlogUser user = userService.getOrCreateUser(doroUser);
+
+        Comment parent = commentRepository.findById(parentCommentId)
+                .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 2-Level 계층 제한: 이미 부모가 있는 댓글(대댓글)에는 추가 답글 불가
+        if (parent.getParent() != null) {
+            throw new BlogException(ErrorCode.INVALID_COMMENT_DEPTH);
+        }
+
+        Comment reply = Comment.builder()
+                .post(post)
+                .user(user)
+                .parent(parent)
+                .content(request.content())
+                .build();
+
+        Comment saved = commentRepository.save(reply);
+        post.incrementCommentCount();
+
+        guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
+        guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
+
+        return CommentResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommentResponse> getCommentsByPostId(UUID postId) {
+        if (!postRepository.existsById(postId)) {
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        List<Comment> rootComments = commentRepository.findRootCommentsWithChildren(postId);
+        return rootComments.stream().map(CommentResponse::from).toList();
+    }
+
+    @Transactional
+    public CommentResponse updateComment(UUID commentId, DoroUser doroUser, UpdateCommentRequest request) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
+
+        if (!comment.getUser().getId().equals(doroUser.userId())) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "댓글 작성자 본인만 수정할 수 있습니다.");
+        }
+
+        comment.updateContent(request.content());
+        return CommentResponse.from(comment);
+    }
+
+    @Transactional
+    public void deleteComment(UUID commentId, DoroUser doroUser) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // Zanzibar ReBAC: 댓글 작성자 본인 OR 원글 작성자(post#author) 권한 확인
+        boolean canDelete = doroUser.isAuthenticated() && (
+                comment.getUser().getId().equals(doroUser.userId()) ||
+                comment.getPost().getUser().getId().equals(doroUser.userId()) ||
+                guardClient.check("blog_comment", commentId.toString(), "can_delete", doroUser.userId().toString())
+        );
+
+        if (!canDelete) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "댓글 삭제 권한이 없습니다.");
+        }
+
+        comment.getPost().decrementCommentCount();
+
+        // 자식 대댓글이 남아있는 경우 소프트 삭제, 없으면 영구 삭제
+        if (comment.isRoot() && !comment.getChildren().isEmpty()) {
+            comment.markDeleted();
+        } else {
+            guardClient.deleteTuple("blog_comment", commentId.toString(), "author", "user", comment.getUser().getId().toString());
+            guardClient.deleteTuple("blog_comment", commentId.toString(), "post", "blog_post", comment.getPost().getId().toString());
+            commentRepository.delete(comment);
+        }
+    }
+}
