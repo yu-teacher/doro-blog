@@ -191,6 +191,11 @@ export const PostDetailPage: React.FC = () => {
 
   const { post, content } = detail;
   const isAuthor = user && user.id === post.userId;
+  const isThumbnailInContent = Boolean(
+    post.thumbnailUrl &&
+      (content.includes(post.thumbnailUrl) ||
+        content.includes(post.thumbnailUrl.replace(/^https?:\/\/[^\/]+/, '')))
+  );
 
   return (
     <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -321,8 +326,8 @@ export const PostDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Thumbnail */}
-      {post.thumbnailUrl && (
+      {/* Thumbnail (Only show if not already present in article body) */}
+      {post.thumbnailUrl && !isThumbnailInContent && (
         <div className="mb-10 rounded-2xl overflow-hidden shadow-sm max-h-96">
           <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover" />
         </div>
