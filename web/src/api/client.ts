@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { useAuthStore } from '../store/authStore';
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { useAuthStore, isTokenExpired } from '../store/authStore';
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
@@ -9,8 +9,16 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
+  const { token, logout, openLoginModal, isAuthenticated } = useAuthStore.getState();
   if (token) {
+    if (isTokenExpired(token)) {
+      console.warn('API Client: Intercepted expired token before request. Logging out.');
+      if (isAuthenticated) {
+        logout();
+        openLoginModal();
+      }
+      return Promise.reject(new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.'));
+    }
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
