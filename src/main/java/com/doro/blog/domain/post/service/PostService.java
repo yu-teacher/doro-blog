@@ -72,6 +72,8 @@ public class PostService {
             series.incrementPostCount();
         }
 
+        String resolvedThumbnail = resolveThumbnail(request.thumbnailUrl(), request.content());
+
         Post post = Post.builder()
                 .user(user)
                 .series(series)
@@ -80,7 +82,7 @@ public class PostService {
                 .slug(slug)
                 .summary(summary)
                 .content(request.content())
-                .thumbnailUrl(request.thumbnailUrl())
+                .thumbnailUrl(resolvedThumbnail)
                 .status(status)
                 .publishedAt(status == PostStatus.PUBLISHED ? Instant.now() : null)
                 .build();
@@ -247,7 +249,8 @@ public class PostService {
             post.removeSeries();
         }
 
-        post.update(request.title(), slug, summary, request.content(), request.thumbnailUrl(), request.status());
+        String resolvedThumbnail = resolveThumbnail(request.thumbnailUrl(), request.content());
+        post.update(request.title(), slug, summary, request.content(), resolvedThumbnail, request.status());
 
         if (request.tags() != null) {
             tagService.syncPostTags(post, request.tags());
@@ -381,6 +384,29 @@ public class PostService {
         return related.stream()
                 .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())))
                 .toList();
+    }
+
+    private static final java.util.regex.Pattern FIRST_IMAGE_PATTERN =
+            java.util.regex.Pattern.compile("!\\[.*?\\]\\((https?://[^\\s)]+|/[^\\s)]+)\\)");
+
+    private String resolveThumbnail(String explicitThumbnailUrl, String content) {
+        if (explicitThumbnailUrl != null && !explicitThumbnailUrl.isBlank()) {
+            return explicitThumbnailUrl.trim();
+        }
+        return extractFirstImageUrl(content);
+    }
+
+    private String extractFirstImageUrl(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        java.util.regex.Matcher matcher = FIRST_IMAGE_PATTERN.matcher(content);
+        if (matcher.find()) {
+            String url = matcher.group(1).trim();
+            log.info("Auto-extracted first markdown image as post thumbnail: {}", url);
+            return url;
+        }
+        return null;
     }
 }
 

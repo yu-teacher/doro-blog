@@ -204,3 +204,10 @@ export interface ApiKeyLog {
   errorMessage: string | null;
   createdAt: string;
 }
+
+export interface UploadResponse {
+  url: string;
+  originalFilename: string;
+  contentType: string;
+  size: number;
+}

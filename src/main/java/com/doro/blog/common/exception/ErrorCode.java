@@ -11,6 +11,8 @@ public enum ErrorCode {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON-400-01", "잘못된 입력값입니다."),
     INVALID_COMMENT_DEPTH(HttpStatus.BAD_REQUEST, "COMMENT-400-01", "대댓글에는 추가 답글을 작성할 수 없습니다 (2-Level 제한)."),
     SLUG_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "SLUG-400-01", "이미 사용 중인 URL 슬러그입니다."),
+    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "UPLOAD-400-01", "지원하지 않는 파일 형식이거나 유효하지 않은 이미지입니다."),
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "UPLOAD-500-01", "이미지 업로드 처리에 실패했습니다."),
 
     // 401 Unauthorized
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH-401-01", "인증 자격 증명이 유효하지 않거나 누락되었습니다."),

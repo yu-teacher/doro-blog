@@ -18,6 +18,7 @@ import {
   CreateApiKeyRequest,
   CreateApiKeyResponse,
   ApiKeyLog,
+  UploadResponse,
 } from './types';
 
 export const blogApi = {
@@ -321,6 +322,19 @@ export const blogApi = {
   async getApiKeyLogs(apiKeyId?: string, page = 0, size = 20): Promise<PageResponse<ApiKeyLog>> {
     const res = await apiClient.get<ApiResponse<PageResponse<ApiKeyLog>>>('/api-keys/logs', {
       params: { apiKeyId, page, size },
+    });
+    return res.data.data;
+  },
+
+  // === Uploads ===
+  async uploadImage(file: File, subDirectory = 'posts'): Promise<UploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('subDirectory', subDirectory);
+    const res = await apiClient.post<ApiResponse<UploadResponse>>('/uploads', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return res.data.data;
   },
