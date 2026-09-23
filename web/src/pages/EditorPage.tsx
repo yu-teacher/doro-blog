@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
-import type { Series, PostStatus } from '../api/types';
+import type { Series, PostStatus, PostSummary } from '../api/types';
 import { MarkdownViewer } from '../components/MarkdownViewer';
+import { stripMarkdown } from '../utils/markdown';
+import { trackEvent } from '../utils/analytics';
 import {
   ArrowLeft,
   Image as ImageIcon,
@@ -18,6 +20,16 @@ import {
   RefreshCw,
   Loader2,
   Link2,
+  FileText,
+  X,
+  Bold,
+  Italic,
+  Strikethrough,
+  Quote,
+  Code,
+  Minus,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 export const EditorPage: React.FC = () => {
@@ -53,6 +65,181 @@ export const EditorPage: React.FC = () => {
   const [showNewSeriesInput, setShowNewSeriesInput] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [autoSavedTime, setAutoSavedTime] = useState<string | null>(null);
+  const [hasDraftNotice, setHasDraftNotice] = useState(false);
+  const [currentPostId, setCurrentPostId] = useState<string | null>(id || null);
+  const currentPostIdRef = useRef<string | null>(id || null);
+  const isSavingDbRef = useRef<boolean>(false);
+  const [serverDrafts, setServerDrafts] = useState<PostSummary[]>([]);
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [autoSavingDb, setAutoSavingDb] = useState(false);
+
+  const draftKey = `doro_editor_draft_${user?.username || 'guest'}`;
+
+  // Keep currentPostIdRef in sync
+  useEffect(() => {
+    currentPostIdRef.current = currentPostId;
+  }, [currentPostId]);
+
+  // Fetch user's server drafts from DB
+  const loadServerDrafts = async () => {
+    try {
+      const res = await blogApi.getMyPosts('DRAFT', 0, 10);
+      setServerDrafts(res.content || []);
+    } catch (err) {
+      console.error('Failed to load server drafts', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadServerDrafts();
+    }
+  }, [isAuthenticated]);
+
+  // Check for existing local draft when starting a new post
+  useEffect(() => {
+    if (!id && !currentPostIdRef.current) {
+      try {
+        const saved = localStorage.getItem(draftKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.title?.trim() || parsed.content?.trim()) {
+            setHasDraftNotice(true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check local draft', e);
+      }
+    }
+  }, [id, draftKey]);
+
+  // Debounced auto-save: LocalStorage (2s) + DB Server Draft (5s)
+  useEffect(() => {
+    if (!title.trim() && !content.trim()) return;
+
+    // 1. LocalStorage fast backup (2s)
+    const localTimer = setTimeout(() => {
+      try {
+        const draftData = {
+          title,
+          content,
+          tags,
+          summary,
+          thumbnailUrl,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+      } catch (err) {
+        console.error('Local auto-save error', err);
+      }
+    }, 2000);
+
+    // 2. DB Server Auto-save (5s debounced)
+    const dbTimer = setTimeout(async () => {
+      if (!title.trim() && !content.trim()) return;
+      if (isSavingDbRef.current) return;
+
+      try {
+        isSavingDbRef.current = true;
+        setAutoSavingDb(true);
+        const activeId = currentPostIdRef.current || id;
+        const draftTitle = title.trim() || '제목 없는 임시 글';
+        const payload = {
+          title: draftTitle,
+          content: content || '',
+          slug: slug || generateSlug(draftTitle) || 'draft-' + Date.now(),
+          summary: summary || (content ? stripMarkdown(content).slice(0, 120) : draftTitle),
+          thumbnailUrl: thumbnailUrl || undefined,
+          status: 'DRAFT' as PostStatus,
+          tags: tags,
+          seriesId: selectedSeriesId || undefined,
+        };
+
+        if (activeId) {
+          await blogApi.updatePost(activeId, payload);
+        } else {
+          const created = await blogApi.createPost(payload);
+          currentPostIdRef.current = created.id;
+          setCurrentPostId(created.id);
+        }
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setAutoSavedTime(`DB 동기화 완료 (${timeStr})`);
+        loadServerDrafts();
+      } catch (dbErr) {
+        console.error('Server auto-save error', dbErr);
+        const now = new Date();
+        setAutoSavedTime(`로컬 저장됨 (${now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`);
+      } finally {
+        setAutoSavingDb(false);
+        isSavingDbRef.current = false;
+      }
+    }, 5000);
+
+    return () => {
+      clearTimeout(localTimer);
+      clearTimeout(dbTimer);
+    };
+  }, [title, content, tags, summary, thumbnailUrl, slug, selectedSeriesId, draftKey, id]);
+
+  const handleRestoreDraft = () => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.title) setTitle(parsed.title);
+        if (parsed.content) setContent(parsed.content);
+        if (parsed.tags) setTags(parsed.tags);
+        if (parsed.summary) setSummary(parsed.summary);
+        if (parsed.thumbnailUrl) setThumbnailUrl(parsed.thumbnailUrl);
+      }
+    } catch (e) {
+      console.error('Failed to restore draft', e);
+    } finally {
+      setHasDraftNotice(false);
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    localStorage.removeItem(draftKey);
+    setHasDraftNotice(false);
+  };
+
+  const handleSelectServerDraft = (draft: PostSummary) => {
+    currentPostIdRef.current = draft.id;
+    setCurrentPostId(draft.id);
+    setTitle(draft.title || '');
+    setContent(draft.summary || ''); // will load full content via getPostById
+    setTags(draft.tags || []);
+    setSummary(draft.summary || '');
+    setThumbnailUrl(draft.thumbnailUrl || '');
+    setSlug(draft.slug || '');
+    if (draft.seriesId) setSelectedSeriesId(draft.seriesId);
+    setShowDraftsModal(false);
+
+    // Fetch complete content from backend
+    blogApi.getPostById(draft.id).then((full) => {
+      setContent(full.content);
+    }).catch((err) => console.error('Failed to fetch full draft content', err));
+  };
+
+  const handleDeleteServerDraft = async (draftId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('이 임시 저장 글을 삭제하시겠습니까?')) return;
+    try {
+      await blogApi.deletePost(draftId);
+      setServerDrafts((prev) => prev.filter((d) => d.id !== draftId));
+      if (currentPostIdRef.current === draftId) {
+        currentPostIdRef.current = null;
+        setCurrentPostId(null);
+        setAutoSavedTime(null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error?.message || '임시 저장 글 삭제에 실패했습니다.');
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -76,6 +263,8 @@ export const EditorPage: React.FC = () => {
 
   const loadPostForEdit = async (postId: string) => {
     try {
+      currentPostIdRef.current = postId;
+      setCurrentPostId(postId);
       const data = await blogApi.getPostById(postId);
       setTitle(data.post.title);
       setContent(data.content);
@@ -101,7 +290,12 @@ export const EditorPage: React.FC = () => {
       .replace(/\s+/g, '-');
   };
 
-  const handleAddTag = (e: React.KeyboardEvent) => {
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent duplicate firing during Korean IME composition
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
+
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       const val = tagInput.trim().replace(/^#/, '');
@@ -124,6 +318,194 @@ export const EditorPage: React.FC = () => {
     return match ? match[1] : null;
   };
 
+  // Undo / Redo History Stack
+  const historyRef = useRef<{ content: string; cursor: number }[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const isUndoRedoActionRef = useRef<boolean>(false);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize history when content is first loaded
+  useEffect(() => {
+    if (historyRef.current.length === 0 && (content || !id)) {
+      historyRef.current = [{ content, cursor: 0 }];
+      historyIndexRef.current = 0;
+    }
+  }, [content, id]);
+
+  const pushHistory = useCallback((newContent: string, cursor: number) => {
+    if (isUndoRedoActionRef.current) return;
+    const history = historyRef.current.slice(0, historyIndexRef.current + 1);
+    if (history.length > 0 && history[history.length - 1].content === newContent) {
+      return;
+    }
+    history.push({ content: newContent, cursor });
+    if (history.length > 80) history.shift();
+    historyRef.current = history;
+    historyIndexRef.current = history.length - 1;
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndexRef.current > 0) {
+      historyIndexRef.current -= 1;
+      const prev = historyRef.current[historyIndexRef.current];
+      isUndoRedoActionRef.current = true;
+      setContent(prev.content);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(prev.cursor, prev.cursor);
+        }
+        isUndoRedoActionRef.current = false;
+      }, 0);
+    }
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      historyIndexRef.current += 1;
+      const next = historyRef.current[historyIndexRef.current];
+      isUndoRedoActionRef.current = true;
+      setContent(next.content);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(next.cursor, next.cursor);
+        }
+        isUndoRedoActionRef.current = false;
+      }, 0);
+    }
+  }, []);
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart;
+    setContent(val);
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      pushHistory(val, cursor);
+    }, 400);
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isCmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+    // 1. Undo: Cmd+Z (or Ctrl+Z)
+    if (isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+
+    // 2. Redo: Cmd+Shift+Z or Ctrl+Y
+    if ((isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'z') || (!isMac && isCmdOrCtrl && e.key.toLowerCase() === 'y')) {
+      e.preventDefault();
+      handleRedo();
+      return;
+    }
+
+    // 3. Shortcuts: Cmd+B (Bold)
+    if (isCmdOrCtrl && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      insertFormatting('**', '**', '굵은 텍스트');
+      return;
+    }
+
+    // 4. Shortcuts: Cmd+I (Italic)
+    if (isCmdOrCtrl && e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      insertFormatting('*', '*', '기울임 텍스트');
+      return;
+    }
+
+    // 5. Tab key: Indent 2 spaces
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      insertFormatting('  ', '', '');
+      return;
+    }
+  };
+
+  // Helper to insert markdown formatting at cursor position or wrap selection
+  const insertFormatting = (prefix: string, suffix: string = '', defaultText: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    pushHistory(content, textarea.selectionStart);
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+    const selectedText = currentText.substring(start, end);
+
+    const replacement = selectedText ? `${prefix}${selectedText}${suffix}` : `${prefix}${defaultText}${suffix}`;
+    const newContent = currentText.substring(0, start) + replacement + currentText.substring(end);
+
+    setContent(newContent);
+    const cursorPosition = selectedText
+      ? start + prefix.length + selectedText.length
+      : start + prefix.length + defaultText.length;
+
+    pushHistory(newContent, cursorPosition);
+
+    setTimeout(() => {
+      textarea.focus();
+      if (selectedText) {
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length);
+      } else {
+        textarea.setSelectionRange(cursorPosition, cursorPosition);
+      }
+    }, 0);
+  };
+
+  const insertHeading = (level: number) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    pushHistory(content, textarea.selectionStart);
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+    const hashes = '#'.repeat(level) + ' ';
+
+    // Find the start of the current line
+    const lineStart = currentText.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = currentText.indexOf('\n', end);
+    const actualLineEnd = lineEnd === -1 ? currentText.length : lineEnd;
+    const currentLine = currentText.substring(lineStart, actualLineEnd);
+
+    // If current line already has a heading prefix, replace it
+    const cleanLine = currentLine.replace(/^#{1,6}\s*/, '');
+    const newLine = `${hashes}${cleanLine}`;
+
+    const newContent = currentText.substring(0, lineStart) + newLine + currentText.substring(actualLineEnd);
+    setContent(newContent);
+    const newCursorPos = lineStart + hashes.length + cleanLine.length;
+    pushHistory(newContent, newCursorPos);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const insertCodeBlock = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    if (selected.includes('\n') || !selected) {
+      insertFormatting('```javascript\n', '\n```\n', selected || '// 코드를 입력하세요');
+    } else {
+      insertFormatting('`', '`', selected);
+    }
+  };
+
   const handleOpenPublishModal = () => {
     if (!title.trim()) {
       alert('제목을 입력해주세요.');
@@ -138,8 +520,8 @@ export const EditorPage: React.FC = () => {
       setSlug(generateSlug(title) || 'post');
     }
     if (!summary) {
-      // Auto-extract first 120 chars as summary
-      const plain = content.replace(/[#*`_\[\]()]/g, '').slice(0, 120);
+      // Auto-extract first 120 chars of clean plain text as summary
+      const plain = stripMarkdown(content).slice(0, 120);
       setSummary(plain);
     }
 
@@ -287,30 +669,34 @@ export const EditorPage: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
-    if (!title.trim()) {
-      alert('제목을 입력해주세요.');
+    if (!title.trim() && !content.trim()) {
+      alert('제목 또는 본문 내용을 입력해주세요.');
       return;
     }
     setSaving(true);
     try {
+      const activeId = currentPostIdRef.current || id;
+      const draftTitle = title.trim() || '제목 없는 임시 글';
       const payload = {
-        title: title.trim(),
-        content: content,
-        slug: slug || generateSlug(title) || 'draft-' + Date.now(),
-        summary: summary || title,
+        title: draftTitle,
+        content: content || '',
+        slug: slug || generateSlug(draftTitle) || 'draft-' + Date.now(),
+        summary: summary || (content ? stripMarkdown(content).slice(0, 120) : draftTitle),
         thumbnailUrl: thumbnailUrl || undefined,
         status: 'DRAFT' as PostStatus,
         tags: tags,
         seriesId: selectedSeriesId || undefined,
       };
 
-      if (id) {
-        await blogApi.updatePost(id, payload);
+      if (activeId) {
+        await blogApi.updatePost(activeId, payload);
       } else {
-        await blogApi.createPost(payload);
+        const created = await blogApi.createPost(payload);
+        currentPostIdRef.current = created.id;
+        setCurrentPostId(created.id);
       }
       alert('임시 저장되었습니다.');
-      navigate('/me/posts');
+      navigate('/me/posts?tab=draft');
     } catch (err: any) {
       alert(err.response?.data?.error?.message || '임시 저장에 실패했습니다.');
     } finally {
@@ -323,6 +709,7 @@ export const EditorPage: React.FC = () => {
     setSaving(true);
 
     try {
+      const activeId = currentPostIdRef.current || id;
       const finalSlug = slug.trim() || generateSlug(title) || 'post-' + Date.now();
       const payload = {
         title: title.trim(),
@@ -335,11 +722,20 @@ export const EditorPage: React.FC = () => {
         seriesId: selectedSeriesId || undefined,
       };
 
-      if (id) {
-        await blogApi.updatePost(id, payload);
+      if (activeId) {
+        await blogApi.updatePost(activeId, payload);
       } else {
         await blogApi.createPost(payload);
       }
+
+      trackEvent('post_publish', {
+        title: title.trim(),
+        tag_count: tags.length,
+        has_series: Boolean(selectedSeriesId),
+      });
+
+      // Clear local draft upon successful publication
+      localStorage.removeItem(draftKey);
 
       setShowPublishModal(false);
       navigate(`/@${user?.username}/${finalSlug}`);
@@ -369,6 +765,32 @@ export const EditorPage: React.FC = () => {
         onChange={handleThumbnailFileInputChange}
         className="hidden"
       />
+
+      {/* Draft Restore Notification Banner */}
+      {hasDraftNotice && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/80 border-b border-emerald-200 dark:border-emerald-800 px-6 py-3 flex items-center justify-between text-xs animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>이전에 작성 중이던 <strong>임시 저장본</strong>이 있습니다. 이어서 작성하시겠습니까?</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs transition-colors"
+            >
+              불러오기
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="px-2.5 py-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top Split Editor Area */}
       <div className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-64px)]">
@@ -404,31 +826,149 @@ export const EditorPage: React.FC = () => {
             />
           </div>
 
-          {/* Markdown Toolbar (Velog-style image upload & status) */}
-          <div className="flex items-center justify-between py-2 px-1 mb-2 text-xs text-slate-400 border-b border-slate-100 dark:border-slate-800/80">
-            <div className="flex items-center gap-2">
+          {/* Markdown Formatting Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-y-2 py-2 px-1 mb-2 border-b border-slate-100 dark:border-slate-800/80 select-none">
+            <div className="flex items-center flex-wrap gap-0.5 sm:gap-1 text-slate-600 dark:text-slate-300">
+              {/* Headings H1 ~ H4 */}
+              <button
+                type="button"
+                onClick={() => insertHeading(1)}
+                className="px-2 py-1 rounded-md text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="대제목 (H1)"
+              >
+                H1
+              </button>
+              <button
+                type="button"
+                onClick={() => insertHeading(2)}
+                className="px-2 py-1 rounded-md text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="중제목 (H2)"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => insertHeading(3)}
+                className="px-2 py-1 rounded-md text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="소제목 (H3)"
+              >
+                H3
+              </button>
+              <button
+                type="button"
+                onClick={() => insertHeading(4)}
+                className="px-2 py-1 rounded-md text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="세부제목 (H4)"
+              >
+                H4
+              </button>
+
+              <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              {/* Text Styles: Bold, Italic, Strikethrough */}
+              <button
+                type="button"
+                onClick={() => insertFormatting('**', '**', '굵은 텍스트')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="굵게 (Bold)"
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('*', '*', '기울임 텍스트')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="기울임 (Italic)"
+              >
+                <Italic className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('~~', '~~', '취소선 텍스트')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="취소선 (Strikethrough)"
+              >
+                <Strikethrough className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              {/* Blocks & Extras: Quote, Link, Code, Divider */}
+              <button
+                type="button"
+                onClick={() => insertFormatting('> ', '', '인용구를 입력하세요')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="인용구 (Quote)"
+              >
+                <Quote className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('[', '](https://)', '링크 텍스트')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="링크 삽입"
+              >
+                <Link2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={insertCodeBlock}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="코드 블록"
+              >
+                <Code className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('\n\n---\n\n', '', '')}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="구분선"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              {/* Image Upload Button */}
               <button
                 type="button"
                 onClick={() => editorFileInputRef.current?.click()}
                 disabled={uploadingEditorImage}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium text-xs"
-                title="이미지 파일 업로드 (또는 본문에 직접 붙여넣기/드래그)"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors text-xs font-medium"
+                title="이미지 파일 첨부"
               >
                 {uploadingEditorImage ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
                 ) : (
-                  <ImageIcon className="w-4 h-4 text-emerald-500" />
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-500" />
                 )}
-                <span>이미지 첨부</span>
+                <span>이미지</span>
               </button>
-              <span className="text-[11px] text-slate-400 hidden sm:inline">
-                (Cmd+V 붙여넣기 또는 드래그앤드롭 지원)
-              </span>
+
+              <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              {/* Undo / Redo Buttons */}
+              <button
+                type="button"
+                onClick={handleUndo}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="실행 취소 (Cmd+Z / Ctrl+Z)"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                title="다시 실행 (Cmd+Shift+Z / Ctrl+Y)"
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {uploadingEditorImage && (
               <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium animate-pulse">
-                <Loader2 className="w-3 h-3 animate-spin" /> MinIO 스토리지 업로드 중...
+                <Loader2 className="w-3 h-3 animate-spin" /> MinIO 업로드 중...
               </span>
             )}
           </div>
@@ -438,7 +978,8 @@ export const EditorPage: React.FC = () => {
             ref={textareaRef}
             placeholder="당신의 이야기를 적어보세요... (Markdown 문법 지원, 이미지를 직접 붙여넣거나 끌어다 놓을 수 있습니다)"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={handleContentChange}
+            onKeyDown={handleEditorKeyDown}
             onPaste={handleEditorPaste}
             onDrop={handleEditorDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -476,6 +1017,34 @@ export const EditorPage: React.FC = () => {
         </button>
 
         <div className="flex items-center gap-3">
+          {serverDrafts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowDraftsModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl border border-emerald-200 dark:border-emerald-800 transition-colors mr-1 shadow-2xs"
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>임시 글 목록</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                {serverDrafts.length}
+              </span>
+            </button>
+          )}
+
+          {autoSavingDb && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 mr-2 animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>DB 동기화 중...</span>
+            </span>
+          )}
+
+          {!autoSavingDb && autoSavedTime && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 mr-2">
+              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{autoSavedTime}</span>
+            </span>
+          )}
+
           <button
             onClick={handleSaveDraft}
             disabled={saving}
@@ -492,6 +1061,93 @@ export const EditorPage: React.FC = () => {
           </button>
         </div>
       </footer>
+
+      {/* Server Drafts Selection Modal */}
+      {showDraftsModal && (
+        <div
+          onClick={() => setShowDraftsModal(false)}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 cursor-default p-6"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-lg font-bold">서버 DB 임시 글 목록 ({serverDrafts.length})</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDraftsModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              클릭하면 해당 임시 글을 에디터로 불러옵니다. (현재 작성 중인 내용은 변경됩니다)
+            </p>
+
+            <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+              {serverDrafts.length === 0 ? (
+                <div className="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
+                  저장된 임시 글이 없습니다.
+                </div>
+              ) : (
+                serverDrafts.map((d) => (
+                  <div
+                    key={d.id}
+                    onClick={() => handleSelectServerDraft(d)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2 group ${
+                      currentPostId === d.id
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/50'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/60 hover:border-emerald-400 dark:hover:border-emerald-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1 flex-1">
+                        {d.title || '제목 없는 임시 글'}
+                      </h4>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {currentPostId === d.id && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                            현재 작성 중
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteServerDraft(d.id, e)}
+                          className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          title="임시 글 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+                      <span>
+                        {new Date(d.createdAt).toLocaleDateString('ko-KR', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {d.tags && d.tags.length > 0 && (
+                        <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">
+                          {d.tags.map((t: string) => `#${t}`).join(' ')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Publish Settings Modal (Velog-style 2-Column with MinIO Thumbnail Upload) */}
       {showPublishModal && (

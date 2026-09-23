@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Tag as TagIcon, Hash } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { trackEvent } from '../utils/analytics';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,6 +33,7 @@ export const SearchPage: React.FC = () => {
       setPage(0);
       try {
         const res = await blogApi.searchPosts(query.trim(), 0, 15);
+        trackEvent('blog_search', { query: query.trim(), result_count: res.totalElements });
         setPosts(res.content || []);
         setTotalElements(res.totalElements);
         setHasMore(!res.last);
@@ -44,6 +46,26 @@ export const SearchPage: React.FC = () => {
 
     fetchInitial();
   }, [query]);
+
+  // Extract related tags from search result posts
+  const relatedTags = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    posts.forEach((p) => {
+      if (p.tags) {
+        p.tags.forEach((t) => {
+          const norm = t.trim();
+          if (norm) {
+            countMap[norm] = (countMap[norm] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    return Object.entries(countMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([name, count]) => ({ name, count }));
+  }, [posts]);
 
   const loadMore = useCallback(async () => {
     if (!query.trim() || loading || loadingMore || !hasMore) return;
@@ -77,7 +99,7 @@ export const SearchPage: React.FC = () => {
   return (
     <div className="max-w-[1728px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Big Search Input */}
-      <div className="max-w-2xl mx-auto mb-12">
+      <div className="max-w-2xl mx-auto mb-10">
         <form onSubmit={handleSubmit} className="relative">
           <input
             type="text"
@@ -90,10 +112,31 @@ export const SearchPage: React.FC = () => {
         </form>
 
         {query && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">
-            <strong className="text-slate-800 dark:text-slate-200">"{query}"</strong> 검색 결과{' '}
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold">{totalElements}건</span>
-          </p>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              <strong className="text-slate-800 dark:text-slate-200">"{query}"</strong> 검색 결과{' '}
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">{totalElements}건</span>
+            </p>
+
+            {/* Related Tags Bar */}
+            {relatedTags.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 animate-in fade-in">
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 mr-1">
+                  <TagIcon className="w-3.5 h-3.5" /> 연관 태그:
+                </span>
+                {relatedTags.map((tag) => (
+                  <Link
+                    key={tag.name}
+                    to={`/tags?tag=${encodeURIComponent(tag.name)}`}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-full text-xs font-semibold transition-all shadow-2xs"
+                  >
+                    <span>#{tag.name}</span>
+                    <span className="opacity-60 text-[10px]">({tag.count})</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

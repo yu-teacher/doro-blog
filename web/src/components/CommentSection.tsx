@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { blogApi } from '../api/blogApi';
 import type { Comment } from '../api/types';
 import { MessageSquare, CornerDownRight, Trash2, Send } from 'lucide-react';
+import { trackEvent } from '../utils/analytics';
 
 interface CommentSectionProps {
   postId: string;
@@ -36,6 +37,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     setSubmitting(true);
     try {
       await blogApi.createComment(postId, rootContent.trim());
+      trackEvent('comment_submit', {
+        post_id: postId,
+        is_reply: false,
+      });
       setRootContent('');
       onCommentUpdated();
     } catch (err: any) {
@@ -56,6 +61,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     setSubmitting(true);
     try {
       await blogApi.createComment(postId, replyContent.trim(), parentId);
+      trackEvent('comment_submit', {
+        post_id: postId,
+        is_reply: true,
+      });
       setReplyContent('');
       setReplyingToId(null);
       onCommentUpdated();

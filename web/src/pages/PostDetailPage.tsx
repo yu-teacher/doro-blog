@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
+import { trackEvent } from '../utils/analytics';
 import type { PostDetail, Comment, SeriesDetail, PostSummary } from '../api/types';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { CommentSection } from '../components/CommentSection';
@@ -19,6 +20,7 @@ import {
   ChevronRight,
   UserCheck,
   UserPlus,
+  UserMinus,
   Globe,
   Mail,
   Loader2,
@@ -63,6 +65,17 @@ export const PostDetailPage: React.FC = () => {
       setLikeCount(postData.post.likeCount);
       setIsLiked(postData.likedByMe);
       setAuthorFollowing(postData.author?.isFollowing ?? false);
+
+      trackEvent('post_view', {
+        post_id: postData.post.id,
+        post_title: postData.post.title,
+        author: cleanUsername,
+      });
+
+      // Dynamic Title & Meta
+      if (postData.post.title) {
+        document.title = `${postData.post.title} - DORO.log`;
+      }
 
       // Load comments
       loadComments(postData.post.id);
@@ -134,6 +147,11 @@ export const PostDetailPage: React.FC = () => {
         await blogApi.likePost(detail.post.id);
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
+        trackEvent('post_like', {
+          post_id: detail.post.id,
+          post_title: detail.post.title,
+          author: cleanUsername,
+        });
       }
     } catch (err: any) {
       alert(err.response?.data?.error?.message || '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.');
@@ -143,6 +161,10 @@ export const PostDetailPage: React.FC = () => {
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
+    trackEvent('post_share', {
+      post_id: detail?.post.id,
+      post_title: detail?.post.title,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -412,9 +434,9 @@ export const PostDetailPage: React.FC = () => {
           <button
             disabled={followLoading}
             onClick={handleToggleAuthorFollow}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shadow-xs flex-shrink-0 self-start sm:self-center ${
+            className={`group inline-flex items-center justify-center min-w-[84px] gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shadow-xs flex-shrink-0 self-start sm:self-center cursor-pointer ${
               authorFollowing
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600'
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
@@ -422,8 +444,10 @@ export const PostDetailPage: React.FC = () => {
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : authorFollowing ? (
               <>
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>팔로잉</span>
+                <UserCheck className="w-3.5 h-3.5 group-hover:hidden" />
+                <UserMinus className="w-3.5 h-3.5 hidden group-hover:inline text-rose-600 dark:text-rose-400" />
+                <span className="group-hover:hidden">팔로잉</span>
+                <span className="hidden group-hover:inline text-rose-600 dark:text-rose-400">언팔로우</span>
               </>
             ) : (
               <>

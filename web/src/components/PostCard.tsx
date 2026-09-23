@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { PostSummary } from '../api/types';
 import { Heart, MessageSquare, BookOpen, Eye } from 'lucide-react';
+import { stripMarkdown } from '../utils/markdown';
+import { trackEvent } from '../utils/analytics';
 
 interface PostCardProps {
   post: PostSummary;
@@ -31,9 +33,10 @@ const formatDate = (dateStr?: string) => {
 export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => {
   const publishedDate = formatDate(post.publishedAt || post.createdAt);
   const authorName = post.nickname || post.username || '익명';
+  const cleanSummary = stripMarkdown(post.summary) || '게시글 내용 미리보기가 제공되지 않습니다.';
 
   const getTagLink = (tag: string) => {
-    return channelUsername ? `/@${channelUsername}?tag=${encodeURIComponent(tag)}` : `/?tag=${encodeURIComponent(tag)}`;
+    return channelUsername ? `/@${channelUsername}?tag=${encodeURIComponent(tag)}` : `/tags?tag=${encodeURIComponent(tag)}`;
   };
 
   return (
@@ -41,6 +44,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => 
       {/* 1. Thumbnail */}
       <Link
         to={`/@${post.username}/${post.slug}`}
+        onClick={() => {
+          trackEvent('post_card_click', {
+            post_id: post.id,
+            title: post.title,
+            author: post.username,
+          });
+        }}
         className="block relative aspect-[16/9] bg-slate-100 dark:bg-slate-800/80 overflow-hidden"
       >
         {post.thumbnailUrl ? (
@@ -80,7 +90,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => 
           </Link>
 
           <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-normal">
-            {post.summary || '게시글 내용 미리보기가 제공되지 않습니다.'}
+            {cleanSummary}
           </p>
         </div>
 
