@@ -38,3 +38,10 @@ out/
 
 ### Log files ###
 *.log
+
+### Build artifacts / local config ###
+*.tsbuildinfo
+__pycache__/
+.env
+.env.*
+!.env.example
