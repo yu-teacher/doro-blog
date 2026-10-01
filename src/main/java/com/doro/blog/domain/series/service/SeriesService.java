@@ -21,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashSet;
 import java.util.UUID;
 
 @Slf4j
@@ -141,9 +144,18 @@ public class SeriesService {
         Series series = seriesRepository.findById(seriesId)
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
-        String slug = (request.slug() != null && !request.slug().isBlank())
-                ? request.slug().toLowerCase().trim()
-                : series.getSlug();
+        String slug = series.getSlug();
+        if (request.slug() != null && !request.slug().isBlank()) {
+            String requested = SlugGenerator.sanitize(request.slug());
+            if (requested.isEmpty()) {
+                throw new BlogException(ErrorCode.INVALID_INPUT, "슬러그에 사용할 수 있는 문자가 없습니다.");
+            }
+            if (!requested.equals(series.getSlug())
+                    && seriesRepository.existsByUserIdAndSlugAndIdNot(series.getUser().getId(), requested, series.getId())) {
+                throw new BlogException(ErrorCode.SLUG_ALREADY_EXISTS);
+            }
+            slug = requested;
+        }
 
         series.update(request.title(), slug, request.description(), request.thumbnailUrl());
         return SeriesResponse.from(series);
@@ -172,14 +184,16 @@ public class SeriesService {
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
         List<Post> posts = postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId);
+        Map<UUID, Post> byId = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+
+        // 목록이 시리즈의 글과 정확히 일치해야 한다. 빠지거나 중복되거나 남의 글이 섞이면 회차 번호가 꼬이므로 거부한다.
+        if (postIds == null || postIds.size() != byId.size() || !byId.keySet().equals(new HashSet<>(postIds))) {
+            throw new BlogException(ErrorCode.INVALID_INPUT, "정렬 목록은 시리즈에 속한 모든 글을 중복 없이 한 번씩 포함해야 합니다.");
+        }
+
         int order = 1;
         for (UUID postId : postIds) {
-            for (Post post : posts) {
-                if (post.getId().equals(postId)) {
-                    post.updateSeriesOrder(order++);
-                    break;
-                }
-            }
+            byId.get(postId).updateSeriesOrder(order++);
         }
 
         return getSeriesDetail(seriesId);

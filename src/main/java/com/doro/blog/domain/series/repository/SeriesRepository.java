@@ -15,6 +15,8 @@ public interface SeriesRepository extends JpaRepository<Series, UUID> {
     Optional<Series> findByUserIdAndSlug(UUID userId, String slug);
     boolean existsByUserIdAndSlug(UUID userId, String slug);
 
+    boolean existsByUserIdAndSlugAndIdNot(UUID userId, String slug, UUID id);
+
     /** 글 수를 DB 에서 원자적으로 증감한다 (0 아래로는 내려가지 않는다). */
     @Modifying
     @Query("update Series s set s.postCount = case when s.postCount + :delta < 0 then 0 else s.postCount + :delta end where s.id = :id")

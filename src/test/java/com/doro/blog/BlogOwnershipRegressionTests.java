@@ -10,6 +10,7 @@ import com.doro.blog.domain.post.dto.PostDtos.UpdatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.service.PostService;
 import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
+import com.doro.blog.domain.series.dto.SeriesDtos.UpdateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -133,5 +135,41 @@ class BlogOwnershipRegressionTests {
                 "!!!", null, null, "본문", null, PostStatus.PUBLISHED, null, null));
 
         assertThat(post.slug()).isNotBlank().doesNotContainPattern("^-+$");
+    }
+
+    @Test
+    @DisplayName("시리즈 정렬: 모든 글을 한 번씩 담은 목록만 받아들이고, 결과는 요청 순서를 따른다")
+    void reorderRequiresExactlyTheSeriesPosts() {
+        DoroUser author = mockUser("author");
+        var series = seriesService.createSeries(author, new CreateSeriesRequest("정렬 시리즈", null, null, null));
+        var a = postService.createPost(author, publishedPost("A", series.id()));
+        var b = postService.createPost(author, publishedPost("B", series.id()));
+        var c = postService.createPost(author, publishedPost("C", series.id()));
+
+        var detail = seriesService.reorderPosts(series.id(), List.of(c.id(), a.id(), b.id()));
+        assertThat(detail.posts()).extracting(p -> p.id()).containsExactly(c.id(), a.id(), b.id());
+        assertThat(detail.posts()).extracting(p -> p.seriesOrder()).containsExactly(1, 2, 3);
+
+        // 빠진 글, 중복, 남의 글이 섞인 목록은 거부하고 기존 순서를 바꾸지 않는다
+        assertThatThrownBy(() -> seriesService.reorderPosts(series.id(), List.of(a.id(), b.id())))
+                .isInstanceOf(BlogException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        assertThatThrownBy(() -> seriesService.reorderPosts(series.id(), List.of(a.id(), a.id(), b.id())))
+                .isInstanceOf(BlogException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        assertThatThrownBy(() -> seriesService.reorderPosts(series.id(), List.of(a.id(), b.id(), UUID.randomUUID())))
+                .isInstanceOf(BlogException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        assertThat(seriesService.getSeriesDetail(series.id(), author).posts()).extracting(p -> p.id())
+                .containsExactly(c.id(), a.id(), b.id());
+    }
+
+    @Test
+    @DisplayName("시리즈 슬러그를 이미 쓰는 값으로 바꾸면 SLUG_ALREADY_EXISTS")
+    void updatingSeriesToTakenSlugIsRejected() {
+        DoroUser author = mockUser("author");
+        seriesService.createSeries(author, new CreateSeriesRequest("첫 시리즈", "taken-series", null, null));
+        var second = seriesService.createSeries(author, new CreateSeriesRequest("둘째 시리즈", null, null, null));
+
+        assertThatThrownBy(() -> seriesService.updateSeries(second.id(), new UpdateSeriesRequest("둘째 시리즈", "taken-series", null, null)))
+                .isInstanceOf(BlogException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SLUG_ALREADY_EXISTS);
     }
 }
