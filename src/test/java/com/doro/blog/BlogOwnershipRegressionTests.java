@@ -107,4 +107,31 @@ class BlogOwnershipRegressionTests {
 
         assertThat(postService.getPostById(postB.id(), author).post().commentCount()).isZero();
     }
+
+    @Test
+    @DisplayName("수정 시 이미 쓰는 슬러그로 바꾸면 500 이 아니라 SLUG_ALREADY_EXISTS")
+    void updateToTakenSlugIsRejected() {
+        DoroUser author = mockUser("author");
+        var first = postService.createPost(author, new CreatePostRequest(
+                "첫 글", "taken-slug", null, "본문", null, PostStatus.PUBLISHED, null, null));
+        var second = postService.createPost(author, publishedPost("둘째 글", null));
+
+        assertThatThrownBy(() -> postService.updatePost(second.id(), new UpdatePostRequest(
+                "둘째 글", "taken-slug", null, null, null, PostStatus.PUBLISHED, null, null)))
+                .isInstanceOf(BlogException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SLUG_ALREADY_EXISTS);
+
+        assertThat(first.slug()).isEqualTo("taken-slug");
+        assertThat(postService.getPostById(second.id(), author).post().slug()).isNotEqualTo("taken-slug");
+    }
+
+    @Test
+    @DisplayName("제목이 기호뿐이어도 '---' 같은 슬러그가 만들어지지 않는다")
+    void symbolOnlyTitleGetsUsableSlug() {
+        DoroUser author = mockUser("author");
+        var post = postService.createPost(author, new CreatePostRequest(
+                "!!!", null, null, "본문", null, PostStatus.PUBLISHED, null, null));
+
+        assertThat(post.slug()).isNotBlank().doesNotContainPattern("^-+$");
+    }
 }

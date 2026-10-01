@@ -11,8 +11,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -64,6 +67,20 @@ public class TagService {
         return postTagRepository.findAllByPostIdWithTag(postId).stream()
                 .map(pt -> pt.getTag().getName())
                 .toList();
+    }
+
+    /** 글 id → 태그 이름 목록. 태그가 없는 글도 빈 목록으로 포함한다. */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<String>> getTagNamesByPostIds(Collection<UUID> postIds) {
+        Map<UUID, List<String>> result = new HashMap<>();
+        postIds.forEach(id -> result.put(id, new ArrayList<>()));
+        if (postIds.isEmpty()) {
+            return result;
+        }
+        for (PostTag pt : postTagRepository.findAllByPostIdsWithTag(postIds)) {
+            result.get(pt.getPost().getId()).add(pt.getTag().getName());
+        }
+        return result;
     }
 
     @Transactional(readOnly = true)

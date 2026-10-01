@@ -1,5 +1,6 @@
 package com.doro.blog.domain.post.controller;
 
+import com.doro.blog.common.util.Handles;
 import com.doro.blog.common.web.PageLimits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -73,7 +74,7 @@ public class PostController {
             jakarta.servlet.http.HttpServletRequest request,
             jakarta.servlet.http.HttpServletResponse response
     ) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         boolean shouldCount = checkAndSetViewCookie(cleanUsername + "/" + slug.toLowerCase().trim(), request, response);
         return ApiResponse.success(postService.getPostDetail(username, slug, doroUser, shouldCount));
     }

@@ -1,5 +1,6 @@
 package com.doro.blog.domain.user.service;
 
+import com.doro.blog.common.util.Handles;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.post.repository.PostRepository;
@@ -66,7 +67,7 @@ public class BlogUserService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfileByUsername(String username, DoroUser currentUser) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -106,7 +107,7 @@ public class BlogUserService {
     @Transactional
     public UserProfileResponse updateUsername(DoroUser doroUser, String newUsername) {
         BlogUser user = getOrCreateUser(doroUser);
-        String cleanUsername = newUsername.startsWith("@") ? newUsername.substring(1) : newUsername;
+        String cleanUsername = Handles.stripAt(newUsername);
         cleanUsername = cleanUsername.toLowerCase().trim();
 
         if (!cleanUsername.matches("^[a-z0-9_-]{3,50}$")) {
@@ -124,7 +125,7 @@ public class BlogUserService {
     @Transactional
     public UserProfileResponse followUser(DoroUser currentUser, String targetUsername) {
         BlogUser me = getOrCreateUser(currentUser);
-        String cleanUsername = targetUsername.startsWith("@") ? targetUsername.substring(1) : targetUsername;
+        String cleanUsername = Handles.stripAt(targetUsername);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -164,7 +165,7 @@ public class BlogUserService {
     @Transactional
     public UserProfileResponse unfollowUser(DoroUser currentUser, String targetUsername) {
         BlogUser me = getOrCreateUser(currentUser);
-        String cleanUsername = targetUsername.startsWith("@") ? targetUsername.substring(1) : targetUsername;
+        String cleanUsername = Handles.stripAt(targetUsername);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -186,7 +187,7 @@ public class BlogUserService {
 
     @Transactional(readOnly = true)
     public Page<FollowUserDto> getFollowers(String username, Pageable pageable, DoroUser currentUser) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -229,7 +230,7 @@ public class BlogUserService {
 
     @Transactional(readOnly = true)
     public Page<FollowUserDto> getFollowing(String username, Pageable pageable, DoroUser currentUser) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -272,7 +273,7 @@ public class BlogUserService {
 
     @Transactional(readOnly = true)
     public List<UserTagSummaryDto> getUserTags(String username) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -284,7 +285,7 @@ public class BlogUserService {
 
     @Transactional(readOnly = true)
     public List<UserActivityDto> getUserActivity(String username) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 

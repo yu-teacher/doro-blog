@@ -1,5 +1,7 @@
 package com.doro.blog.domain.post.service;
 
+import com.doro.blog.common.util.Handles;
+import com.doro.blog.common.util.SlugGenerator;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.like.repository.PostLikeRepository;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -47,13 +50,8 @@ public class PostService {
     public PostSummaryResponse createPost(DoroUser doroUser, CreatePostRequest request) {
         BlogUser user = userService.getOrCreateUser(doroUser);
 
-        String slug = (request.slug() != null && !request.slug().isBlank())
-                ? request.slug().toLowerCase().trim().replaceAll("[^a-z0-9가-힣_-]", "-")
-                : request.title().toLowerCase().trim().replaceAll("[^a-z0-9가-힣_-]", "-");
-
-        if (postRepository.existsByUserIdAndSlug(user.getId(), slug)) {
-            slug = slug + "-" + (System.currentTimeMillis() % 10000);
-        }
+        String slug = SlugGenerator.unique(request.slug(), request.title(), "post",
+                candidate -> postRepository.existsByUserIdAndSlug(user.getId(), candidate));
 
         String summary = generateSummary(request.summary(), request.content());
 
@@ -120,12 +118,12 @@ public class PostService {
             posts = postRepository.findAllByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable);
         }
 
-        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(posts);
     }
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getUserPosts(String username, String query, String tag, int page, int size) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -144,7 +142,7 @@ public class PostService {
             posts = postRepository.findAllByUserIdAndStatusOrderByPublishedAtDesc(user.getId(), PostStatus.PUBLISHED, pageable);
         }
 
-        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(posts);
     }
 
 
@@ -161,7 +159,7 @@ public class PostService {
             DoroUser doroUser,
             boolean countView
     ) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -232,9 +230,18 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
-        String slug = (request.slug() != null && !request.slug().isBlank())
-                ? request.slug().toLowerCase().trim()
-                : post.getSlug();
+        String slug = post.getSlug();
+        if (request.slug() != null && !request.slug().isBlank()) {
+            String requested = SlugGenerator.sanitize(request.slug());
+            if (requested.isEmpty()) {
+                throw new BlogException(ErrorCode.INVALID_INPUT, "슬러그에 사용할 수 있는 문자가 없습니다.");
+            }
+            if (!requested.equals(post.getSlug())
+                    && postRepository.existsByUserIdAndSlugAndIdNot(post.getUser().getId(), requested, post.getId())) {
+                throw new BlogException(ErrorCode.SLUG_ALREADY_EXISTS);
+            }
+            slug = requested;
+        }
 
         // 본문과 요약이 모두 생략된 부분 수정이면 기존 요약을 그대로 둔다 (null 은 Post.update 에서 무시됨)
         String summary = (request.summary() == null && request.content() == null)
@@ -299,7 +306,7 @@ public class PostService {
                 ? postRepository.findAllByUserIdAndStatusOrderByCreatedAtDesc(doroUser.userId(), status, pageable)
                 : postRepository.findAllByUserIdOrderByCreatedAtDesc(doroUser.userId(), pageable);
 
-        return posts.map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(posts);
     }
 
 
@@ -313,8 +320,7 @@ public class PostService {
             default -> java.time.Instant.now().minus(java.time.Duration.ofDays(7));
         };
 
-        return postRepository.findTrendingPosts(since, pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(postRepository.findTrendingPosts(since, pageable));
     }
 
     @Transactional(readOnly = true)
@@ -323,8 +329,7 @@ public class PostService {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
         Pageable pageable = PageRequest.of(page, size);
-        return postRepository.findLikedPostsByUserId(doroUser.userId(), pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(postRepository.findLikedPostsByUserId(doroUser.userId(), pageable));
     }
 
     @Transactional(readOnly = true)
@@ -333,8 +338,7 @@ public class PostService {
         if (query == null || query.trim().isEmpty()) {
             return org.springframework.data.domain.Page.empty(pageable);
         }
-        return postRepository.searchPublishedPosts(query.trim(), pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(postRepository.searchPublishedPosts(query.trim(), pageable));
     }
 
     @Transactional(readOnly = true)
@@ -343,13 +347,12 @@ public class PostService {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
         Pageable pageable = PageRequest.of(page, size);
-        return postRepository.findFollowingPosts(doroUser.userId(), pageable)
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())));
+        return toSummaries(postRepository.findFollowingPosts(doroUser.userId(), pageable));
     }
 
     @Transactional(readOnly = true)
     public List<PostSummaryResponse> getRelatedPosts(String username, String slug, int limit) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -395,13 +398,24 @@ public class PostService {
             }
         }
 
-        return related.stream()
-                .map(p -> PostSummaryResponse.from(p, tagService.getPostTagNames(p.getId())))
-                .toList();
+        return toSummaries(related);
     }
 
     private static final java.util.regex.Pattern FIRST_IMAGE_PATTERN =
             java.util.regex.Pattern.compile("!\\[.*?\\]\\((https?://[^\\s)]+|/[^\\s)]+)\\)");
+
+    /** 목록의 글들을 응답으로 바꾼다. 태그는 글마다 조회하지 않고 한 번의 쿼리로 가져온다. */
+    private List<PostSummaryResponse> toSummaries(List<Post> posts) {
+        Map<UUID, List<String>> tagsByPost = tagService.getTagNamesByPostIds(posts.stream().map(Post::getId).toList());
+        return posts.stream()
+                .map(p -> PostSummaryResponse.from(p, tagsByPost.getOrDefault(p.getId(), List.of())))
+                .toList();
+    }
+
+    private Page<PostSummaryResponse> toSummaries(Page<Post> page) {
+        Map<UUID, List<String>> tagsByPost = tagService.getTagNamesByPostIds(page.getContent().stream().map(Post::getId).toList());
+        return page.map(p -> PostSummaryResponse.from(p, tagsByPost.getOrDefault(p.getId(), List.of())));
+    }
 
     /** 다른 사용자의 시리즈에 글을 붙이지 못하게 한다. */
     private void requireSeriesOwner(Series series, UUID authorId) {

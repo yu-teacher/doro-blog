@@ -39,6 +39,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     boolean existsByUserIdAndSlug(UUID userId, String slug);
 
+    boolean existsByUserIdAndSlugAndIdNot(UUID userId, String slug, UUID id);
+
     Page<Post> findAllByStatusOrderByPublishedAtDesc(PostStatus status, Pageable pageable);
 
     Page<Post> findAllByStatusOrderByLikeCountDesc(PostStatus status, Pageable pageable);

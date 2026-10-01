@@ -1,5 +1,7 @@
 package com.doro.blog.domain.series.service;
 
+import com.doro.blog.common.util.Handles;
+import com.doro.blog.common.util.SlugGenerator;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.post.entity.Post;
@@ -36,13 +38,8 @@ public class SeriesService {
     public SeriesResponse createSeries(DoroUser doroUser, CreateSeriesRequest request) {
         BlogUser user = userService.getOrCreateUser(doroUser);
 
-        String slug = (request.slug() != null && !request.slug().isBlank())
-                ? request.slug().toLowerCase().trim().replaceAll("[^a-z0-9_-]", "-")
-                : request.title().toLowerCase().trim().replaceAll("[^a-z0-9_-]", "-");
-
-        if (seriesRepository.existsByUserIdAndSlug(user.getId(), slug)) {
-            slug = slug + "-" + System.currentTimeMillis() % 10000;
-        }
+        String slug = SlugGenerator.unique(request.slug(), request.title(), "series",
+                candidate -> seriesRepository.existsByUserIdAndSlug(user.getId(), candidate));
 
         Series series = Series.builder()
                 .user(user)
@@ -62,7 +59,7 @@ public class SeriesService {
 
     @Transactional(readOnly = true)
     public List<SeriesResponse> getSeriesByUsername(String username, DoroUser doroUser) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
@@ -85,7 +82,7 @@ public class SeriesService {
 
     @Transactional(readOnly = true)
     public SeriesDetailResponse getSeriesByUsernameAndSlug(String username, String slug, DoroUser doroUser) {
-        String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
