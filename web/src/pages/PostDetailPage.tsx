@@ -28,6 +28,7 @@ import {
 import { getErrorMessage, isCancelled } from '../utils/errors';
 import { ErrorState } from '../components/ErrorState';
 import { formatDate } from '../utils/date';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 
 const RELATED_POSTS_LIMIT = 4;
 
@@ -42,7 +43,7 @@ export const PostDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyToClipboard } = useCopyToClipboard();
   const [authorFollowing, setAuthorFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [relatedPosts, setRelatedPosts] = useState<PostSummary[]>([]);
@@ -163,14 +164,13 @@ export const PostDetailPage: React.FC = () => {
     }
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
+  const handleShare = async () => {
+    // 복사에 실패하면(권한 거부 등) 공유 이벤트로 집계하지 않는다
+    if (!(await copyToClipboard(window.location.href))) return;
     trackEvent('post_share', {
       post_id: detail?.post.id,
       post_title: detail?.post.title,
     });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDeletePost = async () => {

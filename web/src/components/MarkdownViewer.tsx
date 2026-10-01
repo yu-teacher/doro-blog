@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Check, Copy } from 'lucide-react';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 
 interface MarkdownViewerProps {
   content: string;
@@ -14,20 +15,14 @@ const PreBlock = ({ children }: { children?: React.ReactNode }) => {
 };
 
 const CodeBlock = ({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) => {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
   const match = /language-(\w+)/.exec(className || '');
   const isBlock = Boolean(match) || String(children).includes('\n');
   const language = match ? match[1] : '';
   const textContent = String(children).replace(/\n$/, '');
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(textContent);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy code', err);
-    }
+  const handleCopy = () => {
+    void copy(textContent);
   };
 
   if (!isBlock) {
