@@ -71,7 +71,7 @@ public class PostQueryService {
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
         Pageable pageable = PageRequest.of(page, size);
-        String keyword = (query != null && !query.trim().isEmpty()) ? LikeEscape.escape(query.trim()) : null;
+        String keyword = (query != null && !query.trim().isEmpty()) ? LikeEscape.containsPattern(query.trim()) : null;
         String normalizedTag = (tag != null && !tag.trim().isEmpty()) ? tag.trim().toLowerCase() : null;
 
         Page<Post> posts;
@@ -206,7 +206,7 @@ public class PostQueryService {
         if (query == null || query.trim().isEmpty()) {
             return org.springframework.data.domain.Page.empty(pageable);
         }
-        return summaryMapper.toSummaries(postRepository.searchPublishedPosts(LikeEscape.escape(query.trim()), pageable));
+        return summaryMapper.toSummaries(postRepository.searchPublishedPosts(LikeEscape.containsPattern(query.trim()), pageable));
     }
 
     @Transactional(readOnly = true)
