@@ -31,6 +31,7 @@ import {
   Undo2,
   Redo2,
 } from 'lucide-react';
+import { getErrorMessage } from '../utils/errors';
 
 export const EditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Post ID if editing
@@ -236,8 +237,8 @@ export const EditorPage: React.FC = () => {
         setCurrentPostId(null);
         setAutoSavedTime(null);
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '임시 저장 글 삭제에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '임시 저장 글 삭제에 실패했습니다.'));
     }
   };
 
@@ -663,8 +664,8 @@ export const EditorPage: React.FC = () => {
       setSelectedSeriesId(created.id);
       setNewSeriesTitle('');
       setShowNewSeriesInput(false);
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '시리즈 생성에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '시리즈 생성에 실패했습니다.'));
     }
   };
 
@@ -697,8 +698,8 @@ export const EditorPage: React.FC = () => {
       }
       alert('임시 저장되었습니다.');
       navigate('/me/posts?tab=draft');
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '임시 저장에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '임시 저장에 실패했습니다.'));
     } finally {
       setSaving(false);
     }
@@ -739,8 +740,8 @@ export const EditorPage: React.FC = () => {
 
       setShowPublishModal(false);
       navigate(`/@${user?.username}/${finalSlug}`);
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '글 출간에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '글 출간에 실패했습니다.'));
     } finally {
       setSaving(false);
     }

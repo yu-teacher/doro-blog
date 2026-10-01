@@ -24,7 +24,7 @@ import {
 } from './types';
 
 export const blogApi = {
-  async getFeed(sort = 'latest', tag?: string | string[], page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getFeed(sort = 'latest', tag?: string | string[], page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const params: Record<string, string | number> = { sort, page, size };
     if (tag) {
       if (Array.isArray(tag)) {
@@ -33,20 +33,22 @@ export const blogApi = {
         params.tag = tag;
       }
     }
-    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts', { params });
+    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts', { params, signal });
     return res.data.data;
   },
 
-  async getTrendingPosts(timeframe = 'week', page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getTrendingPosts(timeframe = 'week', page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/trending', {
       params: { timeframe, page, size },
+      signal,
     });
     return res.data.data;
   },
 
-  async getFollowingPosts(page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getFollowingPosts(page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/following', {
       params: { page, size },
+      signal,
     });
     return res.data.data;
   },
@@ -74,39 +76,43 @@ export const blogApi = {
     return res.data.data;
   },
 
-  async getLatestPosts(page = 0, size = 20): Promise<PageResponse<PostSummary>> {
-    return this.getFeed('latest', undefined, page, size);
+  async getLatestPosts(page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
+    return this.getFeed('latest', undefined, page, size, signal);
   },
 
-  async getPostsByTag(tag: string | string[], page = 0, size = 20): Promise<PageResponse<PostSummary>> {
-    return this.getFeed('latest', tag, page, size);
+  async getPostsByTag(tag: string | string[], page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
+    return this.getFeed('latest', tag, page, size, signal);
   },
 
-  async getUserPosts(username: string, q?: string, tag?: string, page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getUserPosts(username: string, q?: string, tag?: string, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>(`/posts/users/@${cleanUsername}`, {
       params: { q, tag, page, size },
+      signal,
     });
     return res.data.data;
   },
 
-  async getMyPosts(status?: PostStatus, page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getMyPosts(status?: PostStatus, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/me', {
       params: { status, page, size },
+      signal,
     });
     return res.data.data;
   },
 
-  async getMyLikedPosts(page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getMyLikedPosts(page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/me/likes', {
       params: { page, size },
+      signal,
     });
     return res.data.data;
   },
 
-  async searchPosts(q: string, page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async searchPosts(q: string, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts/search', {
       params: { q, page, size },
+      signal,
     });
     return res.data.data;
   },

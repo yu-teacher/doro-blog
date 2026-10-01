@@ -12,6 +12,7 @@ import {
   CheckCircle,
   FileText,
 } from 'lucide-react';
+import { getErrorMessage } from '../utils/errors';
 
 interface ProfileEditModalProps {
   profile: UserProfile;
@@ -74,9 +75,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       setUser(updated);
       onUpdated(updated);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update profile', err);
-      setErrorMsg(err.response?.data?.error?.message || '프로필 수정에 실패했습니다.');
+      setErrorMsg(getErrorMessage(err, '프로필 수정에 실패했습니다.'));
     } finally {
       setSaving(false);
     }

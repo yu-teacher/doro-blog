@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
@@ -15,6 +15,17 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { usePaginatedList } from '../hooks/usePaginatedList';
+import { ErrorState, LoadMoreError } from '../components/ErrorState';
+import { getErrorMessage } from '../utils/errors';
+
+const MY_POSTS_PAGE_SIZE = 10;
+
+const STATUS_BY_TAB: Record<string, PostStatus> = {
+  published: 'PUBLISHED',
+  draft: 'DRAFT',
+  private: 'PRIVATE',
+};
 
 export const MyPostsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,75 +34,34 @@ export const MyPostsPage: React.FC = () => {
 
   const tab = searchParams.get('tab') || 'published'; // 'published' | 'draft' | 'private' | 'likes'
 
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const {
+    items: posts,
+    setItems: setPosts,
+    hasMore,
+    loading,
+    loadingMore,
+    error,
+    loadMore,
+    reload,
+  } = usePaginatedList<PostSummary>(
+    (page, signal) =>
+      tab === 'likes'
+        ? blogApi.getMyLikedPosts(page, MY_POSTS_PAGE_SIZE, signal)
+        : blogApi.getMyPosts(STATUS_BY_TAB[tab] ?? 'PUBLISHED', page, MY_POSTS_PAGE_SIZE, signal),
+    [tab],
+    { enabled: isAuthenticated }
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
       alert('로그인이 필요한 페이지입니다.');
       navigate('/');
-      return;
     }
-
-    const fetchInitial = async () => {
-      setLoading(true);
-      setPage(0);
-      try {
-        let res;
-        if (tab === 'likes') {
-          res = await blogApi.getMyLikedPosts(0, 10);
-        } else {
-          const statusMap: Record<string, PostStatus> = {
-            published: 'PUBLISHED',
-            draft: 'DRAFT',
-            private: 'PRIVATE',
-          };
-          res = await blogApi.getMyPosts(statusMap[tab] || 'PUBLISHED', 0, 10);
-        }
-        setPosts(res.content || []);
-        setHasMore(!res.last);
-      } catch (err) {
-        console.error('Failed to load my posts', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitial();
-  }, [tab, isAuthenticated, navigate]);
-
-  const loadMore = useCallback(async () => {
-    if (!isAuthenticated || loading || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      let res;
-      if (tab === 'likes') {
-        res = await blogApi.getMyLikedPosts(nextPage, 10);
-      } else {
-        const statusMap: Record<string, PostStatus> = {
-          published: 'PUBLISHED',
-          draft: 'DRAFT',
-          private: 'PRIVATE',
-        };
-        res = await blogApi.getMyPosts(statusMap[tab] || 'PUBLISHED', nextPage, 10);
-      }
-      setPosts((prev) => [...prev, ...res.content]);
-      setPage(nextPage);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load more posts', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [isAuthenticated, loading, loadingMore, hasMore, page, tab]);
+  }, [isAuthenticated, navigate]);
 
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
-    enabled: hasMore && !loading && !loadingMore,
+    enabled: hasMore && !loading && !loadingMore && !error,
   });
 
   const handleDeletePost = async (id: string) => {
@@ -99,8 +69,8 @@ export const MyPostsPage: React.FC = () => {
     try {
       await blogApi.deletePost(id);
       setPosts((prev) => prev.filter((p) => p.id !== id));
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '삭제에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '삭제에 실패했습니다.'));
     }
   };
 
@@ -148,6 +118,8 @@ export const MyPostsPage: React.FC = () => {
             <div key={i} className="h-28 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
           ))}
         </div>
+      ) : error && posts.length === 0 ? (
+        <ErrorState message={error} onRetry={reload} />
       ) : tab === 'likes' ? (
         // Liked Posts view (rendered with PostCard grid)
         posts.length > 0 ? (
@@ -166,6 +138,7 @@ export const MyPostsPage: React.FC = () => {
                   <span>포스트를 더 불러오는 중...</span>
                 </div>
               )}
+              {error && <LoadMoreError message={error} onRetry={loadMore} />}
               {!hasMore && posts.length > 0 && (
                 <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                   <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
@@ -250,6 +223,7 @@ export const MyPostsPage: React.FC = () => {
                   <span>포스트를 더 불러오는 중...</span>
                 </div>
               )}
+              {error && <LoadMoreError message={error} onRetry={loadMore} />}
               {!hasMore && posts.length > 0 && (
                 <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                   <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

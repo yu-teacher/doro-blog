@@ -1,50 +1,43 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { Search, Loader2, Tag as TagIcon, Hash } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { usePaginatedList } from '../hooks/usePaginatedList';
+import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { trackEvent } from '../utils/analytics';
+
+const SEARCH_PAGE_SIZE = 15;
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
 
   const [inputVal, setInputVal] = useState(query);
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [totalElements, setTotalElements] = useState<number>(0);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const trimmedQuery = query.trim();
+
+  const {
+    items: posts,
+    totalElements,
+    hasMore,
+    loading,
+    loadingMore,
+    error,
+    loadMore,
+    reload,
+  } = usePaginatedList<PostSummary>(
+    (page, signal) => blogApi.searchPosts(trimmedQuery, page, SEARCH_PAGE_SIZE, signal),
+    [trimmedQuery],
+    {
+      enabled: trimmedQuery.length > 0,
+      onFirstPage: (res) => trackEvent('blog_search', { query: trimmedQuery, result_count: res.totalElements }),
+    }
+  );
 
   useEffect(() => {
     setInputVal(query);
-    if (!query.trim()) {
-      setPosts([]);
-      setTotalElements(0);
-      setHasMore(false);
-      return;
-    }
-
-    const fetchInitial = async () => {
-      setLoading(true);
-      setPage(0);
-      try {
-        const res = await blogApi.searchPosts(query.trim(), 0, 15);
-        trackEvent('blog_search', { query: query.trim(), result_count: res.totalElements });
-        setPosts(res.content || []);
-        setTotalElements(res.totalElements);
-        setHasMore(!res.last);
-      } catch (err) {
-        console.error('Failed to search posts', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitial();
   }, [query]);
 
   // Extract related tags from search result posts
@@ -67,25 +60,9 @@ export const SearchPage: React.FC = () => {
       .map(([name, count]) => ({ name, count }));
   }, [posts]);
 
-  const loadMore = useCallback(async () => {
-    if (!query.trim() || loading || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      const res = await blogApi.searchPosts(query.trim(), nextPage, 15);
-      setPosts((prev) => [...prev, ...res.content]);
-      setPage(nextPage);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load more search results', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [query, loading, loadingMore, hasMore, page]);
-
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
-    enabled: hasMore && !loading && !loadingMore,
+    enabled: hasMore && !loading && !loadingMore && !error,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -147,6 +124,8 @@ export const SearchPage: React.FC = () => {
             <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4" />
           ))}
         </div>
+      ) : error && posts.length === 0 ? (
+        <ErrorState message={error} onRetry={reload} />
       ) : posts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6">
@@ -163,6 +142,7 @@ export const SearchPage: React.FC = () => {
                 <span>검색 결과를 더 불러오는 중...</span>
               </div>
             )}
+            {error && <LoadMoreError message={error} onRetry={loadMore} />}
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                 <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

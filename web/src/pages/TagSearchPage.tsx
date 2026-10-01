@@ -1,11 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary, TagItem } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { Tag as TagIcon, Hash, X, Plus, Clock, TrendingUp, Loader2 } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { usePaginatedList } from '../hooks/usePaginatedList';
+import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { trackEvent } from '../utils/analytics';
+
+const TAG_PAGE_SIZE = 15;
 
 export const TagSearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,13 +36,23 @@ export const TagSearchPage: React.FC = () => {
 
   const sort = searchParams.get('sort') || 'latest';
 
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [totalElements, setTotalElements] = useState<number>(0);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [loading, setLoading] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const {
+    items: posts,
+    totalElements,
+    hasMore,
+    loading,
+    loadingMore,
+    error,
+    loadMore,
+    reload,
+  } = usePaginatedList<PostSummary>(
+    (page, signal) => blogApi.getFeed(sort, selectedTags, page, TAG_PAGE_SIZE, signal),
+    [tagsKey, sort],
+    {
+      enabled: selectedTags.length > 0,
+      onFirstPage: (res) => trackEvent('tag_search', { tags: tagsKey, sort, result_count: res.totalElements }),
+    }
+  );
   const [popularTags, setPopularTags] = useState<TagItem[]>([]);
 
   useEffect(() => {
@@ -74,64 +88,9 @@ export const TagSearchPage: React.FC = () => {
       .map(([name, count]) => ({ name, count }));
   }, [posts, selectedTags]);
 
-  // Initial load when tagsKey or sort changes
-  useEffect(() => {
-    if (!tagsKey) {
-      setPosts([]);
-      setTotalElements(0);
-      setLoading(false);
-      setIsInitialLoad(false);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchPosts = async () => {
-      setLoading(true);
-      setPage(0);
-      try {
-        const res = await blogApi.getFeed(sort, selectedTags, 0, 15);
-        if (isMounted) {
-          trackEvent('tag_search', { tags: tagsKey, sort, result_count: res.totalElements });
-          setPosts(res.content || []);
-          setTotalElements(res.totalElements);
-          setHasMore(!res.last);
-        }
-      } catch (err) {
-        console.error('Failed to load posts by tags', err);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-          setIsInitialLoad(false);
-        }
-      }
-    };
-
-    fetchPosts();
-    return () => {
-      isMounted = false;
-    };
-  }, [tagsKey, sort]);
-
-  // Infinite scroll
-  const loadMore = useCallback(async () => {
-    if (selectedTags.length === 0 || loading || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      const res = await blogApi.getFeed(sort, selectedTags, nextPage, 15);
-      setPosts((prev) => [...prev, ...res.content]);
-      setPage(nextPage);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load more tag posts', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [selectedTags, sort, loading, loadingMore, hasMore, page]);
-
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
-    enabled: hasMore && !loading && !loadingMore,
+    enabled: hasMore && !loading && !loadingMore && !error,
   });
 
   // Tag manipulation
@@ -285,12 +244,14 @@ export const TagSearchPage: React.FC = () => {
       </div>
 
       {/* Post Grid */}
-      {isInitialLoad && loading ? (
+      {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6 animate-pulse">
           {[...Array(10)].map((_, i) => (
             <div key={i} className="h-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4" />
           ))}
         </div>
+      ) : error && posts.length === 0 ? (
+        <ErrorState message={error} onRetry={reload} />
       ) : posts.length > 0 ? (
         <>
           <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6 transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
@@ -307,6 +268,7 @@ export const TagSearchPage: React.FC = () => {
                 <span>글을 더 불러오는 중...</span>
               </div>
             )}
+            {error && <LoadMoreError message={error} onRetry={loadMore} />}
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                 <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

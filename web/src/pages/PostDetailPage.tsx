@@ -27,6 +27,7 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
+import { getErrorMessage } from '../utils/errors';
 
 export const PostDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
@@ -154,8 +155,8 @@ export const PostDetailPage: React.FC = () => {
           author: cleanUsername,
         });
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.'));
     }
   };
 
@@ -177,8 +178,8 @@ export const PostDetailPage: React.FC = () => {
       await blogApi.deletePost(detail.post.id);
       alert('게시글이 삭제되었습니다.');
       navigate(`/@${cleanUsername}`);
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '삭제 권한이 없거나 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '삭제 권한이 없거나 실패했습니다.'));
     }
   };
 

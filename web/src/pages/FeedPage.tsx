@@ -5,7 +5,11 @@ import type { PostSummary, TagItem } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { TrendingUp, Clock, Tag as TagIcon, Hash, Loader2, Rss, Bookmark, Heart, LogIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { usePaginatedList } from '../hooks/usePaginatedList';
+import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { useAuthStore } from '../store/authStore';
+
+const FEED_PAGE_SIZE = 15;
 
 export const FeedPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,11 +19,29 @@ export const FeedPage: React.FC = () => {
   const timeframe = searchParams.get('timeframe') || 'week';
   const selectedTag = searchParams.get('tag') || '';
 
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  // 로그인이 필요한 탭(구독/좋아요)은 비로그인 상태에서 요청하지 않는다
+  const requiresLogin = !selectedTag && (tab === 'feed' || tab === 'likes');
+  const fetchEnabled = !requiresLogin || isAuthenticated;
+
+  const {
+    items: posts,
+    hasMore,
+    loading,
+    loadingMore,
+    error,
+    loadMore,
+    reload,
+  } = usePaginatedList<PostSummary>(
+    (page, signal) => {
+      if (selectedTag) return blogApi.getPostsByTag(selectedTag, page, FEED_PAGE_SIZE, signal);
+      if (tab === 'trending') return blogApi.getTrendingPosts(timeframe, page, FEED_PAGE_SIZE, signal);
+      if (tab === 'feed') return blogApi.getFollowingPosts(page, FEED_PAGE_SIZE, signal);
+      if (tab === 'likes') return blogApi.getMyLikedPosts(page, FEED_PAGE_SIZE, signal);
+      return blogApi.getLatestPosts(page, FEED_PAGE_SIZE, signal);
+    },
+    [tab, timeframe, selectedTag, isAuthenticated],
+    { enabled: fetchEnabled }
+  );
 
   // Horizontal scroll state for popular tags bar
   const tagScrollRef = useRef<HTMLDivElement>(null);
@@ -125,83 +147,9 @@ export const FeedPage: React.FC = () => {
     return () => window.removeEventListener('resize', checkTagScroll);
   }, [activeTags, checkTagScroll]);
 
-  // Initial load or tab/tag/timeframe change
-  useEffect(() => {
-    const fetchInitialPosts = async () => {
-      setLoading(true);
-      setPage(0);
-      try {
-        let res;
-        if (selectedTag) {
-          res = await blogApi.getPostsByTag(selectedTag, 0, 15);
-        } else if (tab === 'trending') {
-          res = await blogApi.getTrendingPosts(timeframe, 0, 15);
-        } else if (tab === 'feed') {
-          if (isAuthenticated) {
-            res = await blogApi.getFollowingPosts(0, 15);
-          } else {
-            setPosts([]);
-            setHasMore(false);
-            setLoading(false);
-            return;
-          }
-        } else if (tab === 'likes') {
-          if (isAuthenticated) {
-            res = await blogApi.getMyLikedPosts(0, 15);
-          } else {
-            setPosts([]);
-            setHasMore(false);
-            setLoading(false);
-            return;
-          }
-        } else {
-          res = await blogApi.getLatestPosts(0, 15);
-        }
-        setPosts(res.content || []);
-        setHasMore(!res.last);
-      } catch (err) {
-        console.error('Failed to fetch posts', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialPosts();
-  }, [tab, timeframe, selectedTag, isAuthenticated]);
-
-  // Load more function for infinite scroll
-  const loadMore = useCallback(async () => {
-    if (loading || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      let res;
-      if (selectedTag) {
-        res = await blogApi.getPostsByTag(selectedTag, nextPage, 15);
-      } else if (tab === 'trending') {
-        res = await blogApi.getTrendingPosts(timeframe, nextPage, 15);
-      } else if (tab === 'feed') {
-        if (!isAuthenticated) return;
-        res = await blogApi.getFollowingPosts(nextPage, 15);
-      } else if (tab === 'likes') {
-        if (!isAuthenticated) return;
-        res = await blogApi.getMyLikedPosts(nextPage, 15);
-      } else {
-        res = await blogApi.getLatestPosts(nextPage, 15);
-      }
-      setPosts((prev) => [...prev, ...res.content]);
-      setPage(nextPage);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load more posts', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loading, loadingMore, hasMore, page, selectedTag, tab, timeframe, isAuthenticated]);
-
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
-    enabled: hasMore && !loading && !loadingMore,
+    enabled: hasMore && !loading && !loadingMore && !error,
   });
 
   const handleTabChange = (newTab: string) => {
@@ -384,6 +332,8 @@ export const FeedPage: React.FC = () => {
             </div>
           ))}
         </div>
+      ) : error && posts.length === 0 ? (
+        <ErrorState message={error} onRetry={reload} />
       ) : posts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6">
@@ -400,6 +350,7 @@ export const FeedPage: React.FC = () => {
                 <span>글을 더 불러오는 중...</span>
               </div>
             )}
+            {error && <LoadMoreError message={error} onRetry={loadMore} />}
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                 <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

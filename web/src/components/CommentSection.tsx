@@ -4,6 +4,7 @@ import { blogApi } from '../api/blogApi';
 import type { Comment } from '../api/types';
 import { MessageSquare, CornerDownRight, Trash2, Send } from 'lucide-react';
 import { trackEvent } from '../utils/analytics';
+import { getErrorMessage } from '../utils/errors';
 
 interface CommentSectionProps {
   postId: string;
@@ -43,8 +44,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       });
       setRootContent('');
       onCommentUpdated();
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '댓글 등록에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '댓글 등록에 실패했습니다.'));
     } finally {
       setSubmitting(false);
     }
@@ -68,8 +69,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setReplyContent('');
       setReplyingToId(null);
       onCommentUpdated();
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '답글 등록에 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '답글 등록에 실패했습니다.'));
     } finally {
       setSubmitting(false);
     }
@@ -81,8 +82,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     try {
       await blogApi.deleteComment(commentId);
       onCommentUpdated();
-    } catch (err: any) {
-      alert(err.response?.data?.error?.message || '댓글 삭제 권한이 없거나 실패했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '댓글 삭제 권한이 없거나 실패했습니다.'));
     }
   };
 

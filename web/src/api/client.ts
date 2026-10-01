@@ -26,6 +26,11 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // 취소(AbortController)는 오류 메시지로 바꾸지 않고 그대로 전달해 호출자가 구분할 수 있게 한다.
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
 
     // Handle 401 Unauthorized with token refresh and retry

@@ -22,6 +22,7 @@ import {
 import { blogApi } from '../api/blogApi';
 import { ApiKey, ApiKeyLog, CreateApiKeyResponse } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+import { getErrorMessage } from '../utils/errors';
 
 export const DevelopersPage: React.FC = () => {
   const { isAuthenticated, user, openLoginModal } = useAuthStore();
@@ -94,9 +95,9 @@ export const DevelopersPage: React.FC = () => {
       setShowCreateModal(false);
       setKeyName('');
       fetchKeys();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create API key:', err);
-      const msg = err.message || 'API 키 발급 중 오류가 발생했습니다.';
+      const msg = getErrorMessage(err, 'API 키 발급 중 오류가 발생했습니다.');
       alert(msg);
     } finally {
       setIssuing(false);
