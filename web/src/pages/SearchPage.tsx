@@ -8,8 +8,10 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { trackEvent } from '../utils/analytics';
+import { countTags } from '../utils/tags';
 
 const SEARCH_PAGE_SIZE = 15;
+const RELATED_TAGS_LIMIT = 12;
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,25 +42,8 @@ export const SearchPage: React.FC = () => {
     setInputVal(query);
   }, [query]);
 
-  // Extract related tags from search result posts
-  const relatedTags = useMemo(() => {
-    const countMap: Record<string, number> = {};
-    posts.forEach((p) => {
-      if (p.tags) {
-        p.tags.forEach((t) => {
-          const norm = t.trim();
-          if (norm) {
-            countMap[norm] = (countMap[norm] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    return Object.entries(countMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12)
-      .map(([name, count]) => ({ name, count }));
-  }, [posts]);
+  // 검색 결과 글에 많이 쓰인 태그를 연관 태그로 보여준다
+  const relatedTags = useMemo(() => countTags(posts, { limit: RELATED_TAGS_LIMIT }), [posts]);
 
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,

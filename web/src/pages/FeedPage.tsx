@@ -1,15 +1,19 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary, TagItem } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { TrendingUp, Clock, Tag as TagIcon, Hash, Loader2, Rss, Bookmark, Heart, LogIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useAsyncResource } from '../hooks/useAsyncResource';
+import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
+import { deriveFeedTags, type FeedTag } from '../utils/tags';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { useAuthStore } from '../store/authStore';
 
 const FEED_PAGE_SIZE = 15;
+const NO_TAGS: readonly TagItem[] = [];
 
 export const FeedPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,109 +47,19 @@ export const FeedPage: React.FC = () => {
     { enabled: fetchEnabled }
   );
 
-  // Horizontal scroll state for popular tags bar
-  const tagScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  // 전체 인기 태그 (현재 글에 쓰인 태그가 없을 때 태그 줄을 채운다)
+  const popularTags = useAsyncResource((signal) => blogApi.getPopularTags(signal), []);
 
-  const checkTagScroll = useCallback(() => {
-    const el = tagScrollRef.current;
-    if (el) {
-      setCanScrollLeft(el.scrollLeft > 5);
-      setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
-    }
-  }, []);
-
-  const handleScrollTags = (direction: 'left' | 'right') => {
-    const el = tagScrollRef.current;
-    if (el) {
-      const scrollAmount = el.clientWidth * 0.7;
-      el.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-  const [globalTags, setGlobalTags] = useState<TagItem[]>([]);
-
+  // 태그를 눌러 필터링해도 태그 줄이 전체 인기 태그로 되돌아가지 않도록, 필터 전의 태그 줄을 기억해 둔다
+  const computedTags = React.useMemo(() => deriveFeedTags(posts, popularTags.data ?? NO_TAGS, tab), [posts, popularTags.data, tab]);
+  const [rememberedTags, setRememberedTags] = useState<FeedTag[]>([]);
   useEffect(() => {
-    fetchGlobalTags();
-  }, []);
+    if (!selectedTag || rememberedTags.length === 0) setRememberedTags(computedTags);
+  }, [computedTags, selectedTag, rememberedTags.length]);
+  const activeTags = selectedTag && rememberedTags.length > 0 ? rememberedTags : computedTags;
 
-  const fetchGlobalTags = async () => {
-    try {
-      const res = await blogApi.getPopularTags();
-      setGlobalTags(res || []);
-    } catch (err) {
-      console.error('Failed to fetch tags', err);
-    }
-  };
-
-  // Cache the current feed tags so clicking a tag doesn't cause the tag list to snap back to globalTags
-  const cachedTabTagsRef = useRef<{ id: string; name: string; postCount: number }[]>([]);
-
-  // Derive dynamic context-aware tags from current feed posts
-  const activeTags: { id: string; name: string; postCount: number }[] = React.useMemo(() => {
-    // If a tag is selected and we already have cached tags for this feed, keep showing them!
-    if (selectedTag && cachedTabTagsRef.current.length > 0) {
-      return cachedTabTagsRef.current;
-    }
-
-    // If on feed or likes tab and there are no posts (or not logged in), do NOT show irrelevant global tags
-    if (tab === 'feed' || tab === 'likes') {
-      if (!posts || posts.length === 0) {
-        cachedTabTagsRef.current = [];
-        return [];
-      }
-    }
-
-    if (!posts || posts.length === 0) {
-      return cachedTabTagsRef.current.length > 0 ? cachedTabTagsRef.current : globalTags;
-    }
-
-    // Count tag frequency among current posts
-    const tagCountMap: Record<string, number> = {};
-    posts.forEach((p) => {
-      if (p.tags && Array.isArray(p.tags)) {
-        p.tags.forEach((t) => {
-          if (t && t.trim()) {
-            const cleanT = t.trim();
-            tagCountMap[cleanT] = (tagCountMap[cleanT] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    const entries = Object.entries(tagCountMap);
-    if (entries.length === 0) {
-      const fallback = tab === 'feed' || tab === 'likes' ? [] : globalTags;
-      cachedTabTagsRef.current = fallback;
-      return fallback;
-    }
-
-    // Sort by occurrence in current tab feed
-    const computed = entries
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({
-        id: name,
-        name,
-        postCount: count,
-      }));
-
-    cachedTabTagsRef.current = computed;
-    return computed;
-  }, [posts, globalTags, selectedTag, tab]);
-
-  useEffect(() => {
-    // Reset scroll position to beginning when tab changes
-    if (tagScrollRef.current) {
-      tagScrollRef.current.scrollLeft = 0;
-    }
-    checkTagScroll();
-    window.addEventListener('resize', checkTagScroll);
-    return () => window.removeEventListener('resize', checkTagScroll);
-  }, [activeTags, checkTagScroll]);
+  const tagBar = useHorizontalScroll([activeTags]);
+  const { canScrollLeft, canScrollRight } = tagBar;
 
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
@@ -273,7 +187,7 @@ export const FeedPage: React.FC = () => {
           {canScrollLeft && (
             <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pr-6 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent">
               <button
-                onClick={() => handleScrollTags('left')}
+                onClick={() => tagBar.scrollBy('left')}
                 className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:scale-110 transition-all"
                 aria-label="이전 태그 보기"
               >
@@ -284,8 +198,8 @@ export const FeedPage: React.FC = () => {
 
           {/* Tags Scrollable Container */}
           <div
-            ref={tagScrollRef}
-            onScroll={checkTagScroll}
+            ref={tagBar.ref}
+            onScroll={tagBar.update}
             className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none scroll-smooth"
           >
             <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 flex-shrink-0 mr-1">
@@ -310,7 +224,7 @@ export const FeedPage: React.FC = () => {
           {canScrollRight && (
             <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pl-6 bg-gradient-to-l from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent">
               <button
-                onClick={() => handleScrollTags('right')}
+                onClick={() => tagBar.scrollBy('right')}
                 className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:scale-110 transition-all"
                 aria-label="다음 태그 보기"
               >

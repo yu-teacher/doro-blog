@@ -8,8 +8,10 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { trackEvent } from '../utils/analytics';
+import { countTags } from '../utils/tags';
 
 const TAG_PAGE_SIZE = 15;
+const CO_OCCURRING_TAGS_LIMIT = 15;
 
 export const TagSearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,25 +70,11 @@ export const TagSearchPage: React.FC = () => {
     }
   };
 
-  // Co-occurring tags: find tags present in the current posts that are not yet selected
-  const coOccurringTags = React.useMemo(() => {
-    const countMap: Record<string, number> = {};
-    posts.forEach((p) => {
-      if (p.tags) {
-        p.tags.forEach((t) => {
-          const norm = t.trim().toLowerCase();
-          if (norm && !selectedTags.includes(norm)) {
-            countMap[norm] = (countMap[norm] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    return Object.entries(countMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([name, count]) => ({ name, count }));
-  }, [posts, selectedTags]);
+  // 함께 쓰인 태그: 현재 글에 쓰였지만 아직 선택하지 않은 태그
+  const coOccurringTags = React.useMemo(
+    () => countTags(posts, { lowercase: true, exclude: selectedTags, limit: CO_OCCURRING_TAGS_LIMIT }),
+    [posts, selectedTags]
+  );
 
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,

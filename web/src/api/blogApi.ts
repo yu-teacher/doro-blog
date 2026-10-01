@@ -256,8 +256,8 @@ export const blogApi = {
   },
 
   // === Tags ===
-  async getPopularTags(): Promise<TagItem[]> {
-    const res = await apiClient.get<ApiResponse<TagItem[]>>('/tags');
+  async getPopularTags(signal?: AbortSignal): Promise<TagItem[]> {
+    const res = await apiClient.get<ApiResponse<TagItem[]>>('/tags', { signal });
     return res.data.data;
   },
 
