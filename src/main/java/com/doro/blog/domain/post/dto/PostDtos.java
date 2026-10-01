@@ -13,6 +13,11 @@ import java.util.UUID;
 
 public class PostDtos {
 
+    /** 글 하나에 붙일 수 있는 태그 수와 태그 이름 길이 (tags.name 은 VARCHAR(50)). */
+    public static final int MAX_TAGS = 20;
+    public static final int MAX_TAG_LENGTH = 50;
+
+
     public record CreatePostRequest(
             @NotBlank(message = "글 제목은 필수입니다.")
             @Size(max = 255, message = "글 제목은 최대 255자입니다.")
@@ -25,7 +30,7 @@ public class PostDtos {
 
             String content,
 
-            @Size(max = BlogUserDtos.MAX_URL_LENGTH, message = "썸네일 주소가 너무 깁니다.")
+            @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")
             @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
                     message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl,
@@ -34,7 +39,8 @@ public class PostDtos {
 
             UUID seriesId,
 
-            List<String> tags
+            @Size(max = MAX_TAGS, message = "태그는 최대 20개까지 붙일 수 있습니다.")
+            List<@Size(max = MAX_TAG_LENGTH, message = "태그는 최대 50자입니다.") String> tags
     ) {}
 
     public record UpdatePostRequest(
@@ -49,7 +55,7 @@ public class PostDtos {
 
             String content,
 
-            @Size(max = BlogUserDtos.MAX_URL_LENGTH, message = "썸네일 주소가 너무 깁니다.")
+            @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")
             @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
                     message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl,
@@ -58,7 +64,8 @@ public class PostDtos {
 
             UUID seriesId,
 
-            List<String> tags
+            @Size(max = MAX_TAGS, message = "태그는 최대 20개까지 붙일 수 있습니다.")
+            List<@Size(max = MAX_TAG_LENGTH, message = "태그는 최대 50자입니다.") String> tags
     ) {}
 
     public record PostSummaryResponse(

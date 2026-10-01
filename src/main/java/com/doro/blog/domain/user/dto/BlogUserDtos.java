@@ -15,7 +15,9 @@ public class BlogUserDtos {
     public static final String HTTP_URL_OR_EMPTY = "^$|^https?://\\S+$";
     /** 이미지: 빈 값, http(s) 절대 URL, 또는 자체 미디어 경로(/media/...)만 허용한다. ('//host' 형태는 거부) */
     public static final String IMAGE_URL_OR_EMPTY = "^$|^https?://\\S+$|^/(?!/)\\S*$";
-    public static final int MAX_URL_LENGTH = 2048;
+    /** DB 컬럼 길이에 맞춘다: 이미지 주소 VARCHAR(500), 소셜/웹사이트 링크 VARCHAR(255). 넘는 값은 500 이 아니라 400 으로 거부한다. */
+    public static final int MAX_IMAGE_URL_LENGTH = 500;
+    public static final int MAX_LINK_URL_LENGTH = 255;
 
     public record UserProfileResponse(
             UUID id,
@@ -73,7 +75,7 @@ public class BlogUserDtos {
             @Size(max = 255, message = "한 줄 소개는 최대 255자입니다.")
             String bio,
 
-            @Size(max = MAX_URL_LENGTH, message = "프로필 이미지 주소가 너무 깁니다.")
+            @Size(max = MAX_IMAGE_URL_LENGTH, message = "프로필 이미지 주소는 최대 500자입니다.")
             @Pattern(regexp = IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
                     message = "프로필 이미지 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String profileImageUrl,
@@ -81,23 +83,23 @@ public class BlogUserDtos {
             @Size(max = 100, message = "블로그 타이틀은 최대 100자입니다.")
             String blogTitle,
 
-            @Size(max = MAX_URL_LENGTH, message = "GitHub 주소가 너무 깁니다.")
+            @Size(max = MAX_LINK_URL_LENGTH, message = "GitHub 주소는 최대 255자입니다.")
             @Pattern(regexp = HTTP_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE, message = "GitHub 주소는 http(s) 주소여야 합니다.")
             String githubUrl,
 
-            @Size(max = MAX_URL_LENGTH, message = "Twitter 주소가 너무 깁니다.")
+            @Size(max = MAX_LINK_URL_LENGTH, message = "Twitter 주소는 최대 255자입니다.")
             @Pattern(regexp = HTTP_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE, message = "Twitter 주소는 http(s) 주소여야 합니다.")
             String twitterUrl,
 
-            @Size(max = MAX_URL_LENGTH, message = "웹사이트 주소가 너무 깁니다.")
+            @Size(max = MAX_LINK_URL_LENGTH, message = "웹사이트 주소는 최대 255자입니다.")
             @Pattern(regexp = HTTP_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE, message = "웹사이트 주소는 http(s) 주소여야 합니다.")
             String websiteUrl,
 
             @Email(message = "공개 이메일 형식이 올바르지 않습니다.")
-            @Size(max = 254, message = "공개 이메일이 너무 깁니다.")
+            @Size(max = 100, message = "공개 이메일은 최대 100자입니다.")
             String publicEmail,
 
-            @Size(max = MAX_URL_LENGTH, message = "LinkedIn 주소가 너무 깁니다.")
+            @Size(max = MAX_LINK_URL_LENGTH, message = "LinkedIn 주소는 최대 255자입니다.")
             @Pattern(regexp = HTTP_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE, message = "LinkedIn 주소는 http(s) 주소여야 합니다.")
             String linkedinUrl,
 

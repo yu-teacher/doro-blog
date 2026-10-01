@@ -40,6 +40,12 @@ public class ApiKeyService {
     private final BlogUserService blogUserService;
 
     private static final String KEY_PREFIX = "doro_live_";
+
+    // api_key_logs 컬럼 길이(V3__api_keys_and_logs.sql)
+    private static final int ENDPOINT_MAX_LENGTH = 255;
+    private static final int USER_AGENT_MAX_LENGTH = 255;
+    private static final int IP_MAX_LENGTH = 64;
+    private static final int ERROR_MESSAGE_MAX_LENGTH = 500;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
@@ -145,12 +151,12 @@ public class ApiKeyService {
                     .apiKeyId(apiKeyId)
                     .user(user)
                     .method(method)
-                    .endpoint(endpoint)
+                    .endpoint(truncate(endpoint, ENDPOINT_MAX_LENGTH))
                     .statusCode(statusCode)
-                    .ipAddress(ipAddress)
-                    .userAgent(userAgent)
+                    .ipAddress(truncate(ipAddress, IP_MAX_LENGTH))
+                    .userAgent(truncate(userAgent, USER_AGENT_MAX_LENGTH))
                     .durationMs(durationMs)
-                    .errorMessage(errorMessage != null && errorMessage.length() > 500 ? errorMessage.substring(0, 500) : errorMessage)
+                    .errorMessage(truncate(errorMessage, ERROR_MESSAGE_MAX_LENGTH))
                     .build();
 
             apiKeyLogRepository.save(apiKeyLog);
@@ -177,5 +183,9 @@ public class ApiKeyService {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
         }
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value != null && value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 }

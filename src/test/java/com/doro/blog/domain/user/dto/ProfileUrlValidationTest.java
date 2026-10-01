@@ -77,9 +77,9 @@ class ProfileUrlValidationTest {
     }
 
     @Test
-    @DisplayName("URL 길이는 2048자를 넘을 수 없다")
+    @DisplayName("링크 주소 길이는 컬럼 길이(255자)를 넘을 수 없다")
     void urlLengthIsLimited() {
-        String tooLong = "https://example.com/" + "a".repeat(BlogUserDtos.MAX_URL_LENGTH);
+        String tooLong = "https://example.com/" + "a".repeat(BlogUserDtos.MAX_LINK_URL_LENGTH);
         assertThat(invalid(profile(tooLong, null, null), "websiteUrl")).isTrue();
     }
 

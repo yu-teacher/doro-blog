@@ -26,6 +26,9 @@ public class TagService {
     private final TagRepository tagRepository;
     private final PostTagRepository postTagRepository;
 
+    /** tags.name 컬럼 길이. 요청 검증을 우회한 경로(API 키 등)에서도 INSERT 가 실패하지 않게 한 번 더 자른다. */
+    private static final int MAX_TAG_LENGTH = 50;
+
     @Transactional
     public void syncPostTags(Post post, List<String> rawTagNames) {
         // 기존 태그 연결 조회 및 카운트 감소
@@ -43,6 +46,7 @@ public class TagService {
         List<String> normalizedNames = rawTagNames.stream()
                 .filter(name -> name != null && !name.isBlank())
                 .map(name -> name.trim().toLowerCase().replaceAll("[^a-z0-9가-힣_-]", ""))
+                .map(name -> name.length() > MAX_TAG_LENGTH ? name.substring(0, MAX_TAG_LENGTH) : name)
                 .filter(name -> !name.isEmpty())
                 .distinct()
                 .toList();

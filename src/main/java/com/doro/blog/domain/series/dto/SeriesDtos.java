@@ -1,8 +1,10 @@
 package com.doro.blog.domain.series.dto;
 
 import com.doro.blog.domain.series.entity.Series;
+import com.doro.blog.domain.user.dto.BlogUserDtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -18,7 +20,12 @@ public class SeriesDtos {
 
             String slug,
 
+            @Size(max = 2000, message = "시리즈 설명은 최대 2000자입니다.")
             String description,
+
+            @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")
+            @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
+                    message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl
     ) {}
 
@@ -29,7 +36,12 @@ public class SeriesDtos {
 
             String slug,
 
+            @Size(max = 2000, message = "시리즈 설명은 최대 2000자입니다.")
             String description,
+
+            @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")
+            @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
+                    message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl
     ) {}
 
