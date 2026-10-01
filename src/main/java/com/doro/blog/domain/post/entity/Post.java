@@ -5,11 +5,15 @@ import com.doro.blog.domain.user.entity.BlogUser;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
 
+// 카운터 컬럼은 PostCounterService 의 원자적 UPDATE 로만 바꾼다. 다른 필드 수정이 오래된 카운터 값을 덮어쓰지 않도록
+// 변경된 컬럼만 UPDATE 한다.
+@DynamicUpdate
 @Entity
 @Table(name = "posts", uniqueConstraints = {
         @UniqueConstraint(name = "uk_posts_user_slug", columnNames = {"user_id", "slug"})
@@ -106,23 +110,4 @@ public class Post {
         this.seriesOrder = order;
     }
 
-    public void incrementViewCount() {
-        this.viewCount++;
-    }
-
-    public void incrementLikeCount() {
-        this.likeCount++;
-    }
-
-    public void decrementLikeCount() {
-        if (this.likeCount > 0) this.likeCount--;
-    }
-
-    public void incrementCommentCount() {
-        this.commentCount++;
-    }
-
-    public void decrementCommentCount() {
-        if (this.commentCount > 0) this.commentCount--;
-    }
 }

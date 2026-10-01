@@ -8,6 +8,7 @@ import com.doro.blog.domain.comment.repository.CommentRepository;
 import com.doro.blog.domain.post.entity.Post;
 import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.repository.PostRepository;
+import com.doro.blog.domain.post.service.PostCounterService;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.service.BlogUserService;
 import com.doro.blog.domain.notification.entity.NotificationType;
@@ -32,6 +33,7 @@ public class CommentService {
     private final BlogUserService userService;
     private final DoroGuardClient guardClient;
     private final NotificationService notificationService;
+    private final PostCounterService counterService;
 
     @Transactional
     public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
@@ -52,7 +54,7 @@ public class CommentService {
                 .build();
 
         Comment saved = commentRepository.save(comment);
-        post.incrementCommentCount();
+        counterService.incrementComment(post);
 
         // Zanzibar ReBAC 튜플 등록:
         // 1. blog_comment:<id>#author@user:<userId>
@@ -108,7 +110,7 @@ public class CommentService {
                 .build();
 
         Comment saved = commentRepository.save(reply);
-        post.incrementCommentCount();
+        counterService.incrementComment(post);
 
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
@@ -177,7 +179,7 @@ public class CommentService {
             throw new BlogException(ErrorCode.ACCESS_DENIED, "댓글 삭제 권한이 없습니다.");
         }
 
-        comment.getPost().decrementCommentCount();
+        counterService.decrementComment(comment.getPost());
 
         // 자식 대댓글이 남아있는 경우 소프트 삭제, 없으면 영구 삭제
         if (comment.isRoot() && !comment.getChildren().isEmpty()) {

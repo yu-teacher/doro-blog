@@ -56,15 +56,11 @@ public class BlogUserService {
                 finalUsername = baseUsername + counter++;
             }
 
-            BlogUser newUser = BlogUser.builder()
-                    .id(doroUser.userId())
-                    .username(finalUsername)
-                    .email(doroUser.email())
-                    .nickname(finalUsername)
-                    .blogTitle(finalUsername + ".log")
-                    .build();
-
-            return userRepository.save(newUser);
+            // 첫 요청이 동시에 여러 개 들어와도 한 번만 만들고 나머지는 만들어진 행을 읽는다.
+            userRepository.insertIfAbsent(doroUser.userId(), finalUsername, doroUser.email(),
+                    finalUsername, finalUsername + ".log");
+            return userRepository.findById(doroUser.userId())
+                    .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
         });
     }
 

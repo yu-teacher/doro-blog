@@ -41,6 +41,7 @@ public class PostService {
     private final BlogUserService userService;
     private final TagService tagService;
     private final DoroGuardClient guardClient;
+    private final PostCounterService counterService;
 
     @Transactional
     public PostSummaryResponse createPost(DoroUser doroUser, CreatePostRequest request) {
@@ -181,7 +182,7 @@ public class PostService {
         }
 
         if (countView) {
-            post.incrementViewCount();
+            counterService.incrementView(post);
         }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());

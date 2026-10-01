@@ -5,6 +5,7 @@ import com.doro.blog.domain.post.entity.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +14,26 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
+
+    @Modifying
+    @Query("update Post p set p.viewCount = p.viewCount + 1 where p.id = :id")
+    int incrementViewCount(@Param("id") UUID id);
+
+    @Modifying
+    @Query("update Post p set p.likeCount = p.likeCount + 1 where p.id = :id")
+    int incrementLikeCount(@Param("id") UUID id);
+
+    @Modifying
+    @Query("update Post p set p.likeCount = case when p.likeCount > 0 then p.likeCount - 1 else 0 end where p.id = :id")
+    int decrementLikeCount(@Param("id") UUID id);
+
+    @Modifying
+    @Query("update Post p set p.commentCount = p.commentCount + 1 where p.id = :id")
+    int incrementCommentCount(@Param("id") UUID id);
+
+    @Modifying
+    @Query("update Post p set p.commentCount = case when p.commentCount > 0 then p.commentCount - 1 else 0 end where p.id = :id")
+    int decrementCommentCount(@Param("id") UUID id);
 
     Optional<Post> findByUserIdAndSlug(UUID userId, String slug);
 
