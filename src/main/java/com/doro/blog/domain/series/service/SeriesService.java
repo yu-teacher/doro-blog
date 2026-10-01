@@ -167,10 +167,7 @@ public class SeriesService {
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
         // 소속된 글들의 시리즈 연결 해제
-        List<Post> posts = postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId);
-        for (Post post : posts) {
-            post.removeSeries();
-        }
+        postRepository.detachFromSeries(seriesId);
 
         // Zanzibar ReBAC 관계 튜플 삭제
         guardTuples.deleteAfterCommit("blog_series", seriesId.toString(), "owner", "user", series.getUser().getId().toString());

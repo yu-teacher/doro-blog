@@ -15,6 +15,11 @@ import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
+    /** 시리즈를 지울 때 소속 글의 연결을 한 번의 UPDATE 로 풀어 준다 (글을 전부 읽어 하나씩 고치지 않는다). */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Post p set p.series = null, p.seriesOrder = null where p.series.id = :seriesId")
+    int detachFromSeries(@Param("seriesId") UUID seriesId);
+
     /** 시리즈 안에서 다음에 쓸 회차 번호. 글을 빼서 생긴 빈 번호나 글 수와 상관없이 항상 마지막 다음이다. */
     @Query("select coalesce(max(p.seriesOrder), 0) + 1 from Post p where p.series.id = :seriesId")
     int nextSeriesOrder(@Param("seriesId") UUID seriesId);

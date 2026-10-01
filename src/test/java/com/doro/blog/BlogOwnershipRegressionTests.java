@@ -5,6 +5,8 @@ import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.comment.dto.CommentDtos.CreateCommentRequest;
 import com.doro.blog.domain.comment.dto.CommentDtos.CreateReplyRequest;
 import com.doro.blog.domain.comment.service.CommentService;
+import com.doro.blog.domain.notification.service.NotificationService;
+import org.springframework.data.domain.PageRequest;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.dto.PostDtos.UpdatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
@@ -40,6 +42,9 @@ class BlogOwnershipRegressionTests {
 
     @Autowired
     private CommentService commentService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     private DoroUser mockUser(String prefix) {
         UUID id = UUID.randomUUID();
@@ -189,5 +194,48 @@ class BlogOwnershipRegressionTests {
 
         assertThat(postQueries.searchPosts(marker, 0, 20).getTotalElements()).isEqualTo(2);
         assertThat(postQueries.searchPosts(marker + " 100%_done", 0, 20).getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("긴 댓글(최대 2000자)도 알림 때문에 실패하지 않고, 알림에는 컬럼 길이에 맞게 잘려 저장된다")
+    void longCommentStillSucceedsAndNotificationIsTruncated() {
+        DoroUser author = mockUser("author");
+        DoroUser reader = mockUser("reader");
+        var post = postCommands.createPost(author, publishedPost("알림 글", null));
+
+        var comment = commentService.createRootComment(post.id(), reader, new CreateCommentRequest("가".repeat(1800)));
+        assertThat(comment.id()).isNotNull();
+
+        var notifications = notificationService.getNotifications(author, PageRequest.of(0, 10)).getContent();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).message()).hasSize(500);
+    }
+
+    @Test
+    @DisplayName("자기 글에 스스로 단 댓글은 알림을 만들지 않는다")
+    void selfCommentCreatesNoNotification() {
+        DoroUser author = mockUser("author");
+        var post = postCommands.createPost(author, publishedPost("셀프 알림", null));
+        commentService.createRootComment(post.id(), author, new CreateCommentRequest("내 글에 내가 댓글"));
+
+        assertThat(notificationService.getNotifications(author, PageRequest.of(0, 10)).getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("시리즈를 삭제하면 소속 글은 남고 시리즈 연결(회차 번호 포함)만 풀린다")
+    void deletingSeriesDetachesPosts() {
+        DoroUser author = mockUser("author");
+        var series = seriesService.createSeries(author, new CreateSeriesRequest("지울 시리즈", null, null, null));
+        var a = postCommands.createPost(author, publishedPost("A", series.id()));
+        var b = postCommands.createPost(author, publishedPost("B", series.id()));
+
+        seriesService.deleteSeries(series.id());
+
+        var after = postQueries.getPostById(a.id(), author).post();
+        assertThat(after.seriesId()).isNull();
+        assertThat(after.seriesOrder()).isNull();
+        assertThat(postQueries.getPostById(b.id(), author).post().seriesId()).isNull();
+        assertThatThrownBy(() -> seriesService.getSeriesDetail(series.id(), author))
+                .isInstanceOf(BlogException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.SERIES_NOT_FOUND);
     }
 }

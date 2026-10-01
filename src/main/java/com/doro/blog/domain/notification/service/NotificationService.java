@@ -29,6 +29,15 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final BlogUserRepository userRepository;
 
+    // Notification 컬럼 길이(V4__notifications.sql)
+    private static final int TITLE_MAX_LENGTH = 255;
+    private static final int MESSAGE_MAX_LENGTH = 500;
+
+    /**
+     * 알림을 저장한다. 글/댓글과 같은 트랜잭션에서 저장하므로 컬럼 길이를 넘는 값이 들어가면 INSERT 가 커밋 시점에 실패해
+     * 원래 요청(예: 댓글 작성)까지 되돌려진다. 그래서 제목/메시지를 컬럼 길이에 맞게 잘라서 넣는다.
+     * (별도 트랜잭션으로 미루면 요청 하나가 DB 연결을 두 개 잡아 동시 요청이 많을 때 풀이 고갈될 수 있어 같은 트랜잭션을 쓴다.)
+     */
     @Transactional
     public void sendNotification(
             BlogUser recipient,
@@ -52,22 +61,25 @@ public class NotificationService {
             return;
         }
 
-        try {
-            Notification notification = Notification.builder()
-                    .recipient(recipient)
-                    .sender(sender)
-                    .type(type)
-                    .targetPostId(post != null ? post.getId() : null)
-                    .targetPostTitle(post != null ? post.getTitle() : null)
-                    .targetPostSlug(post != null ? post.getSlug() : null)
-                    .targetUsername(targetUsername != null ? targetUsername : (post != null ? post.getUser().getUsername() : null))
-                    .message(message)
-                    .build();
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .sender(sender)
+                .type(type)
+                .targetPostId(post != null ? post.getId() : null)
+                .targetPostTitle(post != null ? truncate(post.getTitle(), TITLE_MAX_LENGTH) : null)
+                .targetPostSlug(post != null ? post.getSlug() : null)
+                .targetUsername(targetUsername != null ? targetUsername : (post != null ? post.getUser().getUsername() : null))
+                .message(truncate(message, MESSAGE_MAX_LENGTH))
+                .build();
 
-            notificationRepository.save(notification);
-        } catch (Exception e) {
-            log.error("Failed to save notification: {}", e.getMessage(), e);
+        notificationRepository.save(notification);
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
         }
+        return value.substring(0, maxLength);
     }
 
     private BlogUser getUser(DoroUser doroUser) {
