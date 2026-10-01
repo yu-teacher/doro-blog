@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { FollowUser } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+import { useAsyncResource } from '../hooks/useAsyncResource';
 import { X, UserPlus, UserCheck, UserMinus, Loader2, User } from 'lucide-react';
+
+const FOLLOW_LIST_SIZE = 50;
 
 interface FollowListModalProps {
   username: string;
@@ -22,35 +25,26 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
 }) => {
   const { user: currentUser, isAuthenticated } = useAuthStore();
   const [tab, setTab] = useState<'followers' | 'following'>(initialTab);
-  const [users, setUsers] = useState<FollowUser[]>([]);
-  const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    loadList();
-  }, [isOpen, tab, username]);
+  // 열려 있는 동안 탭/사용자가 바뀌면 이전 요청을 취소하고 새로 불러온다
+  const list = useAsyncResource(
+    (signal) =>
+      tab === 'followers'
+        ? blogApi.getFollowers(username, 0, FOLLOW_LIST_SIZE, signal)
+        : blogApi.getFollowing(username, 0, FOLLOW_LIST_SIZE, signal),
+    [tab, username],
+    { enabled: isOpen }
+  );
+  const users: FollowUser[] = list.data?.content ?? [];
+  const loading = list.loading;
 
-  const loadList = async () => {
-    setLoading(true);
-    try {
-      if (tab === 'followers') {
-        const res = await blogApi.getFollowers(username, 0, 50);
-        setUsers(res.content || []);
-      } else {
-        const res = await blogApi.getFollowing(username, 0, 50);
-        setUsers(res.content || []);
-      }
-    } catch (err) {
-      console.error('Failed to load follow list', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateUser = (id: string, patch: Partial<FollowUser>) =>
+    list.setData((prev) => (prev ? { ...prev, content: prev.content.map((u) => (u.id === id ? { ...u, ...patch } : u)) } : prev));
 
   const handleToggleFollow = async (targetUser: FollowUser) => {
     if (!isAuthenticated) {
@@ -61,14 +55,10 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
     try {
       if (targetUser.isFollowing) {
         await blogApi.unfollowUser(targetUser.username);
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUser.id ? { ...u, isFollowing: false } : u))
-        );
+        updateUser(targetUser.id, { isFollowing: false });
       } else {
         await blogApi.followUser(targetUser.username);
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUser.id ? { ...u, isFollowing: true } : u))
-        );
+        updateUser(targetUser.id, { isFollowing: true });
       }
       onFollowCountChanged?.();
     } catch (err) {

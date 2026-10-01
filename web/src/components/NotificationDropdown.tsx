@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { formatRelative } from '../utils/date';
 
+const UNREAD_POLL_INTERVAL_MS = 30_000;
+const NOTIFICATIONS_PAGE_SIZE = 15;
+
 export const NotificationDropdown: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
@@ -41,10 +44,10 @@ export const NotificationDropdown: React.FC = () => {
   }, [isAuthenticated]);
 
   // Notifications fetcher
-  const loadNotifications = async (targetPage = 0, append = false) => {
+  const loadNotifications = useCallback(async (targetPage = 0, append = false) => {
     setLoading(true);
     try {
-      const res = await blogApi.getNotifications(targetPage, 15);
+      const res = await blogApi.getNotifications(targetPage, NOTIFICATIONS_PAGE_SIZE);
       if (append) {
         setNotifications((prev) => [...prev, ...res.content]);
       } else {
@@ -57,16 +60,16 @@ export const NotificationDropdown: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Periodic polling for unread count (every 30 seconds)
+  // 안 읽은 알림 수를 주기적으로 갱신한다
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchUnreadCount();
 
     const timer = setInterval(() => {
       fetchUnreadCount();
-    }, 30000);
+    }, UNREAD_POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
   }, [isAuthenticated, fetchUnreadCount]);
@@ -77,7 +80,7 @@ export const NotificationDropdown: React.FC = () => {
       loadNotifications(0, false);
       fetchUnreadCount();
     }
-  }, [isOpen]);
+  }, [isOpen, loadNotifications, fetchUnreadCount]);
 
   // Outside click listener
   useEffect(() => {

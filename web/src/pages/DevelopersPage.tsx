@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Key,
   Copy,
@@ -20,6 +20,8 @@ import { ApiKey, ApiKeyLog, CreateApiKeyResponse } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../utils/errors';
 import { formatDate, formatDateTime } from '../utils/date';
+
+const API_LOGS_PAGE_SIZE = 20;
 
 export const DevelopersPage: React.FC = () => {
   const { isAuthenticated, openLoginModal } = useAuthStore();
@@ -44,7 +46,7 @@ export const DevelopersPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState(false);
 
   // Fetch Keys
-  const fetchKeys = async () => {
+  const fetchKeys = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       setLoadingKeys(true);
@@ -55,28 +57,28 @@ export const DevelopersPage: React.FC = () => {
     } finally {
       setLoadingKeys(false);
     }
-  };
+  }, [isAuthenticated]);
 
   // Fetch Logs
-  const fetchLogs = async (keyId?: string) => {
+  const fetchLogs = useCallback(async (keyId?: string) => {
     if (!isAuthenticated) return;
     try {
       setLoadingLogs(true);
-      const pageRes = await blogApi.getApiKeyLogs(keyId || undefined, 0, 20);
+      const pageRes = await blogApi.getApiKeyLogs(keyId || undefined, 0, API_LOGS_PAGE_SIZE);
       setLogs(pageRes.content);
     } catch (err) {
       console.error('Failed to load API logs:', err);
     } finally {
       setLoadingLogs(false);
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchKeys();
       fetchLogs();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchKeys, fetchLogs]);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();

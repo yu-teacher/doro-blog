@@ -290,18 +290,20 @@ export const blogApi = {
     return res.data.data;
   },
 
-  async getFollowers(username: string, page = 0, size = 20): Promise<PageResponse<FollowUser>> {
+  async getFollowers(username: string, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<FollowUser>> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
     const res = await apiClient.get<ApiResponse<PageResponse<FollowUser>>>(`/users/${cleanUsername}/followers`, {
       params: { page, size },
+      signal,
     });
     return res.data.data;
   },
 
-  async getFollowing(username: string, page = 0, size = 20): Promise<PageResponse<FollowUser>> {
+  async getFollowing(username: string, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<FollowUser>> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
     const res = await apiClient.get<ApiResponse<PageResponse<FollowUser>>>(`/users/${cleanUsername}/following`, {
       params: { page, size },
+      signal,
     });
     return res.data.data;
   },
