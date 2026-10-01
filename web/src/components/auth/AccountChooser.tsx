@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SavedAccount } from '../../store/authStore';
+import type { SavedAccount } from '../../store/savedAccounts';
 import { ChevronRight, ShieldCheck, Sparkles, Trash2, UserPlus } from 'lucide-react';
 
 interface AccountChooserProps {

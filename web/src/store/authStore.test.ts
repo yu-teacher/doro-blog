@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getUserRole, initAuth, isTokenExpired, useAuthStore } from './authStore';
+import { getUserRole, isTokenExpired } from '../utils/jwt';
+import { initAuth, useAuthStore } from './authStore';
 
 function jwt(payload: Record<string, unknown>): string {
   const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');

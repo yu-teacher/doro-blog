@@ -19,3 +19,25 @@ export function decodeJwtPayload(token: string | null | undefined): JwtPayload |
     return null;
   }
 }
+
+/** 만료 직전 토큰을 만료로 보는 여유 시간 (시계 오차/네트워크 지연 대비). */
+const EXPIRY_SKEW_MS = 5_000;
+
+// 토큰 만료 여부. 읽을 수 없거나 exp 가 없는 토큰은 각각 만료 / 비만료로 취급한다.
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return true;
+  if (typeof payload.exp !== 'number') return false;
+  return Date.now() >= payload.exp * 1000 - EXPIRY_SKEW_MS;
+}
+
+export function getUserRole(token: string | null): string | null {
+  const role = decodeJwtPayload(token)?.role;
+  return typeof role === 'string' && role ? role : null;
+}
+
+export function isUserAdmin(token: string | null): boolean {
+  const role = getUserRole(token);
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
+}

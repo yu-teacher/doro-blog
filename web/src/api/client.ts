@@ -1,5 +1,6 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { useAuthStore, isTokenExpired } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
+import { isTokenExpired } from '../utils/jwt';
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',

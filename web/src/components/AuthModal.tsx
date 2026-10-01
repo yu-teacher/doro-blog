@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AccountChooser } from './auth/AccountChooser';
 import { CredentialsForm } from './auth/CredentialsForm';
-import { useAuthStore, getSavedAccounts, removeSavedAccount, type SavedAccount } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
+import { getSavedAccounts, removeSavedAccount, type SavedAccount } from '../store/savedAccounts';
 
 const DEFAULT_LOGIN_ERROR = '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import { decodeJwtPayload } from '../utils/jwt';
+import { decodeJwtPayload, getUserRole, isTokenExpired, isUserAdmin } from '../utils/jwt';
+import { saveAccountHistory, type SavedAccount } from './savedAccounts';
 import { UserProfile } from '../api/types';
 import {
   RefreshOutcome,
@@ -10,17 +11,6 @@ import {
   withRefreshLock,
   writeBackSharedTokens,
 } from '../api/tokenRefresh';
-
-export interface SavedAccount {
-  userId: string;
-  email: string;
-  name: string;
-  nickname?: string;
-  profileImageUrl?: string | null;
-  accessToken?: string;
-  refreshToken?: string;
-  lastUsedAt?: number;
-}
 
 interface AuthState {
   token: string | null;
@@ -46,120 +36,11 @@ interface AuthState {
 const STORAGE_KEY_TOKEN = 'doro_blog_token';
 const STORAGE_KEY_REFRESH = 'doro_blog_refresh_token';
 const STORAGE_KEY_USER = 'doro_blog_user';
-const STORAGE_KEY_SAVED_ACCOUNTS = 'doro_saved_accounts';
-const STORAGE_KEY_PLATFORM_ACCOUNTS = 'doro_auth_accounts';
 
-/** 만료 직전 토큰을 만료로 보는 여유 시간 (시계 오차/네트워크 지연 대비). */
-const EXPIRY_SKEW_MS = 5_000;
 /** 토큰 수명이 이 값보다 길면 만료 5분 전에, 짧으면 1분 전에 미리 갱신한다. */
 const LONG_LIVED_TOKEN_MS = 10 * 60_000;
 const REFRESH_AHEAD_LONG_MS = 5 * 60_000;
 const REFRESH_AHEAD_SHORT_MS = 60_000;
-
-export function getSavedAccounts(): SavedAccount[] {
-  const accountMap = new Map<string, SavedAccount>();
-
-  // 1. Read from blog's saved accounts
-  try {
-    const rawBlog = localStorage.getItem(STORAGE_KEY_SAVED_ACCOUNTS);
-    if (rawBlog) {
-      const parsed: SavedAccount[] = JSON.parse(rawBlog);
-      parsed.forEach((acc) => {
-        if (acc.email) accountMap.set(acc.email.toLowerCase(), acc);
-      });
-    }
-  } catch {
-    // ignore
-  }
-
-  // 2. Read from DORO IAM portal standard accounts (doro_auth_accounts)
-  try {
-    const rawPortal = localStorage.getItem(STORAGE_KEY_PLATFORM_ACCOUNTS);
-    if (rawPortal) {
-      const parsed = JSON.parse(rawPortal);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((item: Record<string, unknown>) => {
-          const email = typeof item.email === 'string' ? item.email : null;
-          if (email) {
-            const emailKey = email.toLowerCase();
-            const existing = accountMap.get(emailKey);
-            accountMap.set(emailKey, {
-              userId: (typeof item.userId === 'string' ? item.userId : '') || existing?.userId || '',
-              email: email,
-              name: (typeof item.fullName === 'string' ? item.fullName : (typeof item.name === 'string' ? item.name : '')) || existing?.name || email.split('@')[0],
-              nickname: existing?.nickname,
-              profileImageUrl: (typeof item.profileImageUrl === 'string' ? item.profileImageUrl : null) || existing?.profileImageUrl,
-              accessToken: (typeof item.accessToken === 'string' ? item.accessToken : undefined) || existing?.accessToken,
-              refreshToken: (typeof item.refreshToken === 'string' ? item.refreshToken : undefined) || existing?.refreshToken,
-              lastUsedAt: existing?.lastUsedAt || Date.now(),
-            });
-          }
-        });
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return Array.from(accountMap.values()).sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0));
-}
-
-export function saveAccountHistory(account: Partial<SavedAccount> & { email: string }) {
-  const current = getSavedAccounts();
-  const emailKey = account.email.toLowerCase();
-  const existingIdx = current.findIndex((a) => a.email.toLowerCase() === emailKey);
-
-  const updated: SavedAccount = {
-    userId: account.userId || (existingIdx >= 0 ? current[existingIdx].userId : ''),
-    email: account.email,
-    name: account.name || (existingIdx >= 0 ? current[existingIdx].name : account.email.split('@')[0]),
-    nickname: account.nickname || (existingIdx >= 0 ? current[existingIdx].nickname : undefined),
-    profileImageUrl: account.profileImageUrl !== undefined ? account.profileImageUrl : (existingIdx >= 0 ? current[existingIdx].profileImageUrl : undefined),
-    accessToken: account.accessToken || (existingIdx >= 0 ? current[existingIdx].accessToken : undefined),
-    refreshToken: account.refreshToken || (existingIdx >= 0 ? current[existingIdx].refreshToken : undefined),
-    lastUsedAt: Date.now(),
-  };
-
-  if (existingIdx >= 0) {
-    current[existingIdx] = updated;
-  } else {
-    current.unshift(updated);
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-}
-
-export function removeSavedAccount(email: string) {
-  const current = getSavedAccounts().filter((a) => a.email.toLowerCase() !== email.toLowerCase());
-  try {
-    localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-}
-
-// 토큰 만료 여부. 읽을 수 없거나 exp 가 없는 토큰은 각각 만료 / 비만료로 취급한다.
-export function isTokenExpired(token: string | null): boolean {
-  if (!token) return true;
-  const payload = decodeJwtPayload(token);
-  if (!payload) return true;
-  if (typeof payload.exp !== 'number') return false;
-  return Date.now() >= payload.exp * 1000 - EXPIRY_SKEW_MS;
-}
-
-export function getUserRole(token: string | null): string | null {
-  const role = decodeJwtPayload(token)?.role;
-  return typeof role === 'string' && role ? role : null;
-}
-
-export function isUserAdmin(token: string | null): boolean {
-  const role = getUserRole(token);
-  return role === 'ADMIN' || role === 'SUPER_ADMIN';
-}
 
 const REFRESH_RETRY_DELAY_MS = 30_000;
 
