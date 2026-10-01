@@ -6,7 +6,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.post.dto.PostDtos.*;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.hunnit_beasts.doro.sdk.annotation.CurrentDoroUser;
 import com.hunnit_beasts.doro.sdk.annotation.DoroGuard;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
@@ -26,7 +27,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PostController {
 
-    private final PostService postService;
+    private final PostCommandService postCommands;
+    private final PostQueryService postQueries;
 
     @Operation(summary = "새 글 작성 (인증)", description = "글을 임시저장(DRAFT) 또는 즉시 출간(PUBLISHED)하고 ReBAC 튜플 등록")
     @PostMapping
@@ -34,7 +36,7 @@ public class PostController {
             @CurrentDoroUser DoroUser doroUser,
             @Valid @RequestBody CreatePostRequest request
     ) {
-        return ApiResponse.success(postService.createPost(doroUser, request));
+        return ApiResponse.success(postCommands.createPost(doroUser, request));
     }
 
     @Operation(summary = "전체 피드 목록 조회 (공개)", description = "최신순/인기순 및 단일/다중 태그 필터(교집합) 페이징 피드 조회")
@@ -49,7 +51,7 @@ public class PostController {
         java.util.List<String> combinedTags = new java.util.ArrayList<>();
         if (tagList != null) combinedTags.addAll(tagList);
         if (tagsList != null) combinedTags.addAll(tagsList);
-        return ApiResponse.success(postService.getFeed(sort, combinedTags, page, size));
+        return ApiResponse.success(postQueries.getFeed(sort, combinedTags, page, size));
     }
 
     @Operation(summary = "특정 작가의 출간 글 목록 및 채널 내 검색 (공개, 페이징)", description = "특정 작가의 공개 출간 글 목록을 키워드(q) 또는 태그(tag)로 필터링하여 페이징 조회")
@@ -61,7 +63,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.getUserPosts(username, query, tag, page, size));
+        return ApiResponse.success(postQueries.getUserPosts(username, query, tag, page, size));
     }
 
 
@@ -76,7 +78,7 @@ public class PostController {
     ) {
         String cleanUsername = Handles.stripAt(username);
         boolean shouldCount = checkAndSetViewCookie(cleanUsername + "/" + slug.toLowerCase().trim(), request, response);
-        return ApiResponse.success(postService.getPostDetail(username, slug, doroUser, shouldCount));
+        return ApiResponse.success(postQueries.getPostDetail(username, slug, doroUser, shouldCount));
     }
 
     private boolean checkAndSetViewCookie(
@@ -125,7 +127,7 @@ public class PostController {
             @PathVariable("postId") UUID postId,
             @CurrentDoroUser DoroUser doroUser
     ) {
-        return ApiResponse.success(postService.getPostById(postId, doroUser));
+        return ApiResponse.success(postQueries.getPostById(postId, doroUser));
     }
 
 
@@ -136,14 +138,14 @@ public class PostController {
             @PathVariable("postId") UUID postId,
             @Valid @RequestBody UpdatePostRequest request
     ) {
-        return ApiResponse.success(postService.updatePost(postId, request));
+        return ApiResponse.success(postCommands.updatePost(postId, request));
     }
 
     @Operation(summary = "게시글 삭제 (ReBAC 인가)", description = "DORO Guard ReBAC 검증: 글의 editor/author만 삭제 가능")
     @DoroGuard(namespace = "blog_post", object = "#postId", relation = "editor")
     @DeleteMapping("/{postId}")
     public ApiResponse<Void> deletePost(@PathVariable("postId") UUID postId) {
-        postService.deletePost(postId);
+        postCommands.deletePost(postId);
         return ApiResponse.success();
     }
 
@@ -155,7 +157,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.getMyPosts(doroUser, status, page, size));
+        return ApiResponse.success(postQueries.getMyPosts(doroUser, status, page, size));
     }
 
     @Operation(summary = "트렌딩 포스트 기간별 조회 (공개, 페이징)", description = "지정 기간(day, week, month, year) 내 출간된 인기 글 랭킹 피드")
@@ -165,7 +167,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.getTrendingPosts(timeframe, page, size));
+        return ApiResponse.success(postQueries.getTrendingPosts(timeframe, page, size));
     }
 
     @Operation(summary = "내가 좋아요한 포스트 목록 (인증, 페이징)", description = "내가 좋아요(하트)를 누른 공개 글 읽기 목록 페이징 조회")
@@ -175,7 +177,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.getMyLikedPosts(doroUser, page, size));
+        return ApiResponse.success(postQueries.getMyLikedPosts(doroUser, page, size));
     }
 
     @Operation(summary = "키워드 검색 (공개, 페이징)", description = "제목, 요약문, 본문 키워드 대소문자 무시 검색")
@@ -185,7 +187,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.searchPosts(query, page, size));
+        return ApiResponse.success(postQueries.searchPosts(query, page, size));
     }
 
     @Operation(summary = "내가 팔로우하는 작가들의 피드 (인증, 페이징)", description = "팔로우한 작가들이 최근 발행한 글 피드 목록")
@@ -195,7 +197,7 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
-        return ApiResponse.success(postService.getFollowingPosts(doroUser, page, size));
+        return ApiResponse.success(postQueries.getFollowingPosts(doroUser, page, size));
     }
 
     @Operation(summary = "함께 읽으면 좋은 연관 글 추천 (공개)", description = "태그 일치도 및 작가 연관 기반 추천 글 목록 조회 (최대 4편)")
@@ -205,7 +207,7 @@ public class PostController {
             @PathVariable("slug") String slug,
             @RequestParam(name = "limit", defaultValue = "4") @Min(1) @Max(PageLimits.MAX_LIMIT) int limit
     ) {
-        return ApiResponse.success(postService.getRelatedPosts(username, slug, limit));
+        return ApiResponse.success(postQueries.getRelatedPosts(username, slug, limit));
     }
 }
 

@@ -5,7 +5,8 @@ import com.doro.blog.domain.comment.service.CommentService;
 import com.doro.blog.domain.like.service.PostLikeService;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
 import com.doro.blog.domain.tag.service.TagService;
@@ -36,7 +37,10 @@ class BlogCounterConcurrencyTests {
     private static final long TIMEOUT_SECONDS = 60;
 
     @Autowired
-    private PostService postService;
+    private PostCommandService postCommands;
+
+    @Autowired
+    private PostQueryService postQueries;
 
     @Autowired
     private PostLikeService likeService;
@@ -59,7 +63,7 @@ class BlogCounterConcurrencyTests {
     }
 
     private UUID newPublishedPost(DoroUser author) {
-        return postService.createPost(author, new CreatePostRequest(
+        return postCommands.createPost(author, new CreatePostRequest(
                 "동시성 " + UUID.randomUUID(), null, null, "본문", null, PostStatus.PUBLISHED, null, null)).id();
     }
 
@@ -99,7 +103,7 @@ class BlogCounterConcurrencyTests {
         }
         assertThat(runConcurrently(tasks)).containsOnly(true);
 
-        assertThat(postService.getPostById(postId, author).post().likeCount()).isEqualTo(PARALLELISM);
+        assertThat(postQueries.getPostById(postId, author).post().likeCount()).isEqualTo(PARALLELISM);
     }
 
     @Test
@@ -115,8 +119,8 @@ class BlogCounterConcurrencyTests {
         }
         runConcurrently(tasks); // 예외가 나면 여기서 실패한다
 
-        int likeCount = postService.getPostById(postId, author).post().likeCount();
-        boolean likedByMe = postService.getPostById(postId, liker).likedByMe();
+        int likeCount = postQueries.getPostById(postId, author).post().likeCount();
+        boolean likedByMe = postQueries.getPostById(postId, liker).likedByMe();
         assertThat(likeCount).isEqualTo(likedByMe ? 1 : 0);
     }
 
@@ -133,25 +137,25 @@ class BlogCounterConcurrencyTests {
         }
         runConcurrently(tasks);
 
-        assertThat(postService.getPostById(postId, author).post().commentCount()).isEqualTo(PARALLELISM);
+        assertThat(postQueries.getPostById(postId, author).post().commentCount()).isEqualTo(PARALLELISM);
     }
 
     @Test
     @DisplayName("동시에 조회해도 조회수가 정확히 합산된다")
     void concurrentViewsAreAllCounted() throws Exception {
         DoroUser author = mockUser("author");
-        var created = postService.createPost(author, new CreatePostRequest(
+        var created = postCommands.createPost(author, new CreatePostRequest(
                 "조회수 " + UUID.randomUUID(), null, null, "본문", null, PostStatus.PUBLISHED, null, null));
         String username = created.username();
 
         List<Callable<Object>> tasks = new ArrayList<>();
         for (int i = 0; i < PARALLELISM; i++) {
             DoroUser viewer = mockUser("viewer" + i);
-            tasks.add(() -> postService.getPostDetail(username, created.slug(), viewer, true));
+            tasks.add(() -> postQueries.getPostDetail(username, created.slug(), viewer, true));
         }
         runConcurrently(tasks);
 
-        assertThat(postService.getPostById(created.id(), author).post().viewCount()).isEqualTo(PARALLELISM);
+        assertThat(postQueries.getPostById(created.id(), author).post().viewCount()).isEqualTo(PARALLELISM);
     }
 
     @Test
@@ -196,7 +200,7 @@ class BlogCounterConcurrencyTests {
         List<Callable<UUID>> tasks = new ArrayList<>();
         for (int i = 0; i < PARALLELISM; i++) {
             int n = i;
-            tasks.add(() -> postService.createPost(author, new CreatePostRequest(
+            tasks.add(() -> postCommands.createPost(author, new CreatePostRequest(
                     "시리즈 글 " + n + " " + UUID.randomUUID(), null, null, "본문", null, PostStatus.PUBLISHED, series.id(), null)).id());
         }
         runConcurrently(tasks);
@@ -214,7 +218,7 @@ class BlogCounterConcurrencyTests {
         List<Callable<UUID>> tasks = new ArrayList<>();
         for (int i = 0; i < PARALLELISM; i++) {
             DoroUser other = mockUser("tagger" + i);
-            tasks.add(() -> postService.createPost(other, new CreatePostRequest(
+            tasks.add(() -> postCommands.createPost(other, new CreatePostRequest(
                     "태그 글 " + UUID.randomUUID(), null, null, "본문", null, PostStatus.PUBLISHED, null, List.of(tag))).id());
         }
         runConcurrently(tasks);
@@ -222,6 +226,6 @@ class BlogCounterConcurrencyTests {
         int count = tagService.getPopularTags().stream().filter(t -> t.name().equals(tag)).mapToInt(t -> t.postCount()).findFirst().orElse(-1);
         // 상위 30개 안에 없으면 -1 이므로, 인기 태그 목록 대신 글 목록 개수와 비교한다
         assertThat(count == -1 || count == PARALLELISM).isTrue();
-        assertThat(postService.getFeed("latest", List.of(tag), 0, 50).getTotalElements()).isEqualTo(PARALLELISM);
+        assertThat(postQueries.getFeed("latest", List.of(tag), 0, 50).getTotalElements()).isEqualTo(PARALLELISM);
     }
 }

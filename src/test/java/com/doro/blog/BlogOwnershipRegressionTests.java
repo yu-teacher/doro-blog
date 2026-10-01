@@ -8,7 +8,8 @@ import com.doro.blog.domain.comment.service.CommentService;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.dto.PostDtos.UpdatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
 import com.doro.blog.domain.series.dto.SeriesDtos.UpdateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
@@ -29,7 +30,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BlogOwnershipRegressionTests {
 
     @Autowired
-    private PostService postService;
+    private PostCommandService postCommands;
+
+    @Autowired
+    private PostQueryService postQueries;
 
     @Autowired
     private SeriesService seriesService;
@@ -53,7 +57,7 @@ class BlogOwnershipRegressionTests {
         DoroUser attacker = mockUser("attacker");
         var series = seriesService.createSeries(owner, new CreateSeriesRequest("남의 시리즈", null, null, null));
 
-        assertThatThrownBy(() -> postService.createPost(attacker, publishedPost("끼어들기", series.id())))
+        assertThatThrownBy(() -> postCommands.createPost(attacker, publishedPost("끼어들기", series.id())))
                 .isInstanceOf(BlogException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
 
@@ -67,9 +71,9 @@ class BlogOwnershipRegressionTests {
         DoroUser other = mockUser("other");
         var mine = seriesService.createSeries(author, new CreateSeriesRequest("내 시리즈", null, null, null));
         var theirs = seriesService.createSeries(other, new CreateSeriesRequest("남의 시리즈", null, null, null));
-        var post = postService.createPost(author, publishedPost("내 글", mine.id()));
+        var post = postCommands.createPost(author, publishedPost("내 글", mine.id()));
 
-        assertThatThrownBy(() -> postService.updatePost(post.id(), new UpdatePostRequest(
+        assertThatThrownBy(() -> postCommands.updatePost(post.id(), new UpdatePostRequest(
                 "내 글", null, null, "본문 내 글", null, PostStatus.PUBLISHED, theirs.id(), null)))
                 .isInstanceOf(BlogException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
@@ -82,13 +86,13 @@ class BlogOwnershipRegressionTests {
     @DisplayName("본문 없이 보낸 수정 요청은 기존 본문과 요약을 지우지 않는다")
     void updateWithoutContentKeepsContentAndSummary() {
         DoroUser author = mockUser("author");
-        var draft = postService.createPost(author, new CreatePostRequest(
+        var draft = postCommands.createPost(author, new CreatePostRequest(
                 "초안", null, "직접 쓴 요약", "지켜야 할 본문", null, PostStatus.DRAFT, null, null));
 
-        postService.updatePost(draft.id(), new UpdatePostRequest(
+        postCommands.updatePost(draft.id(), new UpdatePostRequest(
                 "제목만 수정", null, null, null, null, PostStatus.DRAFT, null, null));
 
-        var detail = postService.getPostById(draft.id(), author);
+        var detail = postQueries.getPostById(draft.id(), author);
         assertThat(detail.content()).isEqualTo("지켜야 할 본문");
         assertThat(detail.post().summary()).isEqualTo("직접 쓴 요약");
         assertThat(detail.post().title()).isEqualTo("제목만 수정");
@@ -99,39 +103,39 @@ class BlogOwnershipRegressionTests {
     void replyToCommentOfAnotherPostIsRejected() {
         DoroUser author = mockUser("author");
         DoroUser reader = mockUser("reader");
-        var postA = postService.createPost(author, publishedPost("글 A", null));
-        var postB = postService.createPost(author, publishedPost("글 B", null));
+        var postA = postCommands.createPost(author, publishedPost("글 A", null));
+        var postB = postCommands.createPost(author, publishedPost("글 B", null));
         var commentOnA = commentService.createRootComment(postA.id(), reader, new CreateCommentRequest("A 의 댓글"));
 
         assertThatThrownBy(() -> commentService.createReply(postB.id(), commentOnA.id(), reader, new CreateReplyRequest("엉뚱한 답글")))
                 .isInstanceOf(BlogException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
 
-        assertThat(postService.getPostById(postB.id(), author).post().commentCount()).isZero();
+        assertThat(postQueries.getPostById(postB.id(), author).post().commentCount()).isZero();
     }
 
     @Test
     @DisplayName("수정 시 이미 쓰는 슬러그로 바꾸면 500 이 아니라 SLUG_ALREADY_EXISTS")
     void updateToTakenSlugIsRejected() {
         DoroUser author = mockUser("author");
-        var first = postService.createPost(author, new CreatePostRequest(
+        var first = postCommands.createPost(author, new CreatePostRequest(
                 "첫 글", "taken-slug", null, "본문", null, PostStatus.PUBLISHED, null, null));
-        var second = postService.createPost(author, publishedPost("둘째 글", null));
+        var second = postCommands.createPost(author, publishedPost("둘째 글", null));
 
-        assertThatThrownBy(() -> postService.updatePost(second.id(), new UpdatePostRequest(
+        assertThatThrownBy(() -> postCommands.updatePost(second.id(), new UpdatePostRequest(
                 "둘째 글", "taken-slug", null, null, null, PostStatus.PUBLISHED, null, null)))
                 .isInstanceOf(BlogException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SLUG_ALREADY_EXISTS);
 
         assertThat(first.slug()).isEqualTo("taken-slug");
-        assertThat(postService.getPostById(second.id(), author).post().slug()).isNotEqualTo("taken-slug");
+        assertThat(postQueries.getPostById(second.id(), author).post().slug()).isNotEqualTo("taken-slug");
     }
 
     @Test
     @DisplayName("제목이 기호뿐이어도 '---' 같은 슬러그가 만들어지지 않는다")
     void symbolOnlyTitleGetsUsableSlug() {
         DoroUser author = mockUser("author");
-        var post = postService.createPost(author, new CreatePostRequest(
+        var post = postCommands.createPost(author, new CreatePostRequest(
                 "!!!", null, null, "본문", null, PostStatus.PUBLISHED, null, null));
 
         assertThat(post.slug()).isNotBlank().doesNotContainPattern("^-+$");
@@ -142,9 +146,9 @@ class BlogOwnershipRegressionTests {
     void reorderRequiresExactlyTheSeriesPosts() {
         DoroUser author = mockUser("author");
         var series = seriesService.createSeries(author, new CreateSeriesRequest("정렬 시리즈", null, null, null));
-        var a = postService.createPost(author, publishedPost("A", series.id()));
-        var b = postService.createPost(author, publishedPost("B", series.id()));
-        var c = postService.createPost(author, publishedPost("C", series.id()));
+        var a = postCommands.createPost(author, publishedPost("A", series.id()));
+        var b = postCommands.createPost(author, publishedPost("B", series.id()));
+        var c = postCommands.createPost(author, publishedPost("C", series.id()));
 
         var detail = seriesService.reorderPosts(series.id(), List.of(c.id(), a.id(), b.id()));
         assertThat(detail.posts()).extracting(p -> p.id()).containsExactly(c.id(), a.id(), b.id());

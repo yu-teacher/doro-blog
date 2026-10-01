@@ -10,7 +10,8 @@ import com.doro.blog.domain.like.service.PostLikeService;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.dto.PostDtos.UpdatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
 import com.doro.blog.domain.series.dto.SeriesDtos.UpdateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
@@ -41,7 +42,10 @@ class BlogEdgeCaseTests {
     private SeriesService seriesService;
 
     @Autowired
-    private PostService postService;
+    private PostCommandService postCommands;
+
+    @Autowired
+    private PostQueryService postQueries;
 
     @Autowired
     private CommentService commentService;
@@ -68,7 +72,7 @@ class BlogEdgeCaseTests {
             DoroUser reader1 = createMockUser("reader1");
             DoroUser reader2 = createMockUser("reader2");
 
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "대댓글 뎁스 테스트", null, null, "본문", null, PostStatus.PUBLISHED, null, null
             ));
 
@@ -94,7 +98,7 @@ class BlogEdgeCaseTests {
             DoroUser commentAuthor = createMockUser("commentAuthor");
             DoroUser stranger = createMockUser("stranger");
 
-            var post = postService.createPost(postAuthor, new CreatePostRequest(
+            var post = postCommands.createPost(postAuthor, new CreatePostRequest(
                     "인가 테스트 글", null, null, "본문", null, PostStatus.PUBLISHED, null, null
             ));
 
@@ -113,7 +117,7 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("author");
             DoroUser reader = createMockUser("reader");
 
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "하드삭제 테스트", null, null, "본문", null, PostStatus.PUBLISHED, null, null
             ));
 
@@ -133,7 +137,7 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("author");
             DoroUser reader = createMockUser("reader");
 
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "삭제댓글 수정 테스트", null, null, "본문", null, PostStatus.PUBLISHED, null, null
             ));
 
@@ -160,7 +164,7 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("tagAuthor");
 
             // ["Java", "JAVA", "java!", "#spring_boot", "   "] -> 중복 제거 및 소문자 정규화: "java", "springboot"
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "태그 정규화 테스트", null, null, "본문", null, PostStatus.PUBLISHED, null,
                     List.of("Java", "JAVA", "java!", "#spring_boot", "   ")
             ));
@@ -168,12 +172,12 @@ class BlogEdgeCaseTests {
             assertThat(post.tags()).containsExactlyInAnyOrder("java", "spring_boot");
 
             // 글 수정으로 태그 변경: "java" 제거, "react" 추가
-            postService.updatePost(post.id(), new UpdatePostRequest(
+            postCommands.updatePost(post.id(), new UpdatePostRequest(
                     "태그 정규화 테스트", null, null, "본문", null, PostStatus.PUBLISHED, null,
                     List.of("react", "spring_boot")
             ));
 
-            var detail = postService.getPostDetail(author.email().split("@")[0], post.slug(), author);
+            var detail = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), author);
             assertThat(detail.post().tags()).containsExactlyInAnyOrder("react", "spring_boot");
             assertThat(detail.post().tags()).doesNotContain("java");
         }
@@ -202,7 +206,7 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("seriesAuthor2");
 
             var series = seriesService.createSeries(author, new CreateSeriesRequest("쿠버네티스", null, null, null));
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "k8s 1편", null, null, "본문", null, PostStatus.PUBLISHED, series.id(), null
             ));
 
@@ -212,7 +216,7 @@ class BlogEdgeCaseTests {
             seriesService.deleteSeries(series.id());
 
             // 글이 여전히 존재하는지 확인
-            var postDetail = postService.getPostDetail(author.email().split("@")[0], post.slug(), author);
+            var postDetail = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), author);
             assertThat(postDetail.post().id()).isEqualTo(post.id());
             assertThat(postDetail.post().seriesId()).isNull();
             assertThat(postDetail.post().seriesTitle()).isNull();
@@ -229,17 +233,17 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("secretWriter");
             DoroUser stranger = createMockUser("curiousStranger");
 
-            var draftPost = postService.createPost(author, new CreatePostRequest(
+            var draftPost = postCommands.createPost(author, new CreatePostRequest(
                     "작성중인 일기", "my-secret-draft", null, "비밀 본문", null, PostStatus.DRAFT, null, null
             ));
 
             // 작성자 본인은 열람 가능
-            var authorView = postService.getPostDetail(author.email().split("@")[0], draftPost.slug(), author);
+            var authorView = postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), author);
             assertThat(authorView.content()).isEqualTo("비밀 본문");
 
             // 타 사용자 stranger 열람 시도 -> ACCESS_DENIED
             assertThatThrownBy(() ->
-                    postService.getPostDetail(author.email().split("@")[0], draftPost.slug(), stranger)
+                    postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), stranger)
             ).isInstanceOf(BlogException.class)
              .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
         }
@@ -255,7 +259,7 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("likeAuthor");
             DoroUser user1 = createMockUser("liker");
 
-            var post = postService.createPost(author, new CreatePostRequest(
+            var post = postCommands.createPost(author, new CreatePostRequest(
                     "좋아요 글", null, null, "본문", null, PostStatus.PUBLISHED, null, null
             ));
 
@@ -263,7 +267,7 @@ class BlogEdgeCaseTests {
             boolean liked1 = likeService.toggleLike(post.id(), user1);
             assertThat(liked1).isTrue();
 
-            var view1 = postService.getPostDetail(author.email().split("@")[0], post.slug(), user1);
+            var view1 = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), user1);
             assertThat(view1.likedByMe()).isTrue();
             assertThat(view1.post().likeCount()).isEqualTo(1);
 
@@ -271,7 +275,7 @@ class BlogEdgeCaseTests {
             boolean liked2 = likeService.toggleLike(post.id(), user1);
             assertThat(liked2).isFalse();
 
-            var view2 = postService.getPostDetail(author.email().split("@")[0], post.slug(), user1);
+            var view2 = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), user1);
             assertThat(view2.likedByMe()).isFalse();
             assertThat(view2.post().likeCount()).isEqualTo(0);
         }
@@ -310,24 +314,24 @@ class BlogEdgeCaseTests {
 
             // 출간글 3개, 임시저장글 2개 생성
             for (int i = 1; i <= 3; i++) {
-                postService.createPost(author, new CreatePostRequest(
+                postCommands.createPost(author, new CreatePostRequest(
                         "공개글 " + i, "pub-" + i + "-" + UUID.randomUUID(), null, "본문", null, PostStatus.PUBLISHED, null, null
                 ));
             }
             for (int i = 1; i <= 2; i++) {
-                postService.createPost(author, new CreatePostRequest(
+                postCommands.createPost(author, new CreatePostRequest(
                         "임시저장글 " + i, "draft-" + i + "-" + UUID.randomUUID(), null, "임시본문", null, PostStatus.DRAFT, null, null
                 ));
             }
 
             // 1) 전체 내 글 조회 (page=0, size=3)
-            var allPage0 = postService.getMyPosts(author, null, 0, 3);
+            var allPage0 = postQueries.getMyPosts(author, null, 0, 3);
             assertThat(allPage0.getTotalElements()).isEqualTo(5);
             assertThat(allPage0.getContent()).hasSize(3);
             assertThat(allPage0.getTotalPages()).isEqualTo(2);
 
             // 2) 임시저장(DRAFT) 글만 필터링 조회
-            var draftOnly = postService.getMyPosts(author, PostStatus.DRAFT, 0, 10);
+            var draftOnly = postQueries.getMyPosts(author, PostStatus.DRAFT, 0, 10);
             assertThat(draftOnly.getTotalElements()).isEqualTo(2);
             assertThat(draftOnly.getContent()).allMatch(p -> p.status() == PostStatus.DRAFT);
         }
@@ -338,13 +342,13 @@ class BlogEdgeCaseTests {
             DoroUser writer = createMockUser("trendWriter");
             DoroUser liker = createMockUser("trendLiker");
 
-            var post = postService.createPost(writer, new CreatePostRequest(
+            var post = postCommands.createPost(writer, new CreatePostRequest(
                     "트렌딩 글", "trend-" + UUID.randomUUID(), null, "인기 글 본문", null, PostStatus.PUBLISHED, null, null
             ));
             likeService.toggleLike(post.id(), liker);
 
             // 최근 1주일 트렌딩 조회
-            var weekTrending = postService.getTrendingPosts("week", 0, 10);
+            var weekTrending = postQueries.getTrendingPosts("week", 0, 10);
             assertThat(weekTrending.getContent()).isNotEmpty();
             assertThat(weekTrending.getContent().get(0).likeCount()).isGreaterThanOrEqualTo(1);
         }
@@ -355,13 +359,13 @@ class BlogEdgeCaseTests {
             DoroUser author = createMockUser("targetAuthor");
             DoroUser fan = createMockUser("fanUser");
 
-            var p1 = postService.createPost(author, new CreatePostRequest("팬글 1", "fan-1-" + UUID.randomUUID(), null, "본문 1", null, PostStatus.PUBLISHED, null, null));
-            var p2 = postService.createPost(author, new CreatePostRequest("팬글 2", "fan-2-" + UUID.randomUUID(), null, "본문 2", null, PostStatus.PUBLISHED, null, null));
+            var p1 = postCommands.createPost(author, new CreatePostRequest("팬글 1", "fan-1-" + UUID.randomUUID(), null, "본문 1", null, PostStatus.PUBLISHED, null, null));
+            var p2 = postCommands.createPost(author, new CreatePostRequest("팬글 2", "fan-2-" + UUID.randomUUID(), null, "본문 2", null, PostStatus.PUBLISHED, null, null));
 
             likeService.toggleLike(p1.id(), fan);
             likeService.toggleLike(p2.id(), fan);
 
-            var likedPage = postService.getMyLikedPosts(fan, 0, 10);
+            var likedPage = postQueries.getMyLikedPosts(fan, 0, 10);
             assertThat(likedPage.getTotalElements()).isGreaterThanOrEqualTo(2);
             assertThat(likedPage.getContent()).extracting("id").contains(p1.id(), p2.id());
         }
@@ -371,20 +375,20 @@ class BlogEdgeCaseTests {
         void testSearchPostsPagination() {
             DoroUser author = createMockUser("searchAuthor");
 
-            postService.createPost(author, new CreatePostRequest(
+            postCommands.createPost(author, new CreatePostRequest(
                     "쿠버네티스 아키텍처 마스터", "k8s-arch-" + UUID.randomUUID(), "핵심 요약", "etcd와 kube-apiserver 내부 동작", null, PostStatus.PUBLISHED, null, null
             ));
 
             // 제목 키워드 검색
-            var searchTitle = postService.searchPosts("쿠버네티스", 0, 10);
+            var searchTitle = postQueries.searchPosts("쿠버네티스", 0, 10);
             assertThat(searchTitle.getContent()).isNotEmpty();
 
             // 본문 키워드 검색
-            var searchContent = postService.searchPosts("kube-apiserver", 0, 10);
+            var searchContent = postQueries.searchPosts("kube-apiserver", 0, 10);
             assertThat(searchContent.getContent()).isNotEmpty();
 
             // 없는 키워드 검색
-            var searchNone = postService.searchPosts("없는검색어123456", 0, 10);
+            var searchNone = postQueries.searchPosts("없는검색어123456", 0, 10);
             assertThat(searchNone.getContent()).isEmpty();
         }
 
@@ -395,31 +399,31 @@ class BlogEdgeCaseTests {
             DoroUser author2 = createMockUser("authorTwo");
 
             // author1이 쓴 글들
-            postService.createPost(author1, new CreatePostRequest(
+            postCommands.createPost(author1, new CreatePostRequest(
                     "Spring Boot 3 마이그레이션", "spring-boot-3-" + UUID.randomUUID(), null, "Spring 본문", null, PostStatus.PUBLISHED, null, List.of("Spring")
             ));
-            postService.createPost(author1, new CreatePostRequest(
+            postCommands.createPost(author1, new CreatePostRequest(
                     "React 19 Server Components", "react-19-" + UUID.randomUUID(), null, "React 본문", null, PostStatus.PUBLISHED, null, List.of("React")
             ));
 
             // author2가 쓴 글 (동일한 Spring 키워드)
-            postService.createPost(author2, new CreatePostRequest(
+            postCommands.createPost(author2, new CreatePostRequest(
                     "다른 작가의 Spring 글", "other-spring-" + UUID.randomUUID(), null, "Spring 본문", null, PostStatus.PUBLISHED, null, List.of("Spring")
             ));
 
             String author1Username = author1.email().split("@")[0];
 
             // 1. author1 채널 전체 글 목록
-            var allAuthor1 = postService.getUserPosts(author1Username, null, null, 0, 10);
+            var allAuthor1 = postQueries.getUserPosts(author1Username, null, null, 0, 10);
             assertThat(allAuthor1.getTotalElements()).isEqualTo(2);
 
             // 2. author1 채널 내에서만 "Spring" 키워드 검색 -> author2의 글은 제외되어야 함
-            var searchAuthor1 = postService.getUserPosts(author1Username, "Spring", null, 0, 10);
+            var searchAuthor1 = postQueries.getUserPosts(author1Username, "Spring", null, 0, 10);
             assertThat(searchAuthor1.getTotalElements()).isEqualTo(1);
             assertThat(searchAuthor1.getContent().get(0).title()).isEqualTo("Spring Boot 3 마이그레이션");
 
             // 3. author1 채널 내에서만 "React" 태그 필터
-            var tagAuthor1 = postService.getUserPosts(author1Username, null, "React", 0, 10);
+            var tagAuthor1 = postQueries.getUserPosts(author1Username, null, "React", 0, 10);
             assertThat(tagAuthor1.getTotalElements()).isEqualTo(1);
             assertThat(tagAuthor1.getContent().get(0).title()).isEqualTo("React 19 Server Components");
         }

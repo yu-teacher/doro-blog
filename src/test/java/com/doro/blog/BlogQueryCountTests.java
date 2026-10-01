@@ -2,7 +2,8 @@ package com.doro.blog;
 
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -24,7 +25,10 @@ class BlogQueryCountTests {
     private static final int PAGE_SIZE = 50;
 
     @Autowired
-    private PostService postService;
+    private PostCommandService postCommands;
+
+    @Autowired
+    private PostQueryService postQueries;
 
     @Autowired
     private EntityManagerFactory entityManagerFactory;
@@ -36,7 +40,7 @@ class BlogQueryCountTests {
 
     private void createTaggedPosts(DoroUser author, String tag, int count) {
         for (int i = 0; i < count; i++) {
-            postService.createPost(author, new CreatePostRequest(
+            postCommands.createPost(author, new CreatePostRequest(
                     "쿼리수 " + UUID.randomUUID(), null, null, "본문", null, PostStatus.PUBLISHED, null, List.of(tag, "common-" + tag)));
         }
     }
@@ -44,7 +48,7 @@ class BlogQueryCountTests {
     private long statementsForTagPage(String tag) {
         Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         stats.clear();
-        var page = postService.getFeed("latest", List.of(tag), 0, PAGE_SIZE);
+        var page = postQueries.getFeed("latest", List.of(tag), 0, PAGE_SIZE);
         assertThat(page.getContent()).allSatisfy(p -> assertThat(p.tags()).contains(tag));
         return stats.getPrepareStatementCount();
     }

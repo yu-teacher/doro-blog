@@ -5,7 +5,8 @@ import com.doro.blog.domain.comment.dto.CommentDtos.CreateReplyRequest;
 import com.doro.blog.domain.comment.service.CommentService;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.entity.PostStatus;
-import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.post.service.PostQueryService;
 import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
 import com.doro.blog.domain.user.dto.BlogUserDtos.UpdateProfileRequest;
@@ -31,7 +32,10 @@ class BlogApplicationTests {
     private SeriesService seriesService;
 
     @Autowired
-    private PostService postService;
+    private PostCommandService postCommands;
+
+    @Autowired
+    private PostQueryService postQueries;
 
     @Autowired
     private CommentService commentService;
@@ -66,7 +70,7 @@ class BlogApplicationTests {
         assertThat(series.id()).isNotNull();
 
         // 글 작성 (시리즈 편입 & 태그 바인딩)
-        var post = postService.createPost(author, new CreatePostRequest(
+        var post = postCommands.createPost(author, new CreatePostRequest(
                 "1화: Zanzibar와 ReBAC 소개", "intro-zanzibar", "ReBAC 기초 요약",
                 "# Zanzibar ReBAC\n\n구글의 권한 인가 시스템입니다.", null,
                 PostStatus.PUBLISHED, series.id(), List.of("Spring", "Zanzibar", "Security")
@@ -111,7 +115,7 @@ class BlogApplicationTests {
         UUID readerId = UUID.randomUUID();
         DoroUser reader = new DoroUser(readerId, "reader2@doro.local", UUID.randomUUID(), 5, "USER");
 
-        var post = postService.createPost(author, new CreatePostRequest(
+        var post = postCommands.createPost(author, new CreatePostRequest(
                 "테스트 포스트", "test-post-" + System.currentTimeMillis(), "요약",
                 "본문 내용입니다.", null, PostStatus.PUBLISHED, null, List.of("Java", "Spring", "Backend")
         ));
@@ -133,7 +137,7 @@ class BlogApplicationTests {
         assertThat(afterReadCount.unreadCount()).isEqualTo(unreadCount.unreadCount() - 1);
 
         // 다중 태그 피드 조회 검증
-        var multiTagPosts = postService.getFeed("latest", List.of("java", "spring"), 0, 10);
+        var multiTagPosts = postQueries.getFeed("latest", List.of("java", "spring"), 0, 10);
         assertThat(multiTagPosts.getContent()).isNotEmpty();
         assertThat(multiTagPosts.getContent().stream().anyMatch(p -> p.id().equals(post.id()))).isTrue();
     }
@@ -153,13 +157,13 @@ class BlogApplicationTests {
         ));
 
         // 1화 (공개)
-        postService.createPost(author, new CreatePostRequest(
+        postCommands.createPost(author, new CreatePostRequest(
                 "1화 공개 포스트", "post-pub-" + System.currentTimeMillis(), "요약1",
                 "공개 본문", null, PostStatus.PUBLISHED, series.id(), List.of("Security")
         ));
 
         // 2화 (비공개 PRIVATE)
-        postService.createPost(author, new CreatePostRequest(
+        postCommands.createPost(author, new CreatePostRequest(
                 "2화 비공개 포스트", "post-priv-" + System.currentTimeMillis(), "요약2",
                 "비공개 본문", null, PostStatus.PRIVATE, series.id(), List.of("Security")
         ));
