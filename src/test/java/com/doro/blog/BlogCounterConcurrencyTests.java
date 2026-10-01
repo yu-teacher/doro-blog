@@ -11,6 +11,7 @@ import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
 import com.doro.blog.domain.series.service.SeriesService;
 import com.doro.blog.domain.tag.service.TagService;
 import com.doro.blog.domain.user.service.BlogUserService;
+import com.doro.blog.domain.user.service.FollowService;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,9 @@ class BlogCounterConcurrencyTests {
 
     @Autowired
     private BlogUserService userService;
+
+    @Autowired
+    private FollowService followService;
 
     private DoroUser mockUser(String prefix) {
         UUID id = UUID.randomUUID();
@@ -167,7 +171,7 @@ class BlogCounterConcurrencyTests {
         List<Callable<Object>> tasks = new ArrayList<>();
         for (int i = 0; i < PARALLELISM; i++) {
             DoroUser follower = mockUser("follower" + i);
-            tasks.add(() -> userService.followUser(follower, targetName));
+            tasks.add(() -> followService.followUser(follower, targetName));
         }
         runConcurrently(tasks);
 
@@ -184,7 +188,7 @@ class BlogCounterConcurrencyTests {
 
         List<Callable<Object>> tasks = new ArrayList<>();
         for (int i = 0; i < PARALLELISM; i++) {
-            tasks.add(() -> userService.followUser(follower, targetName));
+            tasks.add(() -> followService.followUser(follower, targetName));
         }
         runConcurrently(tasks); // 예외가 나면 여기서 실패한다
 

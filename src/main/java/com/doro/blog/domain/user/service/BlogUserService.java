@@ -1,32 +1,19 @@
 package com.doro.blog.domain.user.service;
 
-import com.doro.blog.common.util.Handles;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
-import com.doro.blog.domain.post.repository.PostRepository;
+import com.doro.blog.common.util.Handles;
 import com.doro.blog.domain.user.dto.BlogUserDtos.*;
 import com.doro.blog.domain.user.entity.BlogUser;
-import com.doro.blog.domain.user.entity.UserFollow;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.repository.UserFollowRepository;
-import com.doro.blog.domain.notification.entity.NotificationType;
-import com.doro.blog.domain.notification.service.NotificationService;
-import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
+import java.util.*;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.stream.Collectors;
-import jakarta.persistence.EntityManager;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -35,10 +22,6 @@ public class BlogUserService {
 
     private final BlogUserRepository userRepository;
     private final UserFollowRepository followRepository;
-    private final PostRepository postRepository;
-    private final DoroGuardClient guardClient;
-    private final NotificationService notificationService;
-    private final EntityManager entityManager;
 
     @Transactional
     public BlogUser getOrCreateUser(DoroUser doroUser) {
@@ -123,176 +106,5 @@ public class BlogUserService {
 
         user.updateUsername(cleanUsername);
         return UserProfileResponse.from(user, null);
-    }
-
-    @Transactional
-    public UserProfileResponse followUser(DoroUser currentUser, String targetUsername) {
-        BlogUser me = getOrCreateUser(currentUser);
-        String cleanUsername = Handles.stripAt(targetUsername);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        if (me.getId().equals(target.getId())) {
-            throw new BlogException(ErrorCode.INVALID_INPUT, "자신을 팔로우할 수 없습니다.");
-        }
-
-        // 확인 후 저장하면 더블클릭 시 둘 다 "없음"으로 보고 중복 삽입(unique 위반)이 난다.
-        // 삽입 결과 행 수로 판단해, 실제로 팔로우가 생긴 요청만 카운터를 움직인다.
-        if (followRepository.insertFollowIfAbsent(UUID.randomUUID(), me.getId(), target.getId()) > 0) {
-            userRepository.adjustFollowerCount(target.getId(), 1);
-            userRepository.adjustFollowingCount(me.getId(), 1);
-            entityManager.refresh(target);
-
-            try {
-                guardClient.writeTuple("blog_user", target.getId().toString(), "follower", "user", me.getId().toString());
-            } catch (Exception e) {
-                log.warn("Failed to sync follow relation tuple to Guard: {}", e.getMessage());
-            }
-
-            // 알림 발송: 팔로우 대상자에게 알림
-            notificationService.sendNotification(
-                    target,
-                    me,
-                    NotificationType.FOLLOW,
-                    null,
-                    target.getUsername(),
-                    null
-            );
-        }
-
-        return UserProfileResponse.from(target, true);
-    }
-
-    @Transactional
-    public UserProfileResponse unfollowUser(DoroUser currentUser, String targetUsername) {
-        BlogUser me = getOrCreateUser(currentUser);
-        String cleanUsername = Handles.stripAt(targetUsername);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        if (followRepository.deleteFollow(me.getId(), target.getId()) > 0) {
-            userRepository.adjustFollowerCount(target.getId(), -1);
-            userRepository.adjustFollowingCount(me.getId(), -1);
-            entityManager.refresh(target);
-
-            try {
-                guardClient.deleteTuple("blog_user", target.getId().toString(), "follower", "user", me.getId().toString());
-            } catch (Exception e) {
-                log.warn("Failed to delete follow relation tuple from Guard: {}", e.getMessage());
-            }
-        }
-
-        return UserProfileResponse.from(target, false);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<FollowUserDto> getFollowers(String username, Pageable pageable, DoroUser currentUser) {
-        String cleanUsername = Handles.stripAt(username);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        Page<UserFollow> followPage = followRepository.findByFollowingIdOrderByCreatedAtDesc(target.getId(), pageable);
-        List<UUID> followerIds = followPage.map(UserFollow::getFollowerId).toList();
-        if (followerIds.isEmpty()) {
-            return Page.empty(pageable);
-        }
-
-        Map<UUID, BlogUser> userMap = userRepository.findAllById(followerIds).stream()
-                .collect(Collectors.toMap(BlogUser::getId, u -> u));
-
-        Set<UUID> myFollowingSet = Collections.emptySet();
-        if (currentUser != null && currentUser.isAuthenticated()) {
-            myFollowingSet = followRepository.findByFollowerIdAndFollowingIdIn(currentUser.userId(), followerIds)
-                    .stream().map(UserFollow::getFollowingId).collect(Collectors.toSet());
-        }
-
-        final Set<UUID> followingSet = myFollowingSet;
-        List<FollowUserDto> dtoList = followPage.getContent().stream()
-                .map(f -> {
-                    BlogUser u = userMap.get(f.getFollowerId());
-                    if (u == null) return null;
-                    boolean isFollowing = followingSet.contains(u.getId());
-                    return new FollowUserDto(
-                            u.getId(),
-                            u.getUsername(),
-                            u.getNickname(),
-                            u.getProfileImageUrl(),
-                            u.getBio(),
-                            isFollowing,
-                            f.getCreatedAt()
-                    );
-                })
-                .filter(Objects::nonNull)
-                .toList();
-
-        return new PageImpl<>(dtoList, pageable, followPage.getTotalElements());
-    }
-
-    @Transactional(readOnly = true)
-    public Page<FollowUserDto> getFollowing(String username, Pageable pageable, DoroUser currentUser) {
-        String cleanUsername = Handles.stripAt(username);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        Page<UserFollow> followPage = followRepository.findByFollowerIdOrderByCreatedAtDesc(target.getId(), pageable);
-        List<UUID> followingIds = followPage.map(UserFollow::getFollowingId).toList();
-        if (followingIds.isEmpty()) {
-            return Page.empty(pageable);
-        }
-
-        Map<UUID, BlogUser> userMap = userRepository.findAllById(followingIds).stream()
-                .collect(Collectors.toMap(BlogUser::getId, u -> u));
-
-        Set<UUID> myFollowingSet = Collections.emptySet();
-        if (currentUser != null && currentUser.isAuthenticated()) {
-            myFollowingSet = followRepository.findByFollowerIdAndFollowingIdIn(currentUser.userId(), followingIds)
-                    .stream().map(UserFollow::getFollowingId).collect(Collectors.toSet());
-        }
-
-        final Set<UUID> followingSet = myFollowingSet;
-        List<FollowUserDto> dtoList = followPage.getContent().stream()
-                .map(f -> {
-                    BlogUser u = userMap.get(f.getFollowingId());
-                    if (u == null) return null;
-                    boolean isFollowing = followingSet.contains(u.getId());
-                    return new FollowUserDto(
-                            u.getId(),
-                            u.getUsername(),
-                            u.getNickname(),
-                            u.getProfileImageUrl(),
-                            u.getBio(),
-                            isFollowing,
-                            f.getCreatedAt()
-                    );
-                })
-                .filter(Objects::nonNull)
-                .toList();
-
-        return new PageImpl<>(dtoList, pageable, followPage.getTotalElements());
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserTagSummaryDto> getUserTags(String username) {
-        String cleanUsername = Handles.stripAt(username);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        List<Object[]> rawList = postRepository.countTagsByUserId(target.getId());
-        return rawList.stream()
-                .map(r -> new UserTagSummaryDto((String) r[0], ((Number) r[1]).longValue()))
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserActivityDto> getUserActivity(String username) {
-        String cleanUsername = Handles.stripAt(username);
-        BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-
-        Instant since = Instant.now().minus(365, ChronoUnit.DAYS);
-        List<Object[]> rawList = postRepository.countDailyPostsByUserIdSince(target.getId(), since);
-        return rawList.stream()
-                .map(r -> new UserActivityDto((String) r[0], ((Number) r[1]).longValue()))
-                .toList();
     }
 }
