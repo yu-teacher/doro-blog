@@ -48,10 +48,28 @@ class ImageValidatorTest {
     }
 
     @Test
-    @DisplayName("SVG 는 스크립트를 담을 수 있어 허용하지 않는다")
-    void rejectsSvg() {
-        byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>".getBytes(StandardCharsets.UTF_8);
-        assertThatThrownBy(() -> validate(svg, "x.svg")).isInstanceOf(BlogException.class);
+    @DisplayName("SVG 는 XML 선언/주석/공백이 앞에 있어도 SVG 로 판별한다 (정제는 SvgSanitizer 몫)")
+    void detectsSvg() {
+        byte[] plain = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes(StandardCharsets.UTF_8);
+        byte[] prologue = "\uFEFF<?xml version=\"1.0\"?>\n<!-- 주석 -->\n  <SVG xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes(StandardCharsets.UTF_8);
+        assertThat(validate(plain, "logo.svg")).isEqualTo(new ImageValidator.DetectedImage("image/svg+xml", "svg"));
+        assertThat(validate(prologue, "logo.svg").contentType()).isEqualTo("image/svg+xml");
+        assertThat(validate(plain, null).contentType()).isEqualTo("image/svg+xml");
+    }
+
+    @Test
+    @DisplayName("SVG 로 보이지 않는 XML/HTML 은 .svg 확장자와 이미지 Content-Type 이어도 거부한다")
+    void rejectsNonSvgMarkup() {
+        for (String body : new String[]{"<html><script>alert(1)</script></html>", "<svgfoo/>", "<?xml version=\"1.0\"?><x/>", "<!-- <svg> -->text"}) {
+            assertThatThrownBy(() -> validate(body.getBytes(StandardCharsets.UTF_8), "x.svg")).isInstanceOf(BlogException.class);
+        }
+    }
+
+    @Test
+    @DisplayName("SVG 내용을 .png 같은 다른 확장자로 올리면 거부한다")
+    void rejectsSvgWithWrongExtension() {
+        byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> validate(svg, "x.png")).isInstanceOf(BlogException.class);
     }
 
     @Test

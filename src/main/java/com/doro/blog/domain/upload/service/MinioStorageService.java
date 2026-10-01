@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -110,23 +111,39 @@ public class MinioStorageService implements StorageService {
         String uniqueFilename = UUID.randomUUID() + "." + image.extension();
         String objectKey = "%s/%s/%s".formatted(dir, datePath, uniqueFilename);
 
-        try (InputStream inputStream = file.getInputStream()) {
+        // SVG 는 스크립트/이벤트 핸들러/외부 참조를 담을 수 있어 원본을 저장하지 않고, 허용 목록 방식으로 정제한 결과만 저장한다.
+        // (정제할 수 없으면 INVALID_FILE_TYPE 으로 거부되며, 업로드 실패(FILE_UPLOAD_FAILED)로 뭉개지지 않도록 try 밖에서 처리한다)
+        byte[] sanitizedSvg = ImageValidator.SVG_CONTENT_TYPE.equals(contentType) ? sanitizeSvg(file) : null;
+        long storedSize = sanitizedSvg != null ? sanitizedSvg.length : file.getSize();
+
+        try (InputStream inputStream = sanitizedSvg != null ? new ByteArrayInputStream(sanitizedSvg) : file.getInputStream()) {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucket)
                             .object(objectKey)
-                            .stream(inputStream, file.getSize(), -1)
+                            .stream(inputStream, storedSize, -1)
                             .contentType(contentType)
                             .build()
             );
 
             String fileUrl = publicUrl.replaceAll("/+$", "") + "/" + objectKey;
-            log.info("Uploaded image to MinIO: key={}, size={} bytes, url={}", objectKey, file.getSize(), fileUrl);
+            log.info("Uploaded image to MinIO: key={}, size={} bytes, url={}", objectKey, storedSize, fileUrl);
 
-            return new UploadResponse(fileUrl, displayName, contentType, file.getSize());
+            return new UploadResponse(fileUrl, displayName, contentType, storedSize);
         } catch (Exception e) {
             log.error("Failed to upload image to MinIO: {}", e.getMessage(), e);
             throw new BlogException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    private static byte[] sanitizeSvg(MultipartFile file) {
+        if (file.getSize() > SvgSanitizer.MAX_SVG_BYTES) {
+            throw new BlogException(ErrorCode.INVALID_FILE_TYPE);
+        }
+        try {
+            return SvgSanitizer.sanitize(file.getBytes());
+        } catch (IOException e) {
+            throw new BlogException(ErrorCode.INVALID_FILE_TYPE);
         }
     }
 }

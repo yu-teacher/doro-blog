@@ -3,7 +3,7 @@ import type { ChangeEvent, ClipboardEvent, Dispatch, DragEvent, RefObject, SetSt
 import { blogApi } from '../api/blogApi';
 import { getErrorMessage } from '../utils/errors';
 
-const IMAGE_ONLY_MESSAGE = '이미지 파일(PNG, JPG, GIF, WebP)만 업로드할 수 있습니다.';
+const IMAGE_ONLY_MESSAGE = '이미지 파일(PNG, JPG, GIF, WebP, SVG)만 업로드할 수 있습니다.';
 const POST_IMAGE_FOLDER = 'posts';
 const THUMBNAIL_FOLDER = 'thumbnails';
 

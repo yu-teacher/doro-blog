@@ -5,13 +5,14 @@ import com.doro.blog.common.exception.ErrorCode;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * 업로드 이미지 검증. 클라이언트가 보낸 확장자/Content-Type 은 믿지 않고 파일의 첫 바이트(매직 넘버)로 형식을 판별한다.
- * SVG 는 스크립트를 담을 수 있고 같은 출처에서 서빙되므로 허용하지 않는다.
+ * 업로드 이미지 검증. 클라이언트가 보낸 확장자/Content-Type 은 믿지 않고 파일의 첫 바이트로 형식을 판별한다.
+ * SVG 는 스크립트를 담을 수 있으므로 형식만 판별하고, 저장 전에 반드시 {@link SvgSanitizer} 로 정제해야 한다.
  */
 public final class ImageValidator {
 
@@ -23,10 +24,13 @@ public final class ImageValidator {
             "image/jpeg", Set.of("jpg", "jpeg"),
             "image/png", Set.of("png"),
             "image/gif", Set.of("gif"),
-            "image/webp", Set.of("webp")
+            "image/webp", Set.of("webp"),
+            "image/svg+xml", Set.of("svg")
     );
 
-    private static final int HEADER_BYTES = 12;
+    /** SVG 는 앞쪽에 XML 선언/주석이 올 수 있어 매직 넘버보다 넉넉히 읽는다. */
+    private static final int HEADER_BYTES = 1024;
+    public static final String SVG_CONTENT_TYPE = "image/svg+xml";
 
     private ImageValidator() {
     }
@@ -59,7 +63,30 @@ public final class ImageValidator {
                 && h[8] == 'W' && h[9] == 'E' && h[10] == 'B' && h[11] == 'P') {
             return "image/webp";
         }
-        return null;
+        return looksLikeSvg(h) ? SVG_CONTENT_TYPE : null;
+    }
+
+    /** 앞의 BOM/공백/XML 선언/주석을 건너뛴 첫 요소가 &lt;svg 이면 SVG 로 본다 (실제 안전성은 SvgSanitizer 가 판단한다). */
+    private static boolean looksLikeSvg(byte[] header) {
+        String head = new String(header, StandardCharsets.UTF_8);
+        int i = 0;
+        while (i < head.length()) {
+            char c = head.charAt(i);
+            if (c == '\uFEFF' || Character.isWhitespace(c)) {
+                i++;
+            } else if (head.startsWith("<?", i)) {
+                int end = head.indexOf("?>", i);
+                if (end < 0) return false;
+                i = end + 2;
+            } else if (head.startsWith("<!--", i)) {
+                int end = head.indexOf("-->", i);
+                if (end < 0) return false;
+                i = end + 3;
+            } else {
+                break;
+            }
+        }
+        return head.regionMatches(true, i, "<svg", 0, 4) && (i + 4 >= head.length() || !Character.isLetterOrDigit(head.charAt(i + 4)));
     }
 
     private static byte[] readHeader(InputStream stream) {
@@ -82,6 +109,7 @@ public final class ImageValidator {
             case "image/jpeg" -> "jpg";
             case "image/png" -> "png";
             case "image/gif" -> "gif";
+            case SVG_CONTENT_TYPE -> "svg";
             default -> "webp";
         };
     }
