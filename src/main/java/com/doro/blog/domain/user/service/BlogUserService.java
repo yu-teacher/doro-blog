@@ -25,6 +25,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import jakarta.persistence.EntityManager;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -36,6 +38,7 @@ public class BlogUserService {
     private final PostRepository postRepository;
     private final DoroGuardClient guardClient;
     private final NotificationService notificationService;
+    private final EntityManager entityManager;
 
     @Transactional
     public BlogUser getOrCreateUser(DoroUser doroUser) {
@@ -133,14 +136,12 @@ public class BlogUserService {
             throw new BlogException(ErrorCode.INVALID_INPUT, "자신을 팔로우할 수 없습니다.");
         }
 
-        if (!followRepository.existsByFollowerIdAndFollowingId(me.getId(), target.getId())) {
-            followRepository.save(UserFollow.builder()
-                    .followerId(me.getId())
-                    .followingId(target.getId())
-                    .build());
-
-            target.incrementFollowerCount();
-            me.incrementFollowingCount();
+        // 확인 후 저장하면 더블클릭 시 둘 다 "없음"으로 보고 중복 삽입(unique 위반)이 난다.
+        // 삽입 결과 행 수로 판단해, 실제로 팔로우가 생긴 요청만 카운터를 움직인다.
+        if (followRepository.insertFollowIfAbsent(UUID.randomUUID(), me.getId(), target.getId()) > 0) {
+            userRepository.adjustFollowerCount(target.getId(), 1);
+            userRepository.adjustFollowingCount(me.getId(), 1);
+            entityManager.refresh(target);
 
             try {
                 guardClient.writeTuple("blog_user", target.getId().toString(), "follower", "user", me.getId().toString());
@@ -169,11 +170,10 @@ public class BlogUserService {
         BlogUser target = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
-        if (followRepository.existsByFollowerIdAndFollowingId(me.getId(), target.getId())) {
-            followRepository.deleteByFollowerIdAndFollowingId(me.getId(), target.getId());
-
-            target.decrementFollowerCount();
-            me.decrementFollowingCount();
+        if (followRepository.deleteFollow(me.getId(), target.getId()) > 0) {
+            userRepository.adjustFollowerCount(target.getId(), -1);
+            userRepository.adjustFollowingCount(me.getId(), -1);
+            entityManager.refresh(target);
 
             try {
                 guardClient.deleteTuple("blog_user", target.getId().toString(), "follower", "user", me.getId().toString());

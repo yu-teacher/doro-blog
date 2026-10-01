@@ -23,4 +23,12 @@ public interface BlogUserRepository extends JpaRepository<BlogUser, UUID> {
             nativeQuery = true)
     int insertIfAbsent(@Param("id") UUID id, @Param("username") String username, @Param("email") String email,
                        @Param("nickname") String nickname, @Param("blogTitle") String blogTitle);
+
+    @Modifying
+    @Query("update BlogUser u set u.followerCount = case when u.followerCount + :delta < 0 then 0 else u.followerCount + :delta end where u.id = :id")
+    int adjustFollowerCount(@Param("id") UUID id, @Param("delta") int delta);
+
+    @Modifying
+    @Query("update BlogUser u set u.followingCount = case when u.followingCount + :delta < 0 then 0 else u.followingCount + :delta end where u.id = :id")
+    int adjustFollowingCount(@Param("id") UUID id, @Param("delta") int delta);
 }

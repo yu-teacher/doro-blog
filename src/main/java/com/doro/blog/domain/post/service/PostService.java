@@ -66,8 +66,8 @@ public class PostService {
             series = seriesRepository.findById(request.seriesId())
                     .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
             requireSeriesOwner(series, user.getId());
-            seriesOrder = series.getPostCount() + 1;
-            series.incrementPostCount();
+            seriesOrder = postRepository.nextSeriesOrder(series.getId());
+            seriesRepository.adjustPostCount(series.getId(), 1);
         }
 
         String resolvedThumbnail = resolveThumbnail(request.thumbnailUrl(), request.content());
@@ -254,12 +254,12 @@ public class PostService {
                     .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
             requireSeriesOwner(newSeries, post.getUser().getId());
             if (post.getSeries() != null) {
-                post.getSeries().decrementPostCount();
+                seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
             }
-            post.assignSeries(newSeries, newSeries.getPostCount() + 1);
-            newSeries.incrementPostCount();
+            post.assignSeries(newSeries, postRepository.nextSeriesOrder(newSeries.getId()));
+            seriesRepository.adjustPostCount(newSeries.getId(), 1);
         } else if (request.seriesId() == null && post.getSeries() != null) {
-            post.getSeries().decrementPostCount();
+            seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
             post.removeSeries();
         }
 
@@ -287,7 +287,7 @@ public class PostService {
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
         if (post.getSeries() != null) {
-            post.getSeries().decrementPostCount();
+            seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
         }
 
         // Zanzibar ReBAC 관계 튜플 삭제

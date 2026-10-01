@@ -15,6 +15,10 @@ import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
+    /** 시리즈 안에서 다음에 쓸 회차 번호. 글을 빼서 생긴 빈 번호나 글 수와 상관없이 항상 마지막 다음이다. */
+    @Query("select coalesce(max(p.seriesOrder), 0) + 1 from Post p where p.series.id = :seriesId")
+    int nextSeriesOrder(@Param("seriesId") UUID seriesId);
+
     @Modifying
     @Query("update Post p set p.viewCount = p.viewCount + 1 where p.id = :id")
     int incrementViewCount(@Param("id") UUID id);

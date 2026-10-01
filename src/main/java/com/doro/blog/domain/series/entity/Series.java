@@ -8,7 +8,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.DynamicUpdate;
 
+// 카운터 컬럼은 리포지토리의 원자적 UPDATE 로만 바꾼다. 다른 필드 수정이 오래된 값을 덮어쓰지 않도록 변경된 컬럼만 UPDATE 한다.
+@DynamicUpdate
 @Entity
 @Table(name = "series", uniqueConstraints = {
         @UniqueConstraint(name = "uk_series_user_slug", columnNames = {"user_id", "slug"})
@@ -58,13 +61,5 @@ public class Series {
         if (thumbnailUrl != null) this.thumbnailUrl = thumbnailUrl;
     }
 
-    public void incrementPostCount() {
-        this.postCount++;
-    }
 
-    public void decrementPostCount() {
-        if (this.postCount > 0) {
-            this.postCount--;
-        }
-    }
 }

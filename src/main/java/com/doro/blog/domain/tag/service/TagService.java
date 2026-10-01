@@ -31,7 +31,7 @@ public class TagService {
         // 기존 태그 연결 조회 및 카운트 감소
         List<PostTag> currentPostTags = postTagRepository.findAllByPostIdWithTag(post.getId());
         for (PostTag pt : currentPostTags) {
-            pt.getTag().decrementPostCount();
+            tagRepository.adjustPostCount(pt.getTag().getId(), -1);
         }
         postTagRepository.deleteAllByPostId(post.getId());
 
@@ -48,11 +48,10 @@ public class TagService {
                 .toList();
 
         for (String name : normalizedNames) {
-            Tag tag = tagRepository.findByName(name).orElseGet(() ->
-                    tagRepository.save(Tag.builder().name(name).postCount(0).build())
-            );
+            tagRepository.insertIfAbsent(UUID.randomUUID(), name);
+            Tag tag = tagRepository.findByName(name).orElseThrow();
 
-            tag.incrementPostCount();
+            tagRepository.adjustPostCount(tag.getId(), 1);
 
             PostTag postTag = PostTag.builder()
                     .post(post)
