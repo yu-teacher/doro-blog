@@ -41,6 +41,7 @@ doro:
     grpc-host: ${GUARD_GRPC_HOST:localhost}
     grpc-port: ${GUARD_GRPC_PORT:9090}
     http-url: http://${GUARD_HTTP_HOST:localhost}:${GUARD_HTTP_PORT:28081}
+    http-timeout-ms: ${GUARD_HTTP_TIMEOUT_MS:5000}
     service-token: ${DORO_GUARD_SERVICE_TOKEN:}
   storage:
     minio:
@@ -65,10 +66,11 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      # 의존 서비스 상세(DB/Redis 등)는 인증 없이 노출하지 않는다. 상태(UP/DOWN)만 공개된다.
+      show-details: when-authorized
 
 logging:
   level:
     root: INFO
-    com.doro.blog: DEBUG
-    com.hunnit_beasts.doro.sdk: DEBUG
+    com.doro.blog: ${LOG_LEVEL_APP:INFO}
+    com.hunnit_beasts.doro.sdk: ${LOG_LEVEL_SDK:INFO}

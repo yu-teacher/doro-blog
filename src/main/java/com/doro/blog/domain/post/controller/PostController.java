@@ -1,5 +1,8 @@
 package com.doro.blog.domain.post.controller;
 
+import com.doro.blog.common.web.PageLimits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.post.dto.PostDtos.*;
 import com.doro.blog.domain.post.service.PostService;
@@ -39,8 +42,8 @@ public class PostController {
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @RequestParam(name = "tag", required = false) List<String> tagList,
             @RequestParam(name = "tags", required = false) List<String> tagsList,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         java.util.List<String> combinedTags = new java.util.ArrayList<>();
         if (tagList != null) combinedTags.addAll(tagList);
@@ -54,8 +57,8 @@ public class PostController {
             @PathVariable("username") String username,
             @RequestParam(name = "q", required = false) String query,
             @RequestParam(name = "tag", required = false) String tag,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.getUserPosts(username, query, tag, page, size));
     }
@@ -148,8 +151,8 @@ public class PostController {
     public ApiResponse<Page<PostSummaryResponse>> getMyPosts(
             @CurrentDoroUser DoroUser doroUser,
             @RequestParam(name = "status", required = false) com.doro.blog.domain.post.entity.PostStatus status,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.getMyPosts(doroUser, status, page, size));
     }
@@ -158,8 +161,8 @@ public class PostController {
     @GetMapping("/trending")
     public ApiResponse<Page<PostSummaryResponse>> getTrendingPosts(
             @RequestParam(name = "timeframe", defaultValue = "week") String timeframe,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.getTrendingPosts(timeframe, page, size));
     }
@@ -168,8 +171,8 @@ public class PostController {
     @GetMapping("/me/likes")
     public ApiResponse<Page<PostSummaryResponse>> getMyLikedPosts(
             @CurrentDoroUser DoroUser doroUser,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.getMyLikedPosts(doroUser, page, size));
     }
@@ -178,8 +181,8 @@ public class PostController {
     @GetMapping("/search")
     public ApiResponse<Page<PostSummaryResponse>> searchPosts(
             @RequestParam(name = "q") String query,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.searchPosts(query, page, size));
     }
@@ -188,8 +191,8 @@ public class PostController {
     @GetMapping("/following")
     public ApiResponse<Page<PostSummaryResponse>> getFollowingPosts(
             @CurrentDoroUser DoroUser doroUser,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(postService.getFollowingPosts(doroUser, page, size));
     }
@@ -199,7 +202,7 @@ public class PostController {
     public ApiResponse<List<PostSummaryResponse>> getRelatedPosts(
             @PathVariable("username") String username,
             @PathVariable("slug") String slug,
-            @RequestParam(name = "limit", defaultValue = "4") int limit
+            @RequestParam(name = "limit", defaultValue = "4") @Min(1) @Max(PageLimits.MAX_LIMIT) int limit
     ) {
         return ApiResponse.success(postService.getRelatedPosts(username, slug, limit));
     }

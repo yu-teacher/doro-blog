@@ -1,5 +1,8 @@
 package com.doro.blog.domain.user.controller;
 
+import com.doro.blog.common.web.PageLimits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.user.dto.BlogUserDtos.*;
 import com.doro.blog.domain.user.service.BlogUserService;
@@ -79,8 +82,8 @@ public class BlogUserController {
     @GetMapping("/@{username}/followers")
     public ApiResponse<Page<FollowUserDto>> getFollowers(
             @PathVariable("username") String username,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size,
             @CurrentDoroUser DoroUser currentUser
     ) {
         return ApiResponse.success(userService.getFollowers(username, PageRequest.of(page, size), currentUser));
@@ -90,8 +93,8 @@ public class BlogUserController {
     @GetMapping("/@{username}/following")
     public ApiResponse<Page<FollowUserDto>> getFollowing(
             @PathVariable("username") String username,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size,
             @CurrentDoroUser DoroUser currentUser
     ) {
         return ApiResponse.success(userService.getFollowing(username, PageRequest.of(page, size), currentUser));

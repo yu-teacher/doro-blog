@@ -10,6 +10,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,16 +25,28 @@ public class BlogSchemaInitializer implements ApplicationRunner {
 
     private final ResourceLoader resourceLoader;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${doro.guard.http-url:http://192.168.0.101:8081}")
+    // 기본값은 application.yaml 의 doro.guard.http-url (환경변수 GUARD_HTTP_HOST/PORT) 한 곳에서만 정한다.
+    @Value("${doro.guard.http-url}")
     private String guardHttpUrl;
+
+    @Value("${doro.guard.http-timeout-ms}")
+    private int guardHttpTimeoutMs;
 
     @Value("${doro.guard.service-token:}")
     private String guardServiceToken;
 
+    /** Guard 가 응답하지 않아도 애플리케이션 기동이 무한정 멈추지 않도록 연결/읽기 타임아웃을 건다. */
+    private RestTemplate newRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(guardHttpTimeoutMs);
+        factory.setReadTimeout(guardHttpTimeoutMs);
+        return new RestTemplate(factory);
+    }
+
     @Override
     public void run(ApplicationArguments args) {
+        RestTemplate restTemplate = newRestTemplate();
         log.info("Checking DORO Guard Zanzibar schema synchronization...");
         try {
             String schemaUrl = guardHttpUrl + "/api/v1/guard/schema";

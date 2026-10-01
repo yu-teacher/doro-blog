@@ -1,5 +1,8 @@
 package com.doro.blog.domain.notification.controller;
 
+import com.doro.blog.common.web.PageLimits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.notification.dto.NotificationDtos.NotificationResponse;
 import com.doro.blog.domain.notification.dto.NotificationDtos.UnreadCountResponse;
@@ -26,8 +29,8 @@ public class NotificationController {
     @Operation(summary = "알림 목록 조회 (페이징)", description = "로그인 유저의 알림 목록을 최신순으로 페이징 조회합니다.")
     @GetMapping
     public ApiResponse<Page<NotificationResponse>> getNotifications(
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size,
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size,
             @CurrentDoroUser DoroUser doroUser
     ) {
         Page<NotificationResponse> result = notificationService.getNotifications(doroUser, PageRequest.of(page, size));

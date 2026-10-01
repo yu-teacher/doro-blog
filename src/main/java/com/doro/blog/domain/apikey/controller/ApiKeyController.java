@@ -1,5 +1,8 @@
 package com.doro.blog.domain.apikey.controller;
 
+import com.doro.blog.common.web.PageLimits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.apikey.dto.ApiKeyDtos.*;
 import com.doro.blog.domain.apikey.service.ApiKeyService;
@@ -54,8 +57,8 @@ public class ApiKeyController {
     @GetMapping("/logs")
     public ApiResponse<Page<ApiKeyLogResponse>> getMyLogs(
             @CurrentDoroUser DoroUser doroUser,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size
+            @RequestParam(name = "page", defaultValue = "0") @Min(PageLimits.MIN_PAGE) int page,
+            @RequestParam(name = "size", defaultValue = "20") @Min(PageLimits.MIN_SIZE) @Max(PageLimits.MAX_SIZE) int size
     ) {
         return ApiResponse.success(apiKeyService.getMyLogs(doroUser, page, size));
     }
