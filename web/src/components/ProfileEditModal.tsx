@@ -2,14 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { blogApi } from '../api/blogApi';
 import type { UserProfile, UpdateProfilePayload } from '../api/types';
 import { useAuthStore } from '../store/authStore';
-import {
-  X,
-  User,
-  Mail,
-  Globe,
-  Loader2,
-  Save,
-} from 'lucide-react';
+import { X, User, Mail, Globe, Loader2, Save } from 'lucide-react';
+import { TextField } from './profile/TextField';
+import { PROFILE_LIMITS } from './profile/profileLimits';
 import { getErrorMessage } from '../utils/errors';
 
 interface ProfileEditModalProps {
@@ -19,6 +14,43 @@ interface ProfileEditModalProps {
   onUpdated: (updated: UserProfile) => void;
 }
 
+const TABS = [
+  { id: 'basic', label: '기본 정보' },
+  { id: 'social', label: '소셜 & 링크' },
+  { id: 'about', label: '상세 소개 (About)' },
+] as const;
+
+type SubTab = (typeof TABS)[number]['id'];
+
+const EMPTY_FORM: UpdateProfilePayload = {
+  nickname: '',
+  bio: '',
+  profileImageUrl: '',
+  blogTitle: '',
+  publicEmail: '',
+  githubUrl: '',
+  twitterUrl: '',
+  websiteUrl: '',
+  linkedinUrl: '',
+  aboutMarkdown: '',
+};
+
+/** 서버가 null 로 내려주는 선택 항목은 입력칸에서 빈 문자열로 다룬다. */
+function formFromProfile(profile: UserProfile): UpdateProfilePayload {
+  return {
+    nickname: profile.nickname || '',
+    bio: profile.bio || '',
+    profileImageUrl: profile.profileImageUrl || '',
+    blogTitle: profile.blogTitle || '',
+    publicEmail: profile.publicEmail || '',
+    githubUrl: profile.githubUrl || '',
+    twitterUrl: profile.twitterUrl || '',
+    websiteUrl: profile.websiteUrl || '',
+    linkedinUrl: profile.linkedinUrl || '',
+    aboutMarkdown: profile.aboutMarkdown || '',
+  };
+}
+
 export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   profile,
   isOpen,
@@ -26,37 +58,16 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   onUpdated,
 }) => {
   const { setUser } = useAuthStore();
-  const [formData, setFormData] = useState<UpdateProfilePayload>({
-    nickname: '',
-    bio: '',
-    profileImageUrl: '',
-    blogTitle: '',
-    publicEmail: '',
-    githubUrl: '',
-    twitterUrl: '',
-    websiteUrl: '',
-    linkedinUrl: '',
-    aboutMarkdown: '',
-  });
+  const [formData, setFormData] = useState<UpdateProfilePayload>(EMPTY_FORM);
+  const setField = (field: keyof UpdateProfilePayload) => (value: string) => setFormData((prev) => ({ ...prev, [field]: value }));
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'social' | 'about'>('basic');
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('basic');
 
   useEffect(() => {
     if (profile && isOpen) {
-      setFormData({
-        nickname: profile.nickname || '',
-        bio: profile.bio || '',
-        profileImageUrl: profile.profileImageUrl || '',
-        blogTitle: profile.blogTitle || '',
-        publicEmail: profile.publicEmail || '',
-        githubUrl: profile.githubUrl || '',
-        twitterUrl: profile.twitterUrl || '',
-        websiteUrl: profile.websiteUrl || '',
-        linkedinUrl: profile.linkedinUrl || '',
-        aboutMarkdown: profile.aboutMarkdown || '',
-      });
+      setFormData(formFromProfile(profile));
       setErrorMsg('');
     }
   }, [profile, isOpen]);
@@ -108,39 +119,20 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
 
         {/* Sub Navigation */}
         <div className="flex border-b border-slate-100 dark:border-slate-800 px-6 bg-slate-50/50 dark:bg-slate-950/40 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('basic')}
-            className={`py-3 px-3 transition-colors border-b-2 ${
-              activeSubTab === 'basic'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            기본 정보
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('social')}
-            className={`py-3 px-3 transition-colors border-b-2 ${
-              activeSubTab === 'social'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            소셜 & 링크
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('about')}
-            className={`py-3 px-3 transition-colors border-b-2 ${
-              activeSubTab === 'about'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            상세 소개 (About)
-          </button>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`py-3 px-3 transition-colors border-b-2 ${
+                activeSubTab === tab.id
+                  ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Form Body */}
@@ -153,138 +145,27 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
 
           {activeSubTab === 'basic' && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  닉네임
-                </label>
-                <input
-                  type="text"
-                  value={formData.nickname}
-                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                  required
-                  placeholder="예: 김개발"
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  블로그 타이틀
-                </label>
-                <input
-                  type="text"
-                  value={formData.blogTitle}
-                  onChange={(e) => setFormData({ ...formData, blogTitle: e.target.value })}
-                  required
-                  placeholder="예: 김개발.log"
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  한 줄 소개 (Bio)
-                </label>
-                <input
-                  type="text"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="예: 프론트엔드 최적화와 사용자 경험을 고민합니다."
-                  maxLength={255}
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  채널 상단과 글 하단 작가 카드에 노출됩니다.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  프로필 이미지 URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.profileImageUrl}
-                  onChange={(e) => setFormData({ ...formData, profileImageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
+              <TextField label="닉네임" value={formData.nickname ?? ''} onChange={setField('nickname')} required placeholder="예: 김개발" maxLength={PROFILE_LIMITS.nickname} />
+              <TextField label="블로그 타이틀" value={formData.blogTitle ?? ''} onChange={setField('blogTitle')} required placeholder="예: 김개발.log" maxLength={PROFILE_LIMITS.blogTitle} />
+              <TextField
+                label="한 줄 소개 (Bio)"
+                value={formData.bio ?? ''}
+                onChange={setField('bio')}
+                placeholder="예: 프론트엔드 최적화와 사용자 경험을 고민합니다."
+                maxLength={PROFILE_LIMITS.bio}
+                hint="채널 상단과 글 하단 작가 카드에 노출됩니다."
+              />
+              <TextField label="프로필 이미지 URL" type="url" value={formData.profileImageUrl ?? ''} onChange={setField('profileImageUrl')} placeholder="https://..." maxLength={PROFILE_LIMITS.profileImageUrl} />
             </div>
           )}
 
           {activeSubTab === 'social' && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  공개 이메일 (방문자 연락용)
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={formData.publicEmail}
-                    onChange={(e) => setFormData({ ...formData, publicEmail: e.target.value })}
-                    placeholder="contact@mycompany.com"
-                    className="w-full pl-9 pr-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                  />
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  GitHub URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.githubUrl}
-                  onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
-                  placeholder="https://github.com/username"
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  개인 홈페이지 / 포트폴리오
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    value={formData.websiteUrl}
-                    onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
-                    placeholder="https://portfolio.me"
-                    className="w-full pl-9 pr-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                  />
-                  <Globe className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  LinkedIn URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.linkedinUrl}
-                  onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/username"
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Twitter / X URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.twitterUrl}
-                  onChange={(e) => setFormData({ ...formData, twitterUrl: e.target.value })}
-                  placeholder="https://x.com/username"
-                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100"
-                />
-              </div>
+              <TextField label="공개 이메일 (방문자 연락용)" type="email" value={formData.publicEmail ?? ''} onChange={setField('publicEmail')} placeholder="contact@mycompany.com" maxLength={PROFILE_LIMITS.publicEmail} icon={<Mail className="w-4 h-4" />} />
+              <TextField label="GitHub URL" type="url" value={formData.githubUrl ?? ''} onChange={setField('githubUrl')} placeholder="https://github.com/username" maxLength={PROFILE_LIMITS.githubUrl} />
+              <TextField label="개인 홈페이지 / 포트폴리오" type="url" value={formData.websiteUrl ?? ''} onChange={setField('websiteUrl')} placeholder="https://portfolio.me" maxLength={PROFILE_LIMITS.websiteUrl} icon={<Globe className="w-4 h-4" />} />
+              <TextField label="LinkedIn URL" type="url" value={formData.linkedinUrl ?? ''} onChange={setField('linkedinUrl')} placeholder="https://linkedin.com/in/username" maxLength={PROFILE_LIMITS.linkedinUrl} />
+              <TextField label="Twitter / X URL" type="url" value={formData.twitterUrl ?? ''} onChange={setField('twitterUrl')} placeholder="https://x.com/username" maxLength={PROFILE_LIMITS.twitterUrl} />
             </div>
           )}
 
@@ -300,8 +181,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               </div>
               <textarea
                 rows={10}
-                value={formData.aboutMarkdown}
-                onChange={(e) => setFormData({ ...formData, aboutMarkdown: e.target.value })}
+                value={formData.aboutMarkdown ?? ''}
+                onChange={(e) => setField('aboutMarkdown')(e.target.value)}
                 placeholder={`# 안녕하세요! 🚀\n\n저는 백엔드 시스템 설계와 분산 인가 아키텍처에 관심이 많은 엔지니어입니다.\n\n## 기술 스택\n- Java, Spring Boot, Zanzibar ReBAC\n- React, TypeScript, TailwindCSS\n- Docker, Kubernetes, PostgreSQL`}
                 className="w-full p-3.5 text-sm font-mono bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100 resize-none leading-relaxed"
               />
