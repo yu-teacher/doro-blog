@@ -25,7 +25,11 @@ class RequestParameterValidationTest {
         mockMvc.perform(get("/api/v1/posts").param("size", String.valueOf(PageLimits.MAX_SIZE + 1)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("COMMON-400-01"));
+                .andExpect(jsonPath("$.error.code").value("COMMON-400-01"))
+                // 워크스페이스 표준 오류 규격: 최상위 code / message / status
+                .andExpect(jsonPath("$.code").value("COMMON-400-01"))
+                .andExpect(jsonPath("$.message").isNotEmpty())
+                .andExpect(jsonPath("$.status").value(400));
     }
 
     @Test
@@ -33,6 +37,17 @@ class RequestParameterValidationTest {
     void nonPositiveSizeAndNegativePageAreRejected() throws Exception {
         mockMvc.perform(get("/api/v1/posts").param("size", "0")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/posts").param("page", "-1")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("성공 응답에는 오류 필드(code/message/status/error)가 없다")
+    void successResponseHasNoErrorFields() throws Exception {
+        mockMvc.perform(get("/api/v1/posts").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").doesNotExist())
+                .andExpect(jsonPath("$.status").doesNotExist())
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test

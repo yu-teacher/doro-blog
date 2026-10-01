@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         log.warn("BlogException occurred: code={}, message={}", e.getErrorCode().getCode(), e.getMessage());
         return ResponseEntity
                 .status(e.getErrorCode().getHttpStatus())
-                .body(ApiResponse.error(e.getErrorCode().getCode(), e.getMessage()));
+                .body(ApiResponse.error(e.getErrorCode().getHttpStatus(), e.getErrorCode().getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(DoroAccessDeniedException.class)
@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
         log.warn("DORO ReBAC Access Denied: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), "인가 검증 실패: 해당 리소스에 대한 권한이 없습니다."));
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED.getCode(), "인가 검증 실패: 해당 리소스에 대한 권한이 없습니다."));
     }
 
     /** 인가 서비스(Guard)를 쓸 수 없어 요청을 처리하지 못한 경우: 서버 버그(500)가 아니라 일시적 장애(503)이다. */
@@ -46,7 +46,7 @@ public class GlobalExceptionHandler {
         log.error("DORO Guard unavailable: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ApiResponse.error(ErrorCode.SERVICE_UNAVAILABLE.getCode(), ErrorCode.SERVICE_UNAVAILABLE.getMessage()));
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.SERVICE_UNAVAILABLE.getCode(), ErrorCode.SERVICE_UNAVAILABLE.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
         log.warn("Validation error: {}", details);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), details));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), details));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
         log.warn("IllegalArgumentException: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), ErrorCode.INVALID_INPUT.getMessage()));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), ErrorCode.INVALID_INPUT.getMessage()));
     }
 
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
@@ -74,7 +74,7 @@ public class GlobalExceptionHandler {
         log.warn("HttpRequestMethodNotSupportedException: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(ApiResponse.error("METHOD_NOT_ALLOWED", "지원하지 않는 HTTP 메서드 요청입니다: " + e.getMethod()));
+                .body(ApiResponse.error(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", "지원하지 않는 HTTP 메서드 요청입니다: " + e.getMethod()));
     }
 
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
@@ -82,7 +82,7 @@ public class GlobalExceptionHandler {
         log.warn("HttpMessageNotReadableException: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), "요청 본문(Body) 형식이 올바르지 않거나 누락되었습니다."));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "요청 본문(Body) 형식이 올바르지 않거나 누락되었습니다."));
     }
 
     /** 존재하지 않는 경로(스캐너의 /.env, /.git 탐색 등)는 서버 오류가 아니므로 ERROR 로그 없이 404 로 응답한다. */
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException e) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."));
+                .body(ApiResponse.error(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."));
     }
 
     @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
         log.warn("HttpMediaTypeNotSupportedException: {}", e.getContentType());
         return ResponseEntity
                 .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                .body(ApiResponse.error("UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 Content-Type 입니다."));
+                .body(ApiResponse.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 Content-Type 입니다."));
     }
 
     /** 필수 쿼리 파라미터 누락. */
@@ -107,7 +107,7 @@ public class GlobalExceptionHandler {
         log.warn("Missing request parameter: {}", e.getParameterName());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
     }
 
     /** 잘못된 UUID/숫자/enum 값 등 파라미터 타입 불일치. */
@@ -116,7 +116,7 @@ public class GlobalExceptionHandler {
         log.warn("Request parameter type mismatch: name={}, value={}", e.getName(), e.getValue());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), "파라미터 형식이 올바르지 않습니다: " + e.getName()));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "파라미터 형식이 올바르지 않습니다: " + e.getName()));
     }
 
     /** 페이지 번호/크기 범위 등 메서드 파라미터 제약(@Min, @Max) 위반. */
@@ -125,7 +125,7 @@ public class GlobalExceptionHandler {
         log.warn("Request parameter constraint violated: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(),
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(),
                         "요청 파라미터가 허용 범위를 벗어났습니다. (page ≥ 0, 1 ≤ size ≤ " + PageLimits.MAX_SIZE + ")"));
     }
 
@@ -135,7 +135,7 @@ public class GlobalExceptionHandler {
         log.warn("Data integrity violation: {}", e.getMostSpecificCause().getMessage());
         return ResponseEntity
                 .status(ErrorCode.DUPLICATE_RESOURCE.getHttpStatus())
-                .body(ApiResponse.error(ErrorCode.DUPLICATE_RESOURCE.getCode(), ErrorCode.DUPLICATE_RESOURCE.getMessage()));
+                .body(ApiResponse.error(ErrorCode.DUPLICATE_RESOURCE.getHttpStatus(), ErrorCode.DUPLICATE_RESOURCE.getCode(), ErrorCode.DUPLICATE_RESOURCE.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -143,6 +143,6 @@ public class GlobalExceptionHandler {
         log.error("Unhandled system exception: ", e);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR.getCode(), ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
     }
 }

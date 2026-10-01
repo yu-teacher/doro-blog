@@ -2,8 +2,14 @@ import axios from 'axios';
 
 export const DEFAULT_ERROR_MESSAGE = '요청 처리 중 오류가 발생했습니다.';
 
+/** 서버 오류 본문: 표준(최상위 code/message)과 이전 형식(error.message) 모두 읽는다. */
+interface ServerErrorBody {
+  message?: unknown;
+  error?: { message?: unknown };
+}
+
 interface ServerErrorShape {
-  response?: { data?: { error?: { message?: unknown } } };
+  response?: { data?: ServerErrorBody };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -22,7 +28,8 @@ export function isCancelled(err: unknown): boolean {
  */
 export function getErrorMessage(err: unknown, fallback: string = DEFAULT_ERROR_MESSAGE): string {
   if (isRecord(err)) {
-    const serverMessage = (err as ServerErrorShape).response?.data?.error?.message;
+    const body = (err as ServerErrorShape).response?.data;
+    const serverMessage = body?.error?.message ?? body?.message;
     if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage;
   }
   if (err instanceof Error && err.message.trim()) return err.message;

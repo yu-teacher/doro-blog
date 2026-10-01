@@ -12,6 +12,10 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(err)).toBe('권한이 없습니다');
   });
 
+  it('표준 오류 본문(최상위 message)도 읽는다', () => {
+    expect(getErrorMessage({ response: { data: { code: 'X', message: '표준 메시지', status: 400 } } })).toBe('표준 메시지');
+  });
+
   it('문자열 오류도 처리한다', () => {
     expect(getErrorMessage('boom')).toBe('boom');
   });

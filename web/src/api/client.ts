@@ -59,8 +59,9 @@ apiClient.interceptors.response.use(
       // unavailable(네트워크/5xx): 로그인 상태를 유지하고 원래 오류를 전달한다.
     }
 
-    const errorDetail = error.response?.data?.error;
-    const message = errorDetail?.message || error.message || '요청 처리 중 오류가 발생했습니다.';
+    // 표준 오류 본문(최상위 message)을 우선하고, 이전 형식(error.message)도 읽는다
+    const body = error.response?.data;
+    const message = body?.message || body?.error?.message || error.message || '요청 처리 중 오류가 발생했습니다.';
     return Promise.reject(new Error(message));
   }
 );
