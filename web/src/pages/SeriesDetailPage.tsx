@@ -1,35 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
-import type { SeriesDetail } from '../api/types';
+import { useAsyncResource } from '../hooks/useAsyncResource';
+import { ErrorState } from '../components/ErrorState';
 import { BookOpen, Calendar, ArrowLeft, Lock } from 'lucide-react';
 
 export const SeriesDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
 
-  const [seriesDetail, setSeriesDetail] = useState<SeriesDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (cleanUsername && slug) {
-      loadSeries();
-    }
-  }, [cleanUsername, slug]);
-
-  const loadSeries = async () => {
-    if (!cleanUsername || !slug) return;
-    setLoading(true);
-    try {
-      const res = await blogApi.getSeriesBySlug(cleanUsername, slug);
-      setSeriesDetail(res);
-
-    } catch (err) {
-      console.error('Failed to load series detail', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: seriesDetail, loading, error, reload } = useAsyncResource(
+    (signal) => blogApi.getSeriesBySlug(cleanUsername ?? '', slug ?? '', signal),
+    [cleanUsername, slug],
+    { enabled: Boolean(cleanUsername && slug) }
+  );
 
   if (loading) {
     return (
@@ -41,6 +25,14 @@ export const SeriesDetailPage: React.FC = () => {
             <div key={i} className="h-28 bg-white rounded-xl border border-slate-100 p-4" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error && !seriesDetail) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4">
+        <ErrorState message={error} onRetry={reload} />
       </div>
     );
   }

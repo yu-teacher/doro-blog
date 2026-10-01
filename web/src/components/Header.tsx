@@ -32,8 +32,6 @@ import {
   Code2,
 } from 'lucide-react';
 
-// DORO Central Portal URL via reverse proxy gateway (port 80)
-const DORO_PORTAL_URL = '/portal';
 const DORO_SIGNUP_URL = '/portal/signup';
 
 export const Header: React.FC = () => {

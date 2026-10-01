@@ -9,8 +9,6 @@ import {
   Globe,
   Loader2,
   Save,
-  CheckCircle,
-  FileText,
 } from 'lucide-react';
 import { getErrorMessage } from '../utils/errors';
 

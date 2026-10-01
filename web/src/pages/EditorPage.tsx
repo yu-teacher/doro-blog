@@ -12,7 +12,6 @@ import {
   Globe,
   Lock,
   BookOpen,
-  Plus,
   Check,
   Upload,
   Sparkles,

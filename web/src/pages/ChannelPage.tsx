@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
-import type { UserProfile, PostSummary, Series, UserTagSummary, UserActivity } from '../api/types';
+import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { ActivityHeatmap } from '../components/ActivityHeatmap';
@@ -9,6 +9,9 @@ import { FollowListModal } from '../components/FollowListModal';
 import { ProfileEditModal } from '../components/ProfileEditModal';
 import { useAuthStore } from '../store/authStore';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { usePaginatedList } from '../hooks/usePaginatedList';
+import { useAsyncResource } from '../hooks/useAsyncResource';
+import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { safeHttpUrl } from '../utils/safeUrl';
 import {
   FileText,
@@ -28,6 +31,11 @@ import {
   Bookmark,
   Heart,
 } from 'lucide-react';
+
+/** 사용자 채널 경로(/@name)로 해석하면 안 되는 시스템 경로 */
+const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
+const POSTS_PAGE_SIZE = 12;
+const LIKED_POSTS_PAGE_SIZE = 30;
 
 export const ChannelPage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
@@ -54,18 +62,7 @@ export const ChannelPage: React.FC = () => {
     }
   }, [cleanUsername]);
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [seriesList, setSeriesList] = useState<Series[]>([]);
-  const [userTags, setUserTags] = useState<UserTagSummary[]>([]);
-  const [activities, setActivities] = useState<UserActivity[]>([]);
-  const [likedPosts, setLikedPosts] = useState<PostSummary[]>([]);
-
   const [searchInput, setSearchInput] = useState(keyword);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
   // Modals
@@ -75,129 +72,46 @@ export const ChannelPage: React.FC = () => {
 
   const isMyChannel = isAuthenticated && currentUser?.username === cleanUsername;
 
-  const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
   const isReserved = RESERVED_NAMES.includes(cleanUsername.toLowerCase());
+  const channelReady = Boolean(cleanUsername) && !isReserved;
 
-  useEffect(() => {
-    if (cleanUsername && !isReserved) {
-      loadProfile();
-      loadUserTags();
-      loadActivity();
-    }
-  }, [cleanUsername, isReserved]);
+  // 채널이 바뀌거나 탭/필터를 빠르게 바꿔도 이전 요청은 취소되고 늦게 온 응답은 버려진다
+  const profileRes = useAsyncResource((signal) => blogApi.getUserProfile(cleanUsername, signal), [cleanUsername], { enabled: channelReady });
+  const tagsRes = useAsyncResource((signal) => blogApi.getUserTags(cleanUsername, signal), [cleanUsername], { enabled: channelReady });
+  const activityRes = useAsyncResource((signal) => blogApi.getUserActivity(cleanUsername, signal), [cleanUsername], { enabled: channelReady });
+  const seriesRes = useAsyncResource((signal) => blogApi.getUserSeries(cleanUsername, signal), [cleanUsername], {
+    enabled: channelReady && currentTab === 'series',
+  });
+  const likedRes = useAsyncResource((signal) => blogApi.getMyLikedPosts(0, LIKED_POSTS_PAGE_SIZE, signal), [cleanUsername], {
+    enabled: channelReady && currentTab === 'likes',
+  });
+  const postList = usePaginatedList<PostSummary>(
+    (page, signal) => blogApi.getUserPosts(cleanUsername, keyword || undefined, tagFilter || undefined, page, POSTS_PAGE_SIZE, signal),
+    [cleanUsername, tagFilter, keyword],
+    { enabled: channelReady && currentTab === 'posts' }
+  );
 
-  useEffect(() => {
-    if (!cleanUsername) return;
-    if (currentTab === 'posts') {
-      fetchInitialPosts();
-    } else if (currentTab === 'series') {
-      loadSeries();
-    } else if (currentTab === 'likes') {
-      fetchLikedPosts();
-    }
-  }, [cleanUsername, currentTab, tagFilter, keyword]);
+  const profile = profileRes.data;
+  const setProfile = profileRes.setData;
+  const userTags = tagsRes.data ?? [];
+  const activities = activityRes.data ?? [];
+  const seriesList = seriesRes.data ?? [];
+  const likedPosts = likedRes.data?.content ?? [];
+  const { items: posts, hasMore, loading: postsLoading, loadingMore, error: postsError, loadMore, reload: reloadPosts } = postList;
 
-  const loadProfile = async () => {
-    if (!cleanUsername) return;
+  // 팔로우 목록 모달에서 팔로우 수가 바뀌면 화면을 비우지 않고 프로필만 조용히 갱신한다
+  const refreshProfile = async () => {
     try {
-      const res = await blogApi.getUserProfile(cleanUsername);
-      setProfile(res);
-    } catch (err) {
-      console.error('Failed to load profile', err);
+      setProfile(await blogApi.getUserProfile(cleanUsername));
+    } catch (err: unknown) {
+      console.error('Failed to refresh profile', err);
     }
   };
-
-  const loadUserTags = async () => {
-    if (!cleanUsername) return;
-    try {
-      const tags = await blogApi.getUserTags(cleanUsername);
-      setUserTags(tags);
-    } catch (err) {
-      console.error('Failed to load user tags', err);
-    }
-  };
-
-  const loadActivity = async () => {
-    if (!cleanUsername) return;
-    try {
-      const act = await blogApi.getUserActivity(cleanUsername);
-      setActivities(act);
-    } catch (err) {
-      console.error('Failed to load activity', err);
-    }
-  };
-
-  const fetchInitialPosts = async () => {
-    setLoading(true);
-    setPage(0);
-    try {
-      const res = await blogApi.getUserPosts(
-        cleanUsername,
-        keyword || undefined,
-        tagFilter || undefined,
-        0,
-        12
-      );
-      setPosts(res.content || []);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load user posts', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMore = useCallback(async () => {
-    if (!cleanUsername || currentTab !== 'posts' || loading || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      const res = await blogApi.getUserPosts(
-        cleanUsername,
-        keyword || undefined,
-        tagFilter || undefined,
-        nextPage,
-        12
-      );
-      setPosts((prev) => [...prev, ...res.content]);
-      setPage(nextPage);
-      setHasMore(!res.last);
-    } catch (err) {
-      console.error('Failed to load more user posts', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [cleanUsername, currentTab, loading, loadingMore, hasMore, page, keyword, tagFilter]);
 
   const sentinelRef = useInfiniteScroll({
     onIntersect: loadMore,
-    enabled: currentTab === 'posts' && hasMore && !loading && !loadingMore,
+    enabled: currentTab === 'posts' && hasMore && !postsLoading && !loadingMore && !postsError,
   });
-
-  const loadSeries = async () => {
-    if (!cleanUsername) return;
-    setLoading(true);
-    try {
-      const res = await blogApi.getUserSeries(cleanUsername);
-      setSeriesList(res || []);
-    } catch (err) {
-      console.error('Failed to load user series', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchLikedPosts = async () => {
-    setLoading(true);
-    try {
-      const res = await blogApi.getMyLikedPosts(0, 30);
-      setLikedPosts(res.content || []);
-    } catch (err) {
-      console.error('Failed to load liked posts', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggleFollow = async () => {
     if (!isAuthenticated) {
@@ -256,6 +170,15 @@ export const ChannelPage: React.FC = () => {
     p.set('tab', 'posts');
     setSearchParams(p);
   };
+
+  // 존재하지 않는 채널이거나 프로필을 불러오지 못한 경우: 빈 화면 대신 원인과 다시 시도를 보여준다
+  if (profileRes.error && !profile) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16">
+        <ErrorState message={profileRes.error} onRetry={profileRes.reload} />
+      </div>
+    );
+  }
 
   const totalPostCount = userTags.reduce((sum, t) => sum + t.postCount, 0);
 
@@ -578,12 +501,14 @@ export const ChannelPage: React.FC = () => {
 
           {/* Main Posts Grid (Full Width) */}
           <main className="w-full">
-            {loading ? (
+            {postsLoading ? (
               <div className="space-y-4 animate-pulse">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
                 ))}
               </div>
+            ) : postsError && posts.length === 0 ? (
+              <ErrorState message={postsError} onRetry={reloadPosts} />
             ) : posts.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -600,6 +525,7 @@ export const ChannelPage: React.FC = () => {
                       <span>글을 더 불러오는 중...</span>
                     </div>
                   )}
+                  {postsError && <LoadMoreError message={postsError} onRetry={loadMore} />}
                   {!hasMore && posts.length > 0 && (
                     <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-600">
                       <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
@@ -621,7 +547,7 @@ export const ChannelPage: React.FC = () => {
       {/* Tab 2: Series */}
       {currentTab === 'series' && (
         <div>
-          {loading ? (
+          {seriesRes.loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-pulse">
               {[...Array(2)].map((_, i) => (
                 <div key={i} className="h-44 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6" />
@@ -696,7 +622,7 @@ export const ChannelPage: React.FC = () => {
       {/* Tab 4: Liked / Saved Posts (Personal Interest Archive) */}
       {currentTab === 'likes' && (
         <div className="animate-in fade-in duration-200">
-          {loading ? (
+          {likedRes.loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="h-48 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6" />
@@ -726,7 +652,7 @@ export const ChannelPage: React.FC = () => {
         initialTab={followModalTab}
         isOpen={followModalOpen}
         onClose={() => setFollowModalOpen(false)}
-        onFollowCountChanged={loadProfile}
+        onFollowCountChanged={refreshProfile}
       />
 
       {/* Profile Edit Modal */}
@@ -737,7 +663,7 @@ export const ChannelPage: React.FC = () => {
           onClose={() => setEditModalOpen(false)}
           onUpdated={(updated) => {
             setProfile(updated);
-            loadUserTags();
+            tagsRes.reload();
           }}
         />
       )}

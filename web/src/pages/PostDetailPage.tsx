@@ -11,14 +11,12 @@ import { safeHttpUrl } from '../utils/safeUrl';
 import {
   Heart,
   Share2,
-  Bookmark,
   Calendar,
   Eye,
   Edit3,
   Trash2,
   BookOpen,
   ArrowLeft,
-  ChevronRight,
   UserCheck,
   UserPlus,
   UserMinus,
@@ -27,7 +25,10 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
-import { getErrorMessage } from '../utils/errors';
+import { getErrorMessage, isCancelled } from '../utils/errors';
+import { ErrorState } from '../components/ErrorState';
+
+const RELATED_POSTS_LIMIT = 4;
 
 export const PostDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
@@ -47,64 +48,65 @@ export const PostDetailPage: React.FC = () => {
 
   // Clean username if prefixed with @
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
-  const currentPostKey = `${cleanUsername}/${slug}`;
-  const fetchingRef = React.useRef<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
+  // 글이 바뀌거나 페이지를 떠나면 진행 중인 요청을 취소하고, 늦게 도착한 이전 글의 응답은 버린다
   useEffect(() => {
-    if (cleanUsername && slug) {
-      if (fetchingRef.current === currentPostKey) return;
-      fetchingRef.current = currentPostKey;
-      loadPost();
-    }
-  }, [cleanUsername, slug]);
-
-  const loadPost = async () => {
     if (!cleanUsername || !slug) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+
     setLoading(true);
-    try {
-      const postData = await blogApi.getPostBySlug(cleanUsername, slug);
-      setDetail(postData);
-      setLikeCount(postData.post.likeCount);
-      setIsLiked(postData.likedByMe);
-      setAuthorFollowing(postData.author?.isFollowing ?? false);
+    setLoadError(null);
+    setDetail(null);
+    setComments([]);
+    setSeriesDetail(null);
+    setRelatedPosts([]);
 
-      trackEvent('post_view', {
-        post_id: postData.post.id,
-        post_title: postData.post.title,
-        author: cleanUsername,
-      });
-
-      // Dynamic Title & Meta
-      if (postData.post.title) {
-        document.title = `${postData.post.title} - DORO.log`;
-      }
-
-      // Load comments
-      loadComments(postData.post.id);
-
-      // Load series if post belongs to series
-      if (postData.post.seriesId) {
-        try {
-          const sRes = await blogApi.getSeries(postData.post.seriesId);
-          setSeriesDetail(sRes);
-        } catch (sErr) {
-          console.error('Failed to load series', sErr);
-        }
-      }
-
-      // Load related recommendations
+    const load = async () => {
       try {
-        const rel = await blogApi.getRelatedPosts(cleanUsername, slug, 4);
-        setRelatedPosts(rel || []);
-      } catch (rErr) {
-        console.error('Failed to load related posts', rErr);
+        const postData = await blogApi.getPostBySlug(cleanUsername, slug, signal);
+        if (signal.aborted) return;
+        setDetail(postData);
+        setLikeCount(postData.post.likeCount);
+        setIsLiked(postData.likedByMe);
+        setAuthorFollowing(postData.author?.isFollowing ?? false);
+
+        trackEvent('post_view', {
+          post_id: postData.post.id,
+          post_title: postData.post.title,
+          author: cleanUsername,
+        });
+
+        if (postData.post.title) {
+          document.title = `${postData.post.title} - DORO.log`;
+        }
+
+        // 본문 이후의 부가 정보(댓글/시리즈/추천)는 서로 독립적이므로 병렬로 불러오고, 실패해도 글은 보여준다
+        const [commentsRes, seriesRes, relatedRes] = await Promise.allSettled([
+          blogApi.getComments(postData.post.id, signal),
+          postData.post.seriesId ? blogApi.getSeries(postData.post.seriesId, signal) : Promise.resolve(null),
+          blogApi.getRelatedPosts(cleanUsername, slug, RELATED_POSTS_LIMIT, signal),
+        ]);
+        if (signal.aborted) return;
+        if (commentsRes.status === 'fulfilled') setComments(commentsRes.value || []);
+        else console.error('Failed to load comments', commentsRes.reason);
+        if (seriesRes.status === 'fulfilled') setSeriesDetail(seriesRes.value);
+        else console.error('Failed to load series', seriesRes.reason);
+        if (relatedRes.status === 'fulfilled') setRelatedPosts(relatedRes.value || []);
+        else console.error('Failed to load related posts', relatedRes.reason);
+      } catch (err: unknown) {
+        if (signal.aborted || isCancelled(err)) return;
+        setLoadError(getErrorMessage(err, '게시글을 불러올 수 없습니다.'));
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to load post', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    void load();
+
+    return () => controller.abort();
+  }, [cleanUsername, slug, reloadKey]);
 
   const handleToggleAuthorFollow = async () => {
     if (!user) {
@@ -198,6 +200,19 @@ export const PostDetailPage: React.FC = () => {
     );
   }
 
+  if (!detail && loadError) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4">
+        <ErrorState message={loadError} onRetry={() => setReloadKey((k) => k + 1)} />
+        <div className="text-center mt-6">
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600">
+            <ArrowLeft className="w-4 h-4" /> 홈으로 이동
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!detail) {
     return (
       <div className="max-w-xl mx-auto text-center py-20">
@@ -218,7 +233,7 @@ export const PostDetailPage: React.FC = () => {
   const isThumbnailInContent = Boolean(
     post.thumbnailUrl &&
       (content.includes(post.thumbnailUrl) ||
-        content.includes(post.thumbnailUrl.replace(/^https?:\/\/[^\/]+/, '')))
+        content.includes(post.thumbnailUrl.replace(/^https?:\/\/[^/]+/, '')))
   );
 
   return (

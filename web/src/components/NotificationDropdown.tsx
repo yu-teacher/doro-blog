@@ -12,7 +12,6 @@ import {
   UserPlus,
   Trash2,
   Loader2,
-  ExternalLink,
 } from 'lucide-react';
 
 export const NotificationDropdown: React.FC = () => {
@@ -34,8 +33,9 @@ export const NotificationDropdown: React.FC = () => {
     try {
       const count = await blogApi.getUnreadNotificationCount();
       setUnreadCount(count);
-    } catch (err) {
-      // Quiet fail for background polling
+    } catch (err: unknown) {
+      // 백그라운드 폴링이라 사용자에게 알리지 않되, 원인 추적을 위해 기록은 남긴다
+      console.warn('Failed to poll unread notification count', err);
     }
   }, [isAuthenticated]);
 

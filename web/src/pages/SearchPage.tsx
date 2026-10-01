@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
-import { Search, Loader2, Tag as TagIcon, Hash } from 'lucide-react';
+import { Search, Loader2, Tag as TagIcon } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';

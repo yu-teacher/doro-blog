@@ -5,19 +5,15 @@ import {
   Check,
   Plus,
   Trash2,
-  Clock,
   Shield,
-  AlertCircle,
   Code,
   Terminal,
   RefreshCw,
   Loader2,
-  ExternalLink,
   Zap,
   Activity,
   CheckCircle2,
   XCircle,
-  Info,
 } from 'lucide-react';
 import { blogApi } from '../api/blogApi';
 import { ApiKey, ApiKeyLog, CreateApiKeyResponse } from '../api/types';
@@ -25,7 +21,7 @@ import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../utils/errors';
 
 export const DevelopersPage: React.FC = () => {
-  const { isAuthenticated, user, openLoginModal } = useAuthStore();
+  const { isAuthenticated, openLoginModal } = useAuthStore();
 
   // API Key State
   const [keys, setKeys] = useState<ApiKey[]>([]);

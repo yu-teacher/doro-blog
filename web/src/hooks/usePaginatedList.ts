@@ -45,6 +45,9 @@ export function usePaginatedList<T>(
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // 의존성 값(필터, 탭, 검색어 등)을 문자열 키로 만들어 effect 의 재실행 조건으로 쓴다
+  const depsKey = JSON.stringify(deps);
+
   // 최신 콜백/상태를 effect 의존성에 넣지 않고 읽기 위한 ref
   const fetchRef = useRef(fetchPage);
   fetchRef.current = fetchPage;
@@ -101,8 +104,7 @@ export function usePaginatedList<T>(
       });
 
     return () => controller.abort();
-    // deps 는 호출자가 "목록을 처음부터 다시 불러올 조건"으로 넘긴다 (필터, 탭, 검색어 등).
-  }, [...deps, enabled, reloadKey]);
+  }, [depsKey, enabled, reloadKey]);
 
   const loadMore = useCallback(() => {
     const controller = controllerRef.current;

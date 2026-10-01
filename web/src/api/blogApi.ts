@@ -53,22 +53,23 @@ export const blogApi = {
     return res.data.data;
   },
 
-  async getRelatedPosts(username: string, slug: string, limit = 4): Promise<PostSummary[]> {
+  async getRelatedPosts(username: string, slug: string, limit = 4, signal?: AbortSignal): Promise<PostSummary[]> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
     const res = await apiClient.get<ApiResponse<PostSummary[]>>(`/posts/@${cleanUsername}/${slug}/related`, {
       params: { limit },
+      signal,
     });
     return res.data.data;
   },
 
-  async getPostDetail(username: string, slug: string): Promise<PostDetail> {
+  async getPostDetail(username: string, slug: string, signal?: AbortSignal): Promise<PostDetail> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
-    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${cleanUsername}/${slug}`);
+    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${cleanUsername}/${slug}`, { signal });
     return res.data.data;
   },
 
-  async getPostBySlug(username: string, slug: string): Promise<PostDetail> {
-    return this.getPostDetail(username, slug);
+  async getPostBySlug(username: string, slug: string, signal?: AbortSignal): Promise<PostDetail> {
+    return this.getPostDetail(username, slug, signal);
   },
 
   async getPostById(postId: string): Promise<PostDetail> {
@@ -166,8 +167,8 @@ export const blogApi = {
   },
 
   // === Comments ===
-  async getComments(postId: string): Promise<Comment[]> {
-    const res = await apiClient.get<ApiResponse<Comment[]>>(`/posts/${postId}/comments`);
+  async getComments(postId: string, signal?: AbortSignal): Promise<Comment[]> {
+    const res = await apiClient.get<ApiResponse<Comment[]>>(`/posts/${postId}/comments`, { signal });
     return res.data.data;
   },
 
@@ -200,24 +201,24 @@ export const blogApi = {
   },
 
   // === Series ===
-  async getSeriesDetail(seriesId: string): Promise<SeriesDetail> {
-    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/${seriesId}`);
+  async getSeriesDetail(seriesId: string, signal?: AbortSignal): Promise<SeriesDetail> {
+    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/${seriesId}`, { signal });
     return res.data.data;
   },
 
-  async getSeries(seriesId: string): Promise<SeriesDetail> {
-    return this.getSeriesDetail(seriesId);
+  async getSeries(seriesId: string, signal?: AbortSignal): Promise<SeriesDetail> {
+    return this.getSeriesDetail(seriesId, signal);
   },
 
-  async getSeriesBySlug(username: string, slug: string): Promise<SeriesDetail> {
+  async getSeriesBySlug(username: string, slug: string, signal?: AbortSignal): Promise<SeriesDetail> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/users/@${cleanUsername}/${slug}`);
+    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/users/@${cleanUsername}/${slug}`, { signal });
     return res.data.data;
   },
 
-  async getUserSeries(username: string): Promise<Series[]> {
+  async getUserSeries(username: string, signal?: AbortSignal): Promise<Series[]> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<Series[]>>(`/series/users/@${cleanUsername}`);
+    const res = await apiClient.get<ApiResponse<Series[]>>(`/series/users/@${cleanUsername}`, { signal });
     return res.data.data;
   },
 
@@ -261,9 +262,9 @@ export const blogApi = {
   },
 
   // === Users ===
-  async getUserProfile(username: string): Promise<UserProfile> {
+  async getUserProfile(username: string, signal?: AbortSignal): Promise<UserProfile> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
-    const res = await apiClient.get<ApiResponse<UserProfile>>(`/users/${cleanUsername}`);
+    const res = await apiClient.get<ApiResponse<UserProfile>>(`/users/${cleanUsername}`, { signal });
     return res.data.data;
   },
 
@@ -305,15 +306,15 @@ export const blogApi = {
     return res.data.data;
   },
 
-  async getUserTags(username: string): Promise<UserTagSummary[]> {
+  async getUserTags(username: string, signal?: AbortSignal): Promise<UserTagSummary[]> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
-    const res = await apiClient.get<ApiResponse<UserTagSummary[]>>(`/users/${cleanUsername}/tags`);
+    const res = await apiClient.get<ApiResponse<UserTagSummary[]>>(`/users/${cleanUsername}/tags`, { signal });
     return res.data.data;
   },
 
-  async getUserActivity(username: string): Promise<UserActivity[]> {
+  async getUserActivity(username: string, signal?: AbortSignal): Promise<UserActivity[]> {
     const cleanUsername = username.startsWith('@') ? username : `@${username}`;
-    const res = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${cleanUsername}/activity`);
+    const res = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${cleanUsername}/activity`, { signal });
     return res.data.data;
   },
 
