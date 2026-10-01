@@ -1,4 +1,4 @@
-FROM amazoncorretto:25-alpine
+FROM eclipse-temurin:25-jdk-alpine
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ WORKDIR /app
 RUN addgroup -S doro && adduser -S doro -G doro
 USER doro:doro
 
-COPY --chown=doro:doro build/libs/*-SNAPSHOT.jar app.jar
+COPY --chown=doro:doro build/libs/doro-blog-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8082
 

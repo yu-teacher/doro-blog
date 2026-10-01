@@ -39,8 +39,8 @@ public class BlogUserController {
         return ApiResponse.success(userService.getProfileById(doroUser.userId()));
     }
 
-    @Operation(summary = "내 프로필 수정", description = "한 줄 소개, 블로그 타이틀, 소셜 링크, 소개글 수정")
-    @PutMapping("/me")
+    @Operation(summary = "내 프로필 수정", description = "한 줄 소개, 블로그 타이틀, 소셜 링크, 소개글 수정 (PUT/PATCH 지원)")
+    @RequestMapping(value = "/me", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ApiResponse<UserProfileResponse> updateMyProfile(
             @CurrentDoroUser DoroUser doroUser,
             @Valid @RequestBody UpdateProfileRequest request

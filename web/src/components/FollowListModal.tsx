@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { FollowUser } from '../api/types';
 import { useAuthStore } from '../store/authStore';
-import { X, UserPlus, UserCheck, Loader2, User } from 'lucide-react';
+import { X, UserPlus, UserCheck, UserMinus, Loader2, User } from 'lucide-react';
 
 interface FollowListModalProps {
   username: string;
@@ -171,9 +171,9 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                     <button
                       disabled={actionLoadingId === item.id}
                       onClick={() => handleToggleFollow(item)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex-shrink-0 ${
+                      className={`group inline-flex items-center justify-center min-w-[76px] gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex-shrink-0 cursor-pointer ${
                         item.isFollowing
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900'
                           : 'bg-emerald-600 text-white hover:bg-emerald-700'
                       }`}
                     >
@@ -181,8 +181,10 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : item.isFollowing ? (
                         <>
-                          <UserCheck className="w-3.5 h-3.5" />
-                          <span>팔로잉</span>
+                          <UserCheck className="w-3.5 h-3.5 group-hover:hidden" />
+                          <UserMinus className="w-3.5 h-3.5 hidden group-hover:inline text-rose-600 dark:text-rose-400" />
+                          <span className="group-hover:hidden">팔로잉</span>
+                          <span className="hidden group-hover:inline text-rose-600 dark:text-rose-400">언팔로우</span>
                         </>
                       ) : (
                         <>

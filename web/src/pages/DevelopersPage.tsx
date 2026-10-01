@@ -128,9 +128,11 @@ export const DevelopersPage: React.FC = () => {
     }
   };
 
+  const apiEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/posts` : 'https://blog.doro.local/api/v1/posts';
+
   // Code Snippets
   const codeSnippets = {
-    curl: `curl -X POST https://blog.doro.local/api/v1/posts \\
+    curl: `curl -X POST ${apiEndpoint} \\
   -H "X-API-Key: doro_live_your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -145,7 +147,7 @@ export const DevelopersPage: React.FC = () => {
     python: `import requests
 
 API_KEY = "doro_live_your_api_key_here"
-API_URL = "https://blog.doro.local/api/v1/posts"
+API_URL = "${apiEndpoint}"
 
 headers = {
     "X-API-Key": API_KEY,
@@ -167,7 +169,7 @@ print("Response:", response.json())`,
 
     node: `// Node.js (v18+ native fetch or Axios)
 const API_KEY = "doro_live_your_api_key_here";
-const API_URL = "https://blog.doro.local/api/v1/posts";
+const API_URL = "${apiEndpoint}";
 
 async function publishPost() {
   const response = await fetch(API_URL, {
@@ -204,7 +206,7 @@ jobs:
     steps:
       - name: Send Post to DORO Blog
         run: |
-          curl -X POST https://blog.doro.local/api/v1/posts \\
+          curl -X POST ${apiEndpoint} \\
             -H "X-API-Key: \${{ secrets.DORO_BLOG_API_KEY }} \\
             -H "Content-Type: application/json" \\
             -d '{

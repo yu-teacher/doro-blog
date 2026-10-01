@@ -29,12 +29,16 @@ public class BlogSchemaInitializer implements ApplicationRunner {
     @Value("${doro.guard.http-url:http://192.168.0.101:8081}")
     private String guardHttpUrl;
 
+    @Value("${doro.guard.service-token:}")
+    private String guardServiceToken;
+
     @Override
     public void run(ApplicationArguments args) {
         log.info("Checking DORO Guard Zanzibar schema synchronization...");
         try {
             String schemaUrl = guardHttpUrl + "/api/v1/guard/schema";
-            ResponseEntity<String> response = restTemplate.getForEntity(schemaUrl, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    schemaUrl, HttpMethod.GET, new HttpEntity<>(guardHeaders()), String.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 log.warn("Could not retrieve active schema from Guard: status={}", response.getStatusCode());
@@ -63,7 +67,7 @@ public class BlogSchemaInitializer implements ApplicationRunner {
 
             String combinedDsl = activeDsl + "\n\n" + blogDsl;
 
-            HttpHeaders headers = new HttpHeaders();
+            HttpHeaders headers = guardHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, String>> request = new HttpEntity<>(Map.of("dsl", combinedDsl), headers);
 
@@ -77,5 +81,13 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         } catch (Exception e) {
             log.warn("Guard schema dynamic sync skipped (Guard may be offline or unreachable): {}", e.getMessage());
         }
+    }
+
+    private HttpHeaders guardHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        if (guardServiceToken != null && !guardServiceToken.isBlank()) {
+            headers.set("X-Doro-Service-Token", guardServiceToken);
+        }
+        return headers;
     }
 }

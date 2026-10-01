@@ -3,6 +3,7 @@ package com.doro.blog.domain.series.service;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.series.dto.SeriesDtos.*;
 import com.doro.blog.domain.series.entity.Series;
@@ -60,19 +61,30 @@ public class SeriesService {
     }
 
     @Transactional(readOnly = true)
-    public List<SeriesResponse> getSeriesByUsername(String username) {
+    public List<SeriesResponse> getSeriesByUsername(String username, DoroUser doroUser) {
         String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
+        boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
+                (doroUser.userId().equals(user.getId()) || doroUser.isAdmin());
+
         return seriesRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId())
                 .stream()
-                .map(SeriesResponse::from)
+                .map(series -> {
+                    int count = canViewPrivate ? series.getPostCount() : (int) postRepository.countBySeriesIdAndStatus(series.getId(), PostStatus.PUBLISHED);
+                    return SeriesResponse.from(series, count);
+                })
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public SeriesDetailResponse getSeriesByUsernameAndSlug(String username, String slug) {
+    public List<SeriesResponse> getSeriesByUsername(String username) {
+        return getSeriesByUsername(username, null);
+    }
+
+    @Transactional(readOnly = true)
+    public SeriesDetailResponse getSeriesByUsernameAndSlug(String username, String slug, DoroUser doroUser) {
         String cleanUsername = username.startsWith("@") ? username.substring(1) : username;
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
@@ -80,16 +92,29 @@ public class SeriesService {
         Series series = seriesRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
-        return getSeriesDetail(series.getId());
+        return getSeriesDetail(series.getId(), doroUser);
     }
 
+    @Transactional(readOnly = true)
+    public SeriesDetailResponse getSeriesByUsernameAndSlug(String username, String slug) {
+        return getSeriesByUsernameAndSlug(username, slug, null);
+    }
 
     @Transactional(readOnly = true)
-    public SeriesDetailResponse getSeriesDetail(UUID seriesId) {
+    public SeriesDetailResponse getSeriesDetail(UUID seriesId, DoroUser doroUser) {
         Series series = seriesRepository.findById(seriesId)
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
-        List<Post> posts = postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId);
+        boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
+                (doroUser.userId().equals(series.getUser().getId()) || doroUser.isAdmin());
+
+        List<Post> posts;
+        if (canViewPrivate) {
+            posts = postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId);
+        } else {
+            posts = postRepository.findAllBySeriesIdAndStatusOrderBySeriesOrderAsc(seriesId, PostStatus.PUBLISHED);
+        }
+
         List<SeriesItemPostResponse> postItems = posts.stream()
                 .map(p -> new SeriesItemPostResponse(
                         p.getId(),
@@ -98,11 +123,20 @@ public class SeriesService {
                         p.getSlug(),
                         p.getSummary(),
                         p.getThumbnailUrl(),
+                        p.getStatus(),
                         p.getPublishedAt()
                 ))
                 .toList();
 
-        return new SeriesDetailResponse(SeriesResponse.from(series), postItems);
+        int displayPostCount = canViewPrivate ? series.getPostCount() : (int) postRepository.countBySeriesIdAndStatus(seriesId, PostStatus.PUBLISHED);
+        SeriesResponse seriesRes = SeriesResponse.from(series, displayPostCount);
+
+        return new SeriesDetailResponse(seriesRes, postItems);
+    }
+
+    @Transactional(readOnly = true)
+    public SeriesDetailResponse getSeriesDetail(UUID seriesId) {
+        return getSeriesDetail(seriesId, null);
     }
 
     @Transactional

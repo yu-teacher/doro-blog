@@ -19,14 +19,21 @@ import {
   CreateApiKeyResponse,
   ApiKeyLog,
   UploadResponse,
+  NotificationItem,
+  UnreadCountResponse,
 } from './types';
 
 export const blogApi = {
-  // === Posts ===
-  async getFeed(sort = 'latest', tag?: string, page = 0, size = 20): Promise<PageResponse<PostSummary>> {
-    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts', {
-      params: { sort, tag, page, size },
-    });
+  async getFeed(sort = 'latest', tag?: string | string[], page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+    const params: Record<string, string | number> = { sort, page, size };
+    if (tag) {
+      if (Array.isArray(tag)) {
+        params.tags = tag.join(',');
+      } else {
+        params.tag = tag;
+      }
+    }
+    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>('/posts', { params });
     return res.data.data;
   },
 
@@ -71,7 +78,7 @@ export const blogApi = {
     return this.getFeed('latest', undefined, page, size);
   },
 
-  async getPostsByTag(tag: string, page = 0, size = 20): Promise<PageResponse<PostSummary>> {
+  async getPostsByTag(tag: string | string[], page = 0, size = 20): Promise<PageResponse<PostSummary>> {
     return this.getFeed('latest', tag, page, size);
   },
 
@@ -337,5 +344,30 @@ export const blogApi = {
       },
     });
     return res.data.data;
+  },
+
+  // === Notifications ===
+  async getNotifications(page = 0, size = 20): Promise<PageResponse<NotificationItem>> {
+    const res = await apiClient.get<ApiResponse<PageResponse<NotificationItem>>>('/notifications', {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
+  async getUnreadNotificationCount(): Promise<number> {
+    const res = await apiClient.get<ApiResponse<UnreadCountResponse>>('/notifications/unread-count');
+    return res.data.data.unreadCount;
+  },
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    await apiClient.patch(`/notifications/${id}/read`);
+  },
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    await apiClient.post('/notifications/read-all');
+  },
+
+  async deleteNotification(id: string): Promise<void> {
+    await apiClient.delete(`/notifications/${id}`);
   },
 };

@@ -34,24 +34,30 @@ public class SeriesController {
 
     @Operation(summary = "특정 작가의 시리즈 목록 조회 (공개)", description = "특정 작가가 출간한 모든 시리즈 목록 조회")
     @GetMapping("/users/@{username}")
-    public ApiResponse<List<SeriesResponse>> getSeriesByUsername(@PathVariable("username") String username) {
-        return ApiResponse.success(seriesService.getSeriesByUsername(username));
+    public ApiResponse<List<SeriesResponse>> getSeriesByUsername(
+            @PathVariable("username") String username,
+            @CurrentDoroUser DoroUser doroUser
+    ) {
+        return ApiResponse.success(seriesService.getSeriesByUsername(username, doroUser));
     }
 
     @Operation(summary = "슬러그 기반 시리즈 상세 조회 (공개)", description = "/series/users/@{username}/{slug} 주소로 시리즈 상세 및 소속 글 목록 조회")
     @GetMapping("/users/@{username}/{slug}")
     public ApiResponse<SeriesDetailResponse> getSeriesByUsernameAndSlug(
             @PathVariable("username") String username,
-            @PathVariable("slug") String slug
+            @PathVariable("slug") String slug,
+            @CurrentDoroUser DoroUser doroUser
     ) {
-        return ApiResponse.success(seriesService.getSeriesByUsernameAndSlug(username, slug));
+        return ApiResponse.success(seriesService.getSeriesByUsernameAndSlug(username, slug, doroUser));
     }
-
 
     @Operation(summary = "시리즈 상세 및 소속 글 목록 조회 (공개)", description = "시리즈 정보와 회차 순서(1, 2, 3...)로 정렬된 글 목록 조회")
     @GetMapping("/{seriesId}")
-    public ApiResponse<SeriesDetailResponse> getSeriesDetail(@PathVariable("seriesId") UUID seriesId) {
-        return ApiResponse.success(seriesService.getSeriesDetail(seriesId));
+    public ApiResponse<SeriesDetailResponse> getSeriesDetail(
+            @PathVariable("seriesId") UUID seriesId,
+            @CurrentDoroUser DoroUser doroUser
+    ) {
+        return ApiResponse.success(seriesService.getSeriesDetail(seriesId, doroUser));
     }
 
     @Operation(summary = "시리즈 정보 수정 (ReBAC 인가)", description = "DORO Guard ReBAC 검증: 시리즈의 editor/owner만 수정 가능")

@@ -38,7 +38,7 @@ public class MinioStorageService implements StorageService {
     @Value("${doro.storage.minio.bucket:doro-blog-media}")
     private String bucket;
 
-    @Value("${doro.storage.minio.public-url:http://localhost:9000/doro-blog-media}")
+    @Value("${doro.storage.minio.public-url:/media}")
     private String publicUrl;
 
     private MinioClient minioClient;

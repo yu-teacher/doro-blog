@@ -56,8 +56,23 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     List<Post> findAllBySeriesIdOrderBySeriesOrderAsc(UUID seriesId);
 
-    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE pt.tag.name = :tagName AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC")
+    List<Post> findAllBySeriesIdAndStatusOrderBySeriesOrderAsc(UUID seriesId, PostStatus status);
+
+    long countBySeriesIdAndStatus(UUID seriesId, PostStatus status);
+
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE LOWER(pt.tag.name) = LOWER(:tagName) AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC")
     Page<Post> findAllByTagName(@Param("tagName") String tagName, Pageable pageable);
+
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
+           "WHERE LOWER(pt.tag.name) IN :tagNames AND p.status = 'PUBLISHED' " +
+           "GROUP BY p.id " +
+           "HAVING COUNT(DISTINCT LOWER(pt.tag.name)) = :tagCount " +
+           "ORDER BY p.publishedAt DESC")
+    Page<Post> findAllByAllTagNames(
+            @Param("tagNames") List<String> tagNames,
+            @Param("tagCount") long tagCount,
+            Pageable pageable
+    );
 
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
     Page<Post> findTrendingPosts(

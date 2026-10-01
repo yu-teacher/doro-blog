@@ -2,7 +2,9 @@ package com.doro.blog.domain.post.dto;
 
 import com.doro.blog.domain.post.entity.Post;
 import com.doro.blog.domain.post.entity.PostStatus;
+import com.doro.blog.domain.user.dto.BlogUserDtos;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -21,9 +23,11 @@ public class PostDtos {
             @Size(max = 500, message = "요약문은 최대 500자입니다.")
             String summary,
 
-            @NotBlank(message = "본문 내용은 필수입니다.")
             String content,
 
+            @Size(max = BlogUserDtos.MAX_URL_LENGTH, message = "썸네일 주소가 너무 깁니다.")
+            @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
+                    message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl,
 
             PostStatus status,
@@ -43,9 +47,11 @@ public class PostDtos {
             @Size(max = 500, message = "요약문은 최대 500자입니다.")
             String summary,
 
-            @NotBlank(message = "본문 내용은 필수입니다.")
             String content,
 
+            @Size(max = BlogUserDtos.MAX_URL_LENGTH, message = "썸네일 주소가 너무 깁니다.")
+            @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
+                    message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl,
 
             PostStatus status,

@@ -51,6 +51,10 @@ public class SeriesDtos {
             Instant updatedAt
     ) {
         public static SeriesResponse from(Series series) {
+            return from(series, series.getPostCount());
+        }
+
+        public static SeriesResponse from(Series series, int postCount) {
             return new SeriesResponse(
                     series.getId(),
                     series.getUser().getId(),
@@ -59,7 +63,7 @@ public class SeriesDtos {
                     series.getSlug(),
                     series.getDescription(),
                     series.getThumbnailUrl(),
-                    series.getPostCount(),
+                    postCount,
                     series.getCreatedAt(),
                     series.getUpdatedAt()
             );
@@ -73,8 +77,13 @@ public class SeriesDtos {
             String slug,
             String summary,
             String thumbnailUrl,
+            com.doro.blog.domain.post.entity.PostStatus status,
             Instant publishedAt
-    ) {}
+    ) {
+        public SeriesItemPostResponse(UUID id, int seriesOrder, String title, String slug, String summary, String thumbnailUrl, Instant publishedAt) {
+            this(id, seriesOrder, title, slug, summary, thumbnailUrl, com.doro.blog.domain.post.entity.PostStatus.PUBLISHED, publishedAt);
+        }
+    }
 
     public record SeriesDetailResponse(
             SeriesResponse series,

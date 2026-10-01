@@ -57,3 +57,7 @@ tasks.named('test') {
     useJUnitPlatform()
     maxHeapSize = '2048m'
 }
+
+jar {
+    enabled = false
+}

@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary, TagItem } from '../api/types';
 import { PostCard } from '../components/PostCard';
-import { TrendingUp, Clock, Tag as TagIcon, Hash, Loader2, Rss, Bookmark, Heart, LogIn } from 'lucide-react';
+import { TrendingUp, Clock, Tag as TagIcon, Hash, Loader2, Rss, Bookmark, Heart, LogIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useAuthStore } from '../store/authStore';
 
 export const FeedPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { isAuthenticated, openLoginModal } = useAuthStore();
   const tab = searchParams.get('tab') || 'trending';
   const timeframe = searchParams.get('timeframe') || 'week';
@@ -17,22 +18,112 @@ export const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [page, setPage] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(true);
-  const [tags, setTags] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
-  useEffect(() => {
-    fetchTags();
+  // Horizontal scroll state for popular tags bar
+  const tagScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkTagScroll = useCallback(() => {
+    const el = tagScrollRef.current;
+    if (el) {
+      setCanScrollLeft(el.scrollLeft > 5);
+      setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+    }
   }, []);
 
-  const fetchTags = async () => {
+  const handleScrollTags = (direction: 'left' | 'right') => {
+    const el = tagScrollRef.current;
+    if (el) {
+      const scrollAmount = el.clientWidth * 0.7;
+      el.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const [globalTags, setGlobalTags] = useState<TagItem[]>([]);
+
+  useEffect(() => {
+    fetchGlobalTags();
+  }, []);
+
+  const fetchGlobalTags = async () => {
     try {
       const res = await blogApi.getPopularTags();
-      setTags(res || []);
+      setGlobalTags(res || []);
     } catch (err) {
       console.error('Failed to fetch tags', err);
     }
   };
+
+  // Cache the current feed tags so clicking a tag doesn't cause the tag list to snap back to globalTags
+  const cachedTabTagsRef = useRef<{ id: string; name: string; postCount: number }[]>([]);
+
+  // Derive dynamic context-aware tags from current feed posts
+  const activeTags: { id: string; name: string; postCount: number }[] = React.useMemo(() => {
+    // If a tag is selected and we already have cached tags for this feed, keep showing them!
+    if (selectedTag && cachedTabTagsRef.current.length > 0) {
+      return cachedTabTagsRef.current;
+    }
+
+    // If on feed or likes tab and there are no posts (or not logged in), do NOT show irrelevant global tags
+    if (tab === 'feed' || tab === 'likes') {
+      if (!posts || posts.length === 0) {
+        cachedTabTagsRef.current = [];
+        return [];
+      }
+    }
+
+    if (!posts || posts.length === 0) {
+      return cachedTabTagsRef.current.length > 0 ? cachedTabTagsRef.current : globalTags;
+    }
+
+    // Count tag frequency among current posts
+    const tagCountMap: Record<string, number> = {};
+    posts.forEach((p) => {
+      if (p.tags && Array.isArray(p.tags)) {
+        p.tags.forEach((t) => {
+          if (t && t.trim()) {
+            const cleanT = t.trim();
+            tagCountMap[cleanT] = (tagCountMap[cleanT] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    const entries = Object.entries(tagCountMap);
+    if (entries.length === 0) {
+      const fallback = tab === 'feed' || tab === 'likes' ? [] : globalTags;
+      cachedTabTagsRef.current = fallback;
+      return fallback;
+    }
+
+    // Sort by occurrence in current tab feed
+    const computed = entries
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({
+        id: name,
+        name,
+        postCount: count,
+      }));
+
+    cachedTabTagsRef.current = computed;
+    return computed;
+  }, [posts, globalTags, selectedTag, tab]);
+
+  useEffect(() => {
+    // Reset scroll position to beginning when tab changes
+    if (tagScrollRef.current) {
+      tagScrollRef.current.scrollLeft = 0;
+    }
+    checkTagScroll();
+    window.addEventListener('resize', checkTagScroll);
+    return () => window.removeEventListener('resize', checkTagScroll);
+  }, [activeTags, checkTagScroll]);
 
   // Initial load or tab/tag/timeframe change
   useEffect(() => {
@@ -119,6 +210,7 @@ export const FeedPage: React.FC = () => {
     if (newTab === 'trending') {
       params.set('timeframe', timeframe);
     }
+    // Clear tag filter on explicit tab switch so the user gets the clean feed
     setSearchParams(params);
   };
 
@@ -130,15 +222,7 @@ export const FeedPage: React.FC = () => {
   };
 
   const handleTagClick = (tagName: string) => {
-    const params = new URLSearchParams();
-    if (selectedTag === tagName) {
-      // Unselect tag
-      params.set('tab', tab);
-      if (tab === 'trending') params.set('timeframe', timeframe);
-    } else {
-      params.set('tag', tagName);
-    }
-    setSearchParams(params);
+    navigate(`/tags?tag=${encodeURIComponent(tagName)}`);
   };
 
   return (
@@ -234,25 +318,58 @@ export const FeedPage: React.FC = () => {
         )}
       </div>
 
-      {/* Popular Tags Horizontal Bar */}
-      {tags.length > 0 && (
-        <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 flex-shrink-0">
-            <TagIcon className="w-3.5 h-3.5" /> 태그:
-          </span>
-          {tags.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => handleTagClick(t.name)}
-              className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-colors ${
-                selectedTag === t.name
-                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              #{t.name} <span className="opacity-70 ml-0.5">({t.postCount})</span>
-            </button>
-          ))}
+      {/* Popular Tags Horizontal Bar with Smooth Scroll & Edge Fades */}
+      {activeTags.length > 0 && (
+        <div className="relative mb-8 group">
+          {/* Left Arrow Button & Fade */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pr-6 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent">
+              <button
+                onClick={() => handleScrollTags('left')}
+                className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:scale-110 transition-all"
+                aria-label="이전 태그 보기"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Tags Scrollable Container */}
+          <div
+            ref={tagScrollRef}
+            onScroll={checkTagScroll}
+            className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none scroll-smooth"
+          >
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 flex-shrink-0 mr-1">
+              <TagIcon className="w-3.5 h-3.5" /> 태그:
+            </span>
+            {activeTags.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleTagClick(t.name)}
+                className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-all ${
+                  selectedTag === t.name
+                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                #{t.name} <span className="opacity-70 ml-0.5 font-mono text-[11px]">({t.postCount})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Right Arrow Button & Fade */}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pl-6 bg-gradient-to-l from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent">
+              <button
+                onClick={() => handleScrollTags('right')}
+                className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:scale-110 transition-all"
+                aria-label="다음 태그 보기"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

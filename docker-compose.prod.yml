@@ -1,0 +1,52 @@
+services:
+  # 1. DORO Blog Spring Boot Backend
+  blog-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doro-blog-backend
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: service_blog
+      DB_USER: ${DB_USER:-doro_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-doro_secret}
+      IAM_HOST: auth-api
+      IAM_PORT: 8080
+      GUARD_GRPC_HOST: guard-api
+      GUARD_GRPC_PORT: 9090
+      GUARD_HTTP_HOST: guard-api
+      GUARD_HTTP_PORT: 8081
+      DORO_GUARD_SERVICE_TOKEN: ${DORO_GUARD_SERVICE_TOKEN:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-doro_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-doro_secret}
+      MINIO_BUCKET: doro-blog-media
+      MINIO_PUBLIC_URL: /media
+    networks:
+      - doro-network
+
+  # 3. DORO Blog Web Frontend (Nginx)
+  blog-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: doro-blog-web
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    environment:
+      VITE_DORO_PORTAL_URL: http://192.168.0.101:3000
+    depends_on:
+      - blog-backend
+    networks:
+      - doro-network
+
+networks:
+  doro-network:
+    external: true
+    name: doro_doro-network

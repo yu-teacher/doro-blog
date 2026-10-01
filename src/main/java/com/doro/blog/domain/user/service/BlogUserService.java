@@ -8,6 +8,8 @@ import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.entity.UserFollow;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.repository.UserFollowRepository;
+import com.doro.blog.domain.notification.entity.NotificationType;
+import com.doro.blog.domain.notification.service.NotificationService;
 import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class BlogUserService {
     private final UserFollowRepository followRepository;
     private final PostRepository postRepository;
     private final DoroGuardClient guardClient;
+    private final NotificationService notificationService;
 
     @Transactional
     public BlogUser getOrCreateUser(DoroUser doroUser) {
@@ -90,7 +93,7 @@ public class BlogUserService {
     public UserProfileResponse updateProfile(DoroUser doroUser, UpdateProfileRequest request) {
         BlogUser user = getOrCreateUser(doroUser);
         user.updateProfile(
-                request.nickname(),
+                request.effectiveNickname(),
                 request.bio(),
                 request.profileImageUrl(),
                 request.blogTitle(),
@@ -147,6 +150,16 @@ public class BlogUserService {
             } catch (Exception e) {
                 log.warn("Failed to sync follow relation tuple to Guard: {}", e.getMessage());
             }
+
+            // 알림 발송: 팔로우 대상자에게 알림
+            notificationService.sendNotification(
+                    target,
+                    me,
+                    NotificationType.FOLLOW,
+                    null,
+                    target.getUsername(),
+                    null
+            );
         }
 
         return UserProfileResponse.from(target, true);

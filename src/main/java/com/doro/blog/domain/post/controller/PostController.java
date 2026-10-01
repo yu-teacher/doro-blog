@@ -33,15 +33,19 @@ public class PostController {
         return ApiResponse.success(postService.createPost(doroUser, request));
     }
 
-    @Operation(summary = "전체 피드 목록 조회 (공개)", description = "최신순/인기순 및 태그 필터 페이징 피드 조회")
+    @Operation(summary = "전체 피드 목록 조회 (공개)", description = "최신순/인기순 및 단일/다중 태그 필터(교집합) 페이징 피드 조회")
     @GetMapping
     public ApiResponse<Page<PostSummaryResponse>> getFeed(
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
-            @RequestParam(name = "tag", required = false) String tag,
+            @RequestParam(name = "tag", required = false) List<String> tagList,
+            @RequestParam(name = "tags", required = false) List<String> tagsList,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size
     ) {
-        return ApiResponse.success(postService.getFeed(sort, tag, page, size));
+        java.util.List<String> combinedTags = new java.util.ArrayList<>();
+        if (tagList != null) combinedTags.addAll(tagList);
+        if (tagsList != null) combinedTags.addAll(tagsList);
+        return ApiResponse.success(postService.getFeed(sort, combinedTags, page, size));
     }
 
     @Operation(summary = "특정 작가의 출간 글 목록 및 채널 내 검색 (공개, 페이징)", description = "특정 작가의 공개 출간 글 목록을 키워드(q) 또는 태그(tag)로 필터링하여 페이징 조회")

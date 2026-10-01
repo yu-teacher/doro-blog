@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { SeriesDetail } from '../api/types';
-import { BookOpen, Calendar, ArrowLeft } from 'lucide-react';
+import { BookOpen, Calendar, ArrowLeft, Lock } from 'lucide-react';
 
 export const SeriesDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
@@ -103,9 +103,21 @@ export const SeriesDetailPage: React.FC = () => {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500 transition-colors mb-1">
-                  {post.title}
-                </h3>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500 transition-colors">
+                    {post.title}
+                  </h3>
+                  {post.status === 'PRIVATE' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      <Lock className="w-3 h-3" /> 비공개
+                    </span>
+                  )}
+                  {post.status === 'DRAFT' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
+                      임시저장
+                    </span>
+                  )}
+                </div>
                 {post.summary && <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-2">{post.summary}</p>}
                 <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                   <Calendar className="w-3.5 h-3.5" />

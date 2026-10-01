@@ -8,6 +8,7 @@ import { ChannelPage } from './pages/ChannelPage';
 import { SeriesDetailPage } from './pages/SeriesDetailPage';
 import { MyPostsPage } from './pages/MyPostsPage';
 import { SearchPage } from './pages/SearchPage';
+import { TagSearchPage } from './pages/TagSearchPage';
 import { DevelopersPage } from './pages/DevelopersPage';
 
 const AppContent: React.FC = () => {
@@ -21,11 +22,15 @@ const AppContent: React.FC = () => {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<FeedPage />} />
+          <Route path="/tags" element={<TagSearchPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/write" element={<EditorPage />} />
           <Route path="/edit/:id" element={<EditorPage />} />
           <Route path="/me/posts" element={<MyPostsPage />} />
           <Route path="/developers" element={<DevelopersPage />} />
+          <Route path="/@:username/series/:slug" element={<SeriesDetailPage />} />
+          <Route path="/@:username/:slug" element={<PostDetailPage />} />
+          <Route path="/@:username" element={<ChannelPage />} />
           <Route path="/:username/series/:slug" element={<SeriesDetailPage />} />
           <Route path="/:username/:slug" element={<PostDetailPage />} />
           <Route path="/:username" element={<ChannelPage />} />

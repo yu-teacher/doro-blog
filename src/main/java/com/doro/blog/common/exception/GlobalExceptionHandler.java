@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         log.warn("DORO ReBAC Access Denied: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), "인가 검증 실패: " + e.getMessage()));
+                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), "인가 검증 실패: 해당 리소스에 대한 권한이 없습니다."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -49,6 +49,38 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException e) {
+        log.warn("HttpRequestMethodNotSupportedException: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error("METHOD_NOT_ALLOWED", "지원하지 않는 HTTP 메서드 요청입니다: " + e.getMethod()));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException e) {
+        log.warn("HttpMessageNotReadableException: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), "요청 본문(Body) 형식이 올바르지 않거나 누락되었습니다."));
+    }
+
+    /** 존재하지 않는 경로(스캐너의 /.env, /.git 탐색 등)는 서버 오류가 아니므로 ERROR 로그 없이 404 로 응답한다. */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException e) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(org.springframework.web.HttpMediaTypeNotSupportedException e) {
+        log.warn("HttpMediaTypeNotSupportedException: {}", e.getContentType());
+        return ResponseEntity
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ApiResponse.error("UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 Content-Type 입니다."));
     }
 
     @ExceptionHandler(Exception.class)

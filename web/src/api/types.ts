@@ -139,6 +139,7 @@ export interface SeriesItemPost {
   slug: string;
   summary?: string;
   thumbnailUrl?: string;
+  status?: PostStatus;
   publishedAt?: string;
 }
 
@@ -211,3 +212,30 @@ export interface UploadResponse {
   contentType: string;
   size: number;
 }
+
+export type NotificationType = 'COMMENT' | 'REPLY' | 'LIKE' | 'FOLLOW';
+
+export interface NotificationSender {
+  id: string;
+  username: string;
+  nickname: string;
+  profileImageUrl?: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  sender: NotificationSender;
+  targetPostId?: string;
+  targetPostTitle?: string;
+  targetPostSlug?: string;
+  targetUsername?: string;
+  message?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface UnreadCountResponse {
+  unreadCount: number;
+}
+

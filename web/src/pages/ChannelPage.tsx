@@ -9,6 +9,7 @@ import { FollowListModal } from '../components/FollowListModal';
 import { ProfileEditModal } from '../components/ProfileEditModal';
 import { useAuthStore } from '../store/authStore';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { safeHttpUrl } from '../utils/safeUrl';
 import {
   FileText,
   BookOpen,
@@ -19,6 +20,7 @@ import {
   Mail,
   UserPlus,
   UserCheck,
+  UserMinus,
   Settings,
   Edit3,
   Tag,
@@ -36,6 +38,21 @@ export const ChannelPage: React.FC = () => {
   const currentTab = (searchParams.get('tab') as 'posts' | 'series' | 'about' | 'likes') || 'posts';
   const tagFilter = searchParams.get('tag') || '';
   const keyword = searchParams.get('q') || '';
+
+  // 시스템 예약 경로(logs, portal 등)가 게시판 유저 라우트에 매칭되었을 경우 처리
+  useEffect(() => {
+    const lower = cleanUsername.toLowerCase();
+    const reservedRedirects: Record<string, string> = {
+      logs: '/logs',
+      portal: '/portal',
+      account: '/portal/account',
+      login: '/portal/login',
+      signup: '/portal/signup',
+    };
+    if (reservedRedirects[lower]) {
+      window.location.replace(reservedRedirects[lower]);
+    }
+  }, [cleanUsername]);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PostSummary[]>([]);
@@ -58,13 +75,16 @@ export const ChannelPage: React.FC = () => {
 
   const isMyChannel = isAuthenticated && currentUser?.username === cleanUsername;
 
+  const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
+  const isReserved = RESERVED_NAMES.includes(cleanUsername.toLowerCase());
+
   useEffect(() => {
-    if (cleanUsername) {
+    if (cleanUsername && !isReserved) {
       loadProfile();
       loadUserTags();
       loadActivity();
     }
-  }, [cleanUsername]);
+  }, [cleanUsername, isReserved]);
 
   useEffect(() => {
     if (!cleanUsername) return;
@@ -279,9 +299,9 @@ export const ChannelPage: React.FC = () => {
                 <button
                   disabled={followLoading}
                   onClick={handleToggleFollow}
-                  className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-bold transition-all shadow-xs ${
+                  className={`group inline-flex items-center justify-center min-w-[84px] gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer ${
                     profile?.isFollowing
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   }`}
                 >
@@ -289,8 +309,10 @@ export const ChannelPage: React.FC = () => {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : profile?.isFollowing ? (
                     <>
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>팔로잉</span>
+                      <UserCheck className="w-3.5 h-3.5 group-hover:hidden" />
+                      <UserMinus className="w-3.5 h-3.5 hidden group-hover:inline text-rose-600 dark:text-rose-400" />
+                      <span className="group-hover:hidden">팔로잉</span>
+                      <span className="hidden group-hover:inline text-rose-600 dark:text-rose-400">언팔로우</span>
                     </>
                   ) : (
                     <>
@@ -332,11 +354,11 @@ export const ChannelPage: React.FC = () => {
 
           {/* Social Links Row */}
           <div className="flex items-center justify-center sm:justify-start gap-3 mt-4 text-slate-400 dark:text-slate-500">
-            {profile?.githubUrl && (
+            {safeHttpUrl(profile?.githubUrl) && (
               <a
-                href={profile.githubUrl}
+                href={safeHttpUrl(profile?.githubUrl)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
                 title="GitHub"
               >
@@ -345,11 +367,11 @@ export const ChannelPage: React.FC = () => {
                 </svg>
               </a>
             )}
-            {profile?.websiteUrl && (
+            {safeHttpUrl(profile?.websiteUrl) && (
               <a
-                href={profile.websiteUrl}
+                href={safeHttpUrl(profile?.websiteUrl)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 title="개인 홈페이지"
               >
@@ -365,11 +387,11 @@ export const ChannelPage: React.FC = () => {
                 <Mail className="w-4 h-4" />
               </a>
             )}
-            {profile?.linkedinUrl && (
+            {safeHttpUrl(profile?.linkedinUrl) && (
               <a
-                href={profile.linkedinUrl}
+                href={safeHttpUrl(profile?.linkedinUrl)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 transition-colors"
                 title="LinkedIn"
               >
@@ -378,11 +400,11 @@ export const ChannelPage: React.FC = () => {
                 </svg>
               </a>
             )}
-            {profile?.twitterUrl && (
+            {safeHttpUrl(profile?.twitterUrl) && (
               <a
-                href={profile.twitterUrl}
+                href={safeHttpUrl(profile?.twitterUrl)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-sky-500 transition-colors"
                 title="Twitter / X"
               >

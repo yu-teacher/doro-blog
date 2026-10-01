@@ -6,9 +6,12 @@ import com.doro.blog.domain.comment.dto.CommentDtos.*;
 import com.doro.blog.domain.comment.entity.Comment;
 import com.doro.blog.domain.comment.repository.CommentRepository;
 import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.service.BlogUserService;
+import com.doro.blog.domain.notification.entity.NotificationType;
+import com.doro.blog.domain.notification.service.NotificationService;
 import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +31,17 @@ public class CommentService {
     private final PostRepository postRepository;
     private final BlogUserService userService;
     private final DoroGuardClient guardClient;
+    private final NotificationService notificationService;
 
     @Transactional
     public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
+        }
+
         BlogUser user = userService.getOrCreateUser(doroUser);
 
         Comment comment = Comment.builder()
@@ -51,6 +60,16 @@ public class CommentService {
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
 
+        // 알림 발송: 글 작성자에게 댓글 알림
+        notificationService.sendNotification(
+                post.getUser(),
+                user,
+                NotificationType.COMMENT,
+                post,
+                post.getUser().getUsername(),
+                request.content()
+        );
+
         return CommentResponse.from(saved);
     }
 
@@ -58,6 +77,11 @@ public class CommentService {
     public CommentResponse createReply(UUID postId, UUID parentCommentId, DoroUser doroUser, CreateReplyRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
+        }
+
         BlogUser user = userService.getOrCreateUser(doroUser);
 
         Comment parent = commentRepository.findById(parentCommentId)
@@ -80,6 +104,28 @@ public class CommentService {
 
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
         guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
+
+        // 알림 발송 1: 부모 댓글 작성자에게 대댓글(REPLY) 알림
+        notificationService.sendNotification(
+                parent.getUser(),
+                user,
+                NotificationType.REPLY,
+                post,
+                post.getUser().getUsername(),
+                request.content()
+        );
+
+        // 알림 발송 2: 글 작성자가 부모 댓글 작성자와 다르면 글 작성자에게도 COMMENT 알림
+        if (!post.getUser().getId().equals(parent.getUser().getId())) {
+            notificationService.sendNotification(
+                    post.getUser(),
+                    user,
+                    NotificationType.COMMENT,
+                    post,
+                    post.getUser().getUsername(),
+                    request.content()
+            );
+        }
 
         return CommentResponse.from(saved);
     }

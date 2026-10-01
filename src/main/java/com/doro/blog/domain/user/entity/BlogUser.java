@@ -31,7 +31,7 @@ public class BlogUser {
     @Column(length = 255)
     private String bio;
 
-    @Column(name = "profile_image_url", length = 500)
+    @Column(name = "profile_image_url", columnDefinition = "TEXT")
     private String profileImageUrl;
 
     @Column(name = "blog_title", nullable = false, length = 100)
