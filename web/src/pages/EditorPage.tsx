@@ -13,6 +13,8 @@ import { useDraftAutosave, type DraftSnapshot } from '../hooks/useDraftAutosave'
 import { formatDate } from '../utils/date';
 import { useMarkdownEditor } from '../hooks/useMarkdownEditor';
 import { useImageUpload } from '../hooks/useImageUpload';
+import { useLocalDraft } from '../hooks/useLocalDraft';
+import { useServerDrafts } from '../hooks/useServerDrafts';
 import { ServerDraftsModal } from '../components/editor/ServerDraftsModal';
 import { MarkdownToolbar } from '../components/editor/MarkdownToolbar';
 import { EditorPreview } from '../components/editor/EditorPreview';
@@ -70,10 +72,8 @@ export const EditorPage: React.FC = () => {
   const [showNewSeriesInput, setShowNewSeriesInput] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [hasDraftNotice, setHasDraftNotice] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(id || null);
   const currentPostIdRef = useRef<string | null>(id || null);
-  const [serverDrafts, setServerDrafts] = useState<PostSummary[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   // 서버에서 글 본문을 불러오는 동안은 자동 저장을 멈춘다 (불완전한 내용으로 서버 글을 덮어쓰지 않도록)
   const [loadingPostContent, setLoadingPostContent] = useState(false);
@@ -85,56 +85,15 @@ export const EditorPage: React.FC = () => {
     currentPostIdRef.current = currentPostId;
   }, [currentPostId]);
 
-  // Fetch user's server drafts from DB
-  const loadServerDrafts = async () => {
-    try {
-      const res = await blogApi.getMyPosts('DRAFT', 0, 10);
-      setServerDrafts(res.content || []);
-    } catch (err) {
-      console.error('Failed to load server drafts', err);
-    }
-  };
+  const { drafts: serverDrafts, refresh: refreshServerDrafts, removeLocally: removeServerDraft } = useServerDrafts(isAuthenticated);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadServerDrafts();
-    }
-  }, [isAuthenticated]);
-
-  // Check for existing local draft when starting a new post
-  useEffect(() => {
-    if (!id && !currentPostIdRef.current) {
-      try {
-        const saved = localStorage.getItem(draftKey);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.title?.trim() || parsed.content?.trim()) {
-            setHasDraftNotice(true);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to check local draft', e);
-      }
-    }
-  }, [id, draftKey]);
-
-  // 로컬 백업: 입력이 2초 멈추면 localStorage 에 저장한다
-  useEffect(() => {
-    if (!title.trim() && !content.trim()) return;
-
-    const localTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          draftKey,
-          JSON.stringify({ title, content, tags, summary, thumbnailUrl, savedAt: new Date().toISOString() })
-        );
-      } catch (err) {
-        console.error('Local auto-save error', err);
-      }
-    }, LOCAL_AUTOSAVE_DELAY_MS);
-
-    return () => clearTimeout(localTimer);
-  }, [title, content, tags, summary, thumbnailUrl, draftKey]);
+  // 로컬 백업(입력이 멈추면 저장)과 새 글 화면의 복원 안내
+  const localDraft = useLocalDraft({
+    draftKey,
+    offerRestore: !id,
+    snapshot: { title, content, tags, summary, thumbnailUrl },
+    delayMs: LOCAL_AUTOSAVE_DELAY_MS,
+  });
 
   // 서버 임시글 자동 저장: 입력이 5초 멈추면 저장하고, 저장 중에 바뀐 내용은 끝난 직후 이어서 저장한다
   const draftSnapshot: DraftSnapshot = { title, content, tags, summary, thumbnailUrl, slug, seriesId: selectedSeriesId };
@@ -173,31 +132,18 @@ export const EditorPage: React.FC = () => {
   // 서버 저장이 성공하면 목록을 갱신한다
   useEffect(() => {
     if (autosave.lastSavedAt) {
-      loadServerDrafts();
+      refreshServerDrafts();
     }
-  }, [autosave.lastSavedAt]);
+  }, [autosave.lastSavedAt, refreshServerDrafts]);
 
   const handleRestoreDraft = () => {
-    try {
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.title) setTitle(parsed.title);
-        if (parsed.content) setContent(parsed.content);
-        if (parsed.tags) setTags(parsed.tags);
-        if (parsed.summary) setSummary(parsed.summary);
-        if (parsed.thumbnailUrl) setThumbnailUrl(parsed.thumbnailUrl);
-      }
-    } catch (e) {
-      console.error('Failed to restore draft', e);
-    } finally {
-      setHasDraftNotice(false);
-    }
-  };
-
-  const handleDiscardDraft = () => {
-    localStorage.removeItem(draftKey);
-    setHasDraftNotice(false);
+    const restored = localDraft.restore();
+    if (!restored) return;
+    if (restored.title) setTitle(restored.title);
+    if (restored.content) setContent(restored.content);
+    if (restored.tags) setTags(restored.tags);
+    if (restored.summary) setSummary(restored.summary);
+    if (restored.thumbnailUrl) setThumbnailUrl(restored.thumbnailUrl);
   };
 
   const handleSelectServerDraft = async (draft: PostSummary) => {
@@ -227,7 +173,7 @@ export const EditorPage: React.FC = () => {
     if (!confirm('이 임시 저장 글을 삭제하시겠습니까?')) return;
     try {
       await blogApi.deletePost(draftId);
-      setServerDrafts((prev) => prev.filter((d) => d.id !== draftId));
+      removeServerDraft(draftId);
       if (currentPostIdRef.current === draftId) {
         currentPostIdRef.current = null;
         setCurrentPostId(null);
@@ -489,7 +435,7 @@ export const EditorPage: React.FC = () => {
         className="hidden"
       />
 
-      {hasDraftNotice && <DraftRestoreBanner onRestore={handleRestoreDraft} onDiscard={handleDiscardDraft} />}
+      {localDraft.hasNotice && <DraftRestoreBanner onRestore={handleRestoreDraft} onDiscard={localDraft.discard} />}
 
       {/* Top Split Editor Area */}
       <div className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-64px)]">
