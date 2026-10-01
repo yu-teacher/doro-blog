@@ -1,4 +1,5 @@
 import axios, { isAxiosError } from 'axios';
+import { decodeJwtPayload } from '../utils/jwt';
 
 const REFRESH_URL = '/iam/api/v1/auth/token/refresh';
 const REFRESH_LOCK_NAME = 'doro-token-refresh';
@@ -19,16 +20,7 @@ interface SharedAccount extends Record<string, unknown> {
   refreshToken?: string;
 }
 
-function decodePayload(token: string | null): Record<string, unknown> | null {
-  if (!token) return null;
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-  } catch {
-    return null;
-  }
-}
+const decodePayload = decodeJwtPayload;
 
 export function emailOfToken(token: string | null): string | null {
   const email = decodePayload(token)?.email;

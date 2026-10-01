@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import { decodeJwtPayload } from '../utils/jwt';
 import { UserProfile } from '../api/types';
 import {
   RefreshOutcome,
@@ -36,7 +37,6 @@ interface AuthState {
   loginWithIam: (email: string, password: string) => Promise<void>;
   loginWithSavedAccount: (account: SavedAccount) => Promise<void>;
   signupWithIam: (email: string, password: string, name: string) => Promise<void>;
-  loginWithMock: (username: string, email: string, userId: string) => void;
   refreshAuthToken: () => Promise<string | null>;
   /** 갱신 결과를 refreshed/rejected/unavailable 로 구분해 돌려준다. rejected 일 때만 로그아웃해야 한다. */
   refreshSession: () => Promise<RefreshOutcome>;
@@ -48,6 +48,13 @@ const STORAGE_KEY_REFRESH = 'doro_blog_refresh_token';
 const STORAGE_KEY_USER = 'doro_blog_user';
 const STORAGE_KEY_SAVED_ACCOUNTS = 'doro_saved_accounts';
 const STORAGE_KEY_PLATFORM_ACCOUNTS = 'doro_auth_accounts';
+
+/** 만료 직전 토큰을 만료로 보는 여유 시간 (시계 오차/네트워크 지연 대비). */
+const EXPIRY_SKEW_MS = 5_000;
+/** 토큰 수명이 이 값보다 길면 만료 5분 전에, 짧으면 1분 전에 미리 갱신한다. */
+const LONG_LIVED_TOKEN_MS = 10 * 60_000;
+const REFRESH_AHEAD_LONG_MS = 5 * 60_000;
+const REFRESH_AHEAD_SHORT_MS = 60_000;
 
 export function getSavedAccounts(): SavedAccount[] {
   const accountMap = new Map<string, SavedAccount>();
@@ -135,45 +142,18 @@ export function removeSavedAccount(email: string) {
   }
 }
 
-// Parse JWT payload safely and check expiration
+// 토큰 만료 여부. 읽을 수 없거나 exp 가 없는 토큰은 각각 만료 / 비만료로 취급한다.
 export function isTokenExpired(token: string | null): boolean {
   if (!token) return true;
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return true;
-    const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64Url)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    const payload = JSON.parse(jsonPayload);
-    if (!payload.exp) return false;
-    // Expired if current time >= exp (in ms) - 5 seconds margin
-    return Date.now() >= payload.exp * 1000 - 5000;
-  } catch {
-    return true;
-  }
+  const payload = decodeJwtPayload(token);
+  if (!payload) return true;
+  if (typeof payload.exp !== 'number') return false;
+  return Date.now() >= payload.exp * 1000 - EXPIRY_SKEW_MS;
 }
 
 export function getUserRole(token: string | null): string | null {
-  if (!token) return null;
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64Url)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    const payload = JSON.parse(jsonPayload);
-    return payload.role || null;
-  } catch {
-    return null;
-  }
+  const role = decodeJwtPayload(token)?.role;
+  return typeof role === 'string' && role ? role : null;
 }
 
 export function isUserAdmin(token: string | null): boolean {
@@ -197,59 +177,68 @@ function scheduleExpiration(token: string | null) {
   clearExpirationTimer();
   if (!token) return;
 
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return;
-    const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64Url));
-    if (!payload.exp) return;
+  const exp = decodeJwtPayload(token)?.exp;
+  if (typeof exp !== 'number') return;
 
-    const remainingMs = payload.exp * 1000 - Date.now();
-    const handleRefresh = async () => {
-      const outcome = await useAuthStore.getState().refreshSession();
-      if (outcome.kind === 'rejected') {
-        // 서버가 리프레시 토큰을 거부한 경우에만 세션을 종료한다.
-        const state = useAuthStore.getState();
-        state.logout();
-        state.openLoginModal();
-      } else if (outcome.kind === 'unavailable') {
-        // 네트워크/서버 일시 장애: 로그인 상태를 유지하고 잠시 후 다시 시도한다.
-        expirationTimer = setTimeout(handleRefresh, REFRESH_RETRY_DELAY_MS);
-      }
-    };
-
-    if (remainingMs <= 0) {
-      void handleRefresh();
-      return;
+  const handleRefresh = async () => {
+    const outcome = await useAuthStore.getState().refreshSession();
+    if (outcome.kind === 'rejected') {
+      // 서버가 리프레시 토큰을 거부한 경우에만 세션을 종료한다.
+      const state = useAuthStore.getState();
+      state.logout();
+      state.openLoginModal();
+    } else if (outcome.kind === 'unavailable') {
+      // 네트워크/서버 일시 장애: 로그인 상태를 유지하고 잠시 후 다시 시도한다.
+      expirationTimer = setTimeout(handleRefresh, REFRESH_RETRY_DELAY_MS);
     }
+  };
 
-    // 만료 5분 전(짧은 토큰은 60초 전)에 조용히 갱신한다.
-    const refreshTriggerMs = remainingMs > 600000
-      ? remainingMs - 300000
-      : Math.max(0, remainingMs - 60000);
+  const remainingMs = exp * 1000 - Date.now();
+  if (remainingMs <= 0) {
+    void handleRefresh();
+    return;
+  }
 
-    expirationTimer = setTimeout(handleRefresh, refreshTriggerMs > 0 ? refreshTriggerMs : remainingMs);
+  const refreshAheadMs = remainingMs > LONG_LIVED_TOKEN_MS ? REFRESH_AHEAD_LONG_MS : REFRESH_AHEAD_SHORT_MS;
+  const delayMs = remainingMs - refreshAheadMs;
+  expirationTimer = setTimeout(handleRefresh, delayMs > 0 ? delayMs : remainingMs);
+}
+
+/** 액세스/리프레시 토큰을 저장소에 기록하고 만료 타이머를 맞춘다. refreshToken 이 undefined 면 기존 값을 유지한다. */
+function persistTokens(accessToken: string, refreshToken?: string | null) {
+  localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
+  if (refreshToken !== undefined) {
+    if (refreshToken) {
+      localStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_REFRESH);
+    }
+  }
+  scheduleExpiration(accessToken);
+}
+
+/** 토큰에서 파생되는 인증 상태. 저장하는 값과 파생값이 어긋나지 않도록 한 곳에서만 만든다. */
+function sessionFields(accessToken: string) {
+  return {
+    token: accessToken,
+    isAuthenticated: true,
+    isAdmin: isUserAdmin(accessToken),
+    role: getUserRole(accessToken),
+  };
+}
+
+function readStoredUser(): UserProfile | null {
+  const raw = localStorage.getItem(STORAGE_KEY_USER);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as UserProfile;
   } catch (e) {
-    console.error('Failed to schedule token expiration timer', e);
+    console.warn('Ignoring unreadable stored user profile', e);
+    return null;
   }
 }
 
-// Simple base64 JWT generator for local dev without IAM login
-function generateDevJwt(userId: string, email: string, username: string): string {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-  const payload = btoa(
-    JSON.stringify({
-      sub: userId,
-      email: email,
-      username: username,
-      role: 'USER',
-      exp: Math.floor(Date.now() / 1000) + 86400 * 30, // 30 days
-    })
-  );
-  return `${header}.${payload}.signature`;
-}
-
-// Initial state calculation: verify token expiration right away
+// 초기 상태 계산: 저장된 토큰이 이미 만료되었는지 즉시 확인한다. (부수 효과인 타이머/갱신은 initAuth 에서 시작한다)
 const rawToken = localStorage.getItem(STORAGE_KEY_TOKEN);
 const rawRefreshToken = localStorage.getItem(STORAGE_KEY_REFRESH);
 let initialToken: string | null = null;
@@ -257,43 +246,17 @@ let initialUser: UserProfile | null = null;
 
 if (rawToken && !isTokenExpired(rawToken)) {
   initialToken = rawToken;
-  const savedUserJson = localStorage.getItem(STORAGE_KEY_USER);
-  if (savedUserJson) {
-    try {
-      initialUser = JSON.parse(savedUserJson);
-    } catch {
-      // ignore
-    }
-  }
-  scheduleExpiration(initialToken);
+  initialUser = readStoredUser();
 } else if (rawToken) {
-  // Access token is expired, but do we have a refresh token?
-  // Let the client interceptor or app try silent refresh when needed,
-  // or clean up if no refresh token exists.
   if (!rawRefreshToken) {
+    // 만료되었고 갱신 수단도 없으면 저장소를 비운다.
     localStorage.removeItem(STORAGE_KEY_TOKEN);
     localStorage.removeItem(STORAGE_KEY_REFRESH);
     localStorage.removeItem(STORAGE_KEY_USER);
   } else {
-    // Keep user state for seamless optimistic refresh
-    const savedUserJson = localStorage.getItem(STORAGE_KEY_USER);
-    if (savedUserJson) {
-      try {
-        initialUser = JSON.parse(savedUserJson);
-      } catch {
-        // ignore
-      }
-    }
+    // 리프레시 토큰이 있으면 사용자 정보를 유지해 화면이 깜빡이지 않게 한다.
+    initialUser = readStoredUser();
   }
-}
-
-if (rawRefreshToken && (!rawToken || isTokenExpired(rawToken))) {
-  // Silent bootstrap refresh on page load so the session is restored instantly
-  setTimeout(() => {
-    useAuthStore.getState().refreshAuthToken().catch((e) => {
-      console.warn('Initial background silent refresh failed', e);
-    });
-  }, 0);
 }
 
 let activeRefreshPromise: Promise<RefreshOutcome> | null = null;
@@ -311,22 +274,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setToken: (token, refreshToken) => {
     if (token && !isTokenExpired(token)) {
-      localStorage.setItem(STORAGE_KEY_TOKEN, token);
-      if (refreshToken !== undefined) {
-        if (refreshToken) {
-          localStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
-        } else {
-          localStorage.removeItem(STORAGE_KEY_REFRESH);
-        }
-      }
-      scheduleExpiration(token);
-      set({ 
-        token, 
-        refreshToken: refreshToken !== undefined ? refreshToken : get().refreshToken, 
-        isAuthenticated: true,
-        isAdmin: isUserAdmin(token),
-        role: getUserRole(token),
-      });
+      persistTokens(token, refreshToken);
+      set({ ...sessionFields(token), refreshToken: refreshToken !== undefined ? refreshToken : get().refreshToken });
     } else {
       clearExpirationTimer();
       localStorage.removeItem(STORAGE_KEY_TOKEN);
@@ -348,11 +297,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const loginRes = await axios.post('/iam/api/v1/auth/login', { email, password });
     const { accessToken, refreshToken } = loginRes.data.data.tokens;
 
-    localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
-    if (refreshToken) {
-      localStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
-    }
-    scheduleExpiration(accessToken);
+    persistTokens(accessToken, refreshToken);
 
     const profileRes = await axios.get('/api/v1/users/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -371,15 +316,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       refreshToken: refreshToken,
     });
 
-    set({ 
-      token: accessToken, 
-      refreshToken: refreshToken || null, 
-      user: userProfile, 
-      isAuthenticated: true,
-      isAdmin: isUserAdmin(accessToken),
-      role: getUserRole(accessToken),
-      loginModalOpen: false,
-    });
+    set({ ...sessionFields(accessToken), refreshToken: refreshToken || null, user: userProfile, loginModalOpen: false });
   },
 
   loginWithSavedAccount: async (account: SavedAccount) => {
@@ -412,11 +349,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
 
-    localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
-    if (refreshToken) {
-      localStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
-    }
-    scheduleExpiration(accessToken);
+    persistTokens(accessToken, refreshToken);
 
     const profileRes = await axios.get('/api/v1/users/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -435,15 +368,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       refreshToken: refreshToken,
     });
 
-    set({
-      token: accessToken,
-      refreshToken: refreshToken || null,
-      user: userProfile,
-      isAuthenticated: true,
-      isAdmin: isUserAdmin(accessToken),
-      role: getUserRole(accessToken),
-      loginModalOpen: false,
-    });
+    set({ ...sessionFields(accessToken), refreshToken: refreshToken || null, user: userProfile, loginModalOpen: false });
   },
 
   refreshAuthToken: async () => {
@@ -466,16 +391,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const email = emailOfToken(currentAccess);
 
       const adopt = (accessToken: string, refreshToken: string): RefreshOutcome => {
-        localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
-        localStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
-        scheduleExpiration(accessToken);
-        set({
-          token: accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isAdmin: isUserAdmin(accessToken),
-          role: getUserRole(accessToken),
-        });
+        persistTokens(accessToken, refreshToken);
+        set({ ...sessionFields(accessToken), refreshToken });
         return { kind: 'refreshed', accessToken, refreshToken };
       };
 
@@ -507,24 +424,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await axios.post('/iam/api/v1/auth/signup', { email, password, name });
   },
 
-  loginWithMock: (username, email, userId) => {
-    const devToken = generateDevJwt(userId, email, username);
-    const mockProfile: UserProfile = {
-      id: userId,
-      username: username,
-      email: email,
-      nickname: username,
-      blogTitle: `${username}.log`,
-      followerCount: 0,
-      followingCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(STORAGE_KEY_TOKEN, devToken);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(mockProfile));
-    scheduleExpiration(devToken);
-    set({ token: devToken, refreshToken: null, user: mockProfile, isAuthenticated: true, isAdmin: false, role: 'USER' });
-  },
-
   logout: () => {
     clearExpirationTimer();
     localStorage.removeItem(STORAGE_KEY_TOKEN);
@@ -533,3 +432,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: null, refreshToken: null, user: null, isAuthenticated: false, isAdmin: false, role: null });
   },
 }));
+
+/**
+ * 앱 시작 시 한 번 호출한다 (main.tsx). 모듈 로드 시점의 부수 효과 대신 명시적으로 세션을 시작한다.
+ * - 유효한 액세스 토큰이 있으면 만료 전 자동 갱신 타이머를 건다.
+ * - 액세스 토큰이 없거나 만료되었고 리프레시 토큰이 있으면 즉시 조용히 갱신한다.
+ */
+export function initAuth(): void {
+  const { token, refreshToken } = useAuthStore.getState();
+  if (token && !isTokenExpired(token)) {
+    scheduleExpiration(token);
+    return;
+  }
+  if (refreshToken) {
+    useAuthStore.getState().refreshAuthToken().catch((e: unknown) => {
+      console.warn('Initial background silent refresh failed', e);
+    });
+  }
+}

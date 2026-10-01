@@ -37,7 +37,7 @@ const DORO_PORTAL_URL = '/portal';
 const DORO_SIGNUP_URL = '/portal/signup';
 
 export const Header: React.FC = () => {
-  const { user, isAuthenticated, isAdmin, loginModalOpen, openLoginModal, closeLoginModal, loginWithIam, loginWithSavedAccount, signupWithIam, loginWithMock, logout } = useAuthStore();
+  const { user, isAuthenticated, isAdmin, loginModalOpen, openLoginModal, closeLoginModal, loginWithIam, loginWithSavedAccount, signupWithIam, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const [appLauncherOpen, setAppLauncherOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);

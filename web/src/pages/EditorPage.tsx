@@ -32,6 +32,27 @@ import {
   Redo2,
 } from 'lucide-react';
 import { getErrorMessage } from '../utils/errors';
+import { generateSlug } from '../utils/slug';
+import { useDraftAutosave, type DraftSnapshot } from '../hooks/useDraftAutosave';
+
+const LOCAL_AUTOSAVE_DELAY_MS = 2_000;
+const SERVER_AUTOSAVE_DELAY_MS = 5_000;
+const DRAFT_SUMMARY_LENGTH = 120;
+
+/** 임시 저장(DRAFT) 요청 본문. 자동 저장과 수동 임시저장이 같은 규칙을 쓰도록 한 곳에서 만든다. */
+function buildDraftPayload(snap: DraftSnapshot) {
+  const draftTitle = snap.title.trim() || '제목 없는 임시 글';
+  return {
+    title: draftTitle,
+    content: snap.content || '',
+    slug: snap.slug || generateSlug(draftTitle) || `draft-${Date.now()}`,
+    summary: snap.summary || (snap.content ? stripMarkdown(snap.content).slice(0, DRAFT_SUMMARY_LENGTH) : draftTitle),
+    thumbnailUrl: snap.thumbnailUrl || undefined,
+    status: 'DRAFT' as PostStatus,
+    tags: snap.tags,
+    seriesId: snap.seriesId || undefined,
+  };
+}
 
 export const EditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Post ID if editing
@@ -66,14 +87,13 @@ export const EditorPage: React.FC = () => {
   const [showNewSeriesInput, setShowNewSeriesInput] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [autoSavedTime, setAutoSavedTime] = useState<string | null>(null);
   const [hasDraftNotice, setHasDraftNotice] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(id || null);
   const currentPostIdRef = useRef<string | null>(id || null);
-  const isSavingDbRef = useRef<boolean>(false);
   const [serverDrafts, setServerDrafts] = useState<PostSummary[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [autoSavingDb, setAutoSavingDb] = useState(false);
+  // 서버에서 글 본문을 불러오는 동안은 자동 저장을 멈춘다 (불완전한 내용으로 서버 글을 덮어쓰지 않도록)
+  const [loadingPostContent, setLoadingPostContent] = useState(false);
 
   const draftKey = `doro_editor_draft_${user?.username || 'guest'}`;
 
@@ -115,75 +135,64 @@ export const EditorPage: React.FC = () => {
     }
   }, [id, draftKey]);
 
-  // Debounced auto-save: LocalStorage (2s) + DB Server Draft (5s)
+  // 로컬 백업: 입력이 2초 멈추면 localStorage 에 저장한다
   useEffect(() => {
     if (!title.trim() && !content.trim()) return;
 
-    // 1. LocalStorage fast backup (2s)
     const localTimer = setTimeout(() => {
       try {
-        const draftData = {
-          title,
-          content,
-          tags,
-          summary,
-          thumbnailUrl,
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draftData));
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({ title, content, tags, summary, thumbnailUrl, savedAt: new Date().toISOString() })
+        );
       } catch (err) {
         console.error('Local auto-save error', err);
       }
-    }, 2000);
+    }, LOCAL_AUTOSAVE_DELAY_MS);
 
-    // 2. DB Server Auto-save (5s debounced)
-    const dbTimer = setTimeout(async () => {
-      if (!title.trim() && !content.trim()) return;
-      if (isSavingDbRef.current) return;
+    return () => clearTimeout(localTimer);
+  }, [title, content, tags, summary, thumbnailUrl, draftKey]);
 
-      try {
-        isSavingDbRef.current = true;
-        setAutoSavingDb(true);
-        const activeId = currentPostIdRef.current || id;
-        const draftTitle = title.trim() || '제목 없는 임시 글';
-        const payload = {
-          title: draftTitle,
-          content: content || '',
-          slug: slug || generateSlug(draftTitle) || 'draft-' + Date.now(),
-          summary: summary || (content ? stripMarkdown(content).slice(0, 120) : draftTitle),
-          thumbnailUrl: thumbnailUrl || undefined,
-          status: 'DRAFT' as PostStatus,
-          tags: tags,
-          seriesId: selectedSeriesId || undefined,
-        };
+  // 서버 임시글 자동 저장: 입력이 5초 멈추면 저장하고, 저장 중에 바뀐 내용은 끝난 직후 이어서 저장한다
+  const draftSnapshot: DraftSnapshot = { title, content, tags, summary, thumbnailUrl, slug, seriesId: selectedSeriesId };
 
-        if (activeId) {
-          await blogApi.updatePost(activeId, payload);
-        } else {
-          const created = await blogApi.createPost(payload);
-          currentPostIdRef.current = created.id;
-          setCurrentPostId(created.id);
-        }
+  const saveDraftToServer = useCallback(async (snap: DraftSnapshot, postId: string | null) => {
+    const payload = buildDraftPayload(snap);
+    if (postId) {
+      await blogApi.updatePost(postId, payload);
+      return { id: postId };
+    }
+    const created = await blogApi.createPost(payload);
+    return { id: created.id };
+  }, []);
 
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        setAutoSavedTime(`DB 동기화 완료 (${timeStr})`);
-        loadServerDrafts();
-      } catch (dbErr) {
-        console.error('Server auto-save error', dbErr);
-        const now = new Date();
-        setAutoSavedTime(`로컬 저장됨 (${now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`);
-      } finally {
-        setAutoSavingDb(false);
-        isSavingDbRef.current = false;
-      }
-    }, 5000);
+  const handleDraftCreated = useCallback((newId: string) => {
+    currentPostIdRef.current = newId;
+    setCurrentPostId(newId);
+  }, []);
 
-    return () => {
-      clearTimeout(localTimer);
-      clearTimeout(dbTimer);
-    };
-  }, [title, content, tags, summary, thumbnailUrl, slug, selectedSeriesId, draftKey, id]);
+  const autosave = useDraftAutosave({
+    snapshot: draftSnapshot,
+    postId: currentPostId,
+    save: saveDraftToServer,
+    onCreated: handleDraftCreated,
+    paused: loadingPostContent,
+    delayMs: SERVER_AUTOSAVE_DELAY_MS,
+  });
+
+  const autoSavedLabel = (() => {
+    const at = autosave.error ? new Date() : autosave.lastSavedAt;
+    if (!at) return null;
+    const clock = at.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return autosave.error ? `로컬 저장됨 (${clock})` : `DB 동기화 완료 (${clock})`;
+  })();
+
+  // 서버 저장이 성공하면 목록을 갱신한다
+  useEffect(() => {
+    if (autosave.lastSavedAt) {
+      loadServerDrafts();
+    }
+  }, [autosave.lastSavedAt]);
 
   const handleRestoreDraft = () => {
     try {
@@ -208,22 +217,26 @@ export const EditorPage: React.FC = () => {
     setHasDraftNotice(false);
   };
 
-  const handleSelectServerDraft = (draft: PostSummary) => {
-    currentPostIdRef.current = draft.id;
-    setCurrentPostId(draft.id);
-    setTitle(draft.title || '');
-    setContent(draft.summary || ''); // will load full content via getPostById
-    setTags(draft.tags || []);
-    setSummary(draft.summary || '');
-    setThumbnailUrl(draft.thumbnailUrl || '');
-    setSlug(draft.slug || '');
-    if (draft.seriesId) setSelectedSeriesId(draft.seriesId);
+  const handleSelectServerDraft = async (draft: PostSummary) => {
     setShowDraftsModal(false);
-
-    // Fetch complete content from backend
-    blogApi.getPostById(draft.id).then((full) => {
+    setLoadingPostContent(true);
+    try {
+      // 목록에는 요약만 있으므로 전체 본문을 먼저 받은 뒤에 한 번에 반영한다
+      const full = await blogApi.getPostById(draft.id);
+      currentPostIdRef.current = draft.id;
+      setCurrentPostId(draft.id);
+      setTitle(draft.title || '');
       setContent(full.content);
-    }).catch((err) => console.error('Failed to fetch full draft content', err));
+      setTags(draft.tags || []);
+      setSummary(draft.summary || '');
+      setThumbnailUrl(draft.thumbnailUrl || '');
+      setSlug(draft.slug || '');
+      setSelectedSeriesId(draft.seriesId || '');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '임시 저장 글을 불러오지 못했습니다.'));
+    } finally {
+      setLoadingPostContent(false);
+    }
   };
 
   const handleDeleteServerDraft = async (draftId: string, e: React.MouseEvent) => {
@@ -235,7 +248,6 @@ export const EditorPage: React.FC = () => {
       if (currentPostIdRef.current === draftId) {
         currentPostIdRef.current = null;
         setCurrentPostId(null);
-        setAutoSavedTime(null);
       }
     } catch (err: unknown) {
       alert(getErrorMessage(err, '임시 저장 글 삭제에 실패했습니다.'));
@@ -246,50 +258,60 @@ export const EditorPage: React.FC = () => {
     if (!isAuthenticated) {
       alert('로그인이 필요한 서비스입니다.');
       navigate('/');
-      return;
     }
+  }, [isAuthenticated, navigate]);
 
-    // Load series for current user
-    if (user?.username) {
-      blogApi.getUserSeries(user.username).then((res) => {
-        setSeriesList(res || []);
+  // 내 시리즈 목록 (프로필 객체가 갱신될 때마다가 아니라 사용자명이 바뀔 때만 다시 불러온다)
+  const username = user?.username;
+  useEffect(() => {
+    if (!isAuthenticated || !username) return;
+    let cancelled = false;
+    blogApi
+      .getUserSeries(username)
+      .then((res) => {
+        if (!cancelled) setSeriesList(res || []);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('Failed to load series', err);
       });
-    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, username]);
 
-    // If editing existing post
-    if (id) {
-      loadPostForEdit(id);
-    }
-  }, [id, isAuthenticated, user]);
-
-  const loadPostForEdit = async (postId: string) => {
-    try {
-      currentPostIdRef.current = postId;
-      setCurrentPostId(postId);
-      const data = await blogApi.getPostById(postId);
-      setTitle(data.post.title);
-      setContent(data.content);
-      setTags(data.post.tags || []);
-      setSummary(data.post.summary || '');
-      setThumbnailUrl(data.post.thumbnailUrl || '');
-      setSlug(data.post.slug);
-      setStatus(data.post.status);
-      if (data.post.seriesId) setSelectedSeriesId(data.post.seriesId);
-    } catch (err) {
-      console.error('Failed to load post for editing', err);
-      alert('게시글을 불러올 수 없습니다.');
-      navigate('/');
-    }
-  };
-
-  // Generate slug from title automatically if not set
-  const generateSlug = (t: string) => {
-    return t
-      .trim()
-      .toLowerCase()
-      .replace(/[^\w\s가-힣-]/g, '')
-      .replace(/\s+/g, '-');
-  };
+  // 기존 글 수정: 글 id 가 바뀔 때만 불러온다 (프로필 갱신으로 편집 중인 내용이 덮어써지지 않게)
+  useEffect(() => {
+    if (!id || !isAuthenticated) return;
+    let cancelled = false;
+    setLoadingPostContent(true);
+    currentPostIdRef.current = id;
+    setCurrentPostId(id);
+    blogApi
+      .getPostById(id)
+      .then((data) => {
+        if (cancelled) return;
+        setTitle(data.post.title);
+        setContent(data.content);
+        setTags(data.post.tags || []);
+        setSummary(data.post.summary || '');
+        setThumbnailUrl(data.post.thumbnailUrl || '');
+        setSlug(data.post.slug);
+        setStatus(data.post.status);
+        if (data.post.seriesId) setSelectedSeriesId(data.post.seriesId);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error('Failed to load post for editing', err);
+        alert(getErrorMessage(err, '게시글을 불러올 수 없습니다.'));
+        navigate('/');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPostContent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthenticated, navigate]);
 
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Prevent duplicate firing during Korean IME composition
@@ -675,19 +697,11 @@ export const EditorPage: React.FC = () => {
       return;
     }
     setSaving(true);
+    // 자동 저장이 진행 중이면 끝나기를 기다려, 같은 글이 두 번 만들어지거나 서로 덮어쓰는 일을 막는다
+    await autosave.suspend();
     try {
       const activeId = currentPostIdRef.current || id;
-      const draftTitle = title.trim() || '제목 없는 임시 글';
-      const payload = {
-        title: draftTitle,
-        content: content || '',
-        slug: slug || generateSlug(draftTitle) || 'draft-' + Date.now(),
-        summary: summary || (content ? stripMarkdown(content).slice(0, 120) : draftTitle),
-        thumbnailUrl: thumbnailUrl || undefined,
-        status: 'DRAFT' as PostStatus,
-        tags: tags,
-        seriesId: selectedSeriesId || undefined,
-      };
+      const payload = buildDraftPayload(draftSnapshot);
 
       if (activeId) {
         await blogApi.updatePost(activeId, payload);
@@ -699,6 +713,7 @@ export const EditorPage: React.FC = () => {
       alert('임시 저장되었습니다.');
       navigate('/me/posts?tab=draft');
     } catch (err: unknown) {
+      autosave.resume();
       alert(getErrorMessage(err, '임시 저장에 실패했습니다.'));
     } finally {
       setSaving(false);
@@ -708,6 +723,8 @@ export const EditorPage: React.FC = () => {
   const handleFinalPublish = async () => {
     if (!title.trim()) return;
     setSaving(true);
+    // 뒤늦게 도착한 자동 저장(DRAFT)이 출간 상태를 되돌리지 않도록 먼저 멈추고 진행 중인 저장을 기다린다
+    await autosave.suspend();
 
     try {
       const activeId = currentPostIdRef.current || id;
@@ -741,6 +758,7 @@ export const EditorPage: React.FC = () => {
       setShowPublishModal(false);
       navigate(`/@${user?.username}/${finalSlug}`);
     } catch (err: unknown) {
+      autosave.resume();
       alert(getErrorMessage(err, '글 출간에 실패했습니다.'));
     } finally {
       setSaving(false);
@@ -1032,17 +1050,17 @@ export const EditorPage: React.FC = () => {
             </button>
           )}
 
-          {autoSavingDb && (
+          {autosave.saving && (
             <span className="hidden sm:inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 mr-2 animate-pulse">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>DB 동기화 중...</span>
             </span>
           )}
 
-          {!autoSavingDb && autoSavedTime && (
+          {!autosave.saving && autoSavedLabel && (
             <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 mr-2">
               <Check className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{autoSavedTime}</span>
+              <span>{autoSavedLabel}</span>
             </span>
           )}
 
