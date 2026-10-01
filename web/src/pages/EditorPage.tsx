@@ -393,7 +393,7 @@ export const EditorPage: React.FC = () => {
       <input
         type="file"
         ref={editorFileInputRef}
-        accept="image/*"
+        accept="image/png,image/jpeg,image/gif,image/webp"
         onChange={handleEditorFileInputChange}
         className="hidden"
       />
@@ -402,7 +402,7 @@ export const EditorPage: React.FC = () => {
       <input
         type="file"
         ref={thumbnailFileInputRef}
-        accept="image/*"
+        accept="image/png,image/jpeg,image/gif,image/webp"
         onChange={handleThumbnailFileInputChange}
         className="hidden"
       />

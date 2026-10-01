@@ -14,12 +14,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -42,19 +40,6 @@ public class MinioStorageService implements StorageService {
     private String publicUrl;
 
     private MinioClient minioClient;
-
-    private static final Set<String> ALLOWED_CONTENT_TYPES = new HashSet<>(Arrays.asList(
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "image/svg+xml",
-            "image/jpg"
-    ));
-
-    private static final Set<String> ALLOWED_EXTENSIONS = new HashSet<>(Arrays.asList(
-            "jpg", "jpeg", "png", "gif", "webp", "svg"
-    ));
 
     @PostConstruct
     public void init() {
@@ -109,23 +94,20 @@ public class MinioStorageService implements StorageService {
             throw new BlogException(ErrorCode.INVALID_FILE_TYPE);
         }
 
-        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.png";
-        String extension = extractExtension(originalFilename);
-        String contentType = file.getContentType();
+        String displayName = UploadPaths.displayName(file.getOriginalFilename());
 
-        // Validate type & extension
-        if (!ALLOWED_EXTENSIONS.contains(extension.toLowerCase()) ||
-                (contentType != null && !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase()))) {
+        // 확장자와 Content-Type 은 클라이언트가 정하는 값이라 믿지 않고, 파일 내용으로 형식을 판별한다
+        ImageValidator.DetectedImage image;
+        try (InputStream header = file.getInputStream()) {
+            image = ImageValidator.validate(header, file.getOriginalFilename());
+        } catch (IOException e) {
             throw new BlogException(ErrorCode.INVALID_FILE_TYPE);
         }
+        String contentType = image.contentType();
 
-        if (contentType == null || contentType.isBlank()) {
-            contentType = "image/" + extension;
-        }
-
-        String dir = (subDirectory != null && !subDirectory.isBlank()) ? subDirectory.trim() : "posts";
+        String dir = UploadPaths.directory(subDirectory);
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        String uniqueFilename = UUID.randomUUID().toString() + "." + extension;
+        String uniqueFilename = UUID.randomUUID() + "." + image.extension();
         String objectKey = "%s/%s/%s".formatted(dir, datePath, uniqueFilename);
 
         try (InputStream inputStream = file.getInputStream()) {
@@ -141,18 +123,10 @@ public class MinioStorageService implements StorageService {
             String fileUrl = publicUrl.replaceAll("/+$", "") + "/" + objectKey;
             log.info("Uploaded image to MinIO: key={}, size={} bytes, url={}", objectKey, file.getSize(), fileUrl);
 
-            return new UploadResponse(fileUrl, originalFilename, contentType, file.getSize());
+            return new UploadResponse(fileUrl, displayName, contentType, file.getSize());
         } catch (Exception e) {
             log.error("Failed to upload image to MinIO: {}", e.getMessage(), e);
             throw new BlogException(ErrorCode.FILE_UPLOAD_FAILED);
         }
-    }
-
-    private String extractExtension(String filename) {
-        int dotIndex = filename.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex < filename.length() - 1) {
-            return filename.substring(dotIndex + 1).toLowerCase();
-        }
-        return "png";
     }
 }
