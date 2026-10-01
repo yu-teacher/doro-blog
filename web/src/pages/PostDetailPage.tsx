@@ -4,30 +4,19 @@ import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
 import { trackEvent } from '../utils/analytics';
 import type { PostDetail, Comment, SeriesDetail, PostSummary } from '../api/types';
+import { FloatingPostActions } from '../components/post/FloatingPostActions';
+import { MobilePostActions } from '../components/post/MobilePostActions';
+import { PostHeader } from '../components/post/PostHeader';
+import { SeriesInfoBox } from '../components/post/SeriesInfoBox';
+import { AuthorCard } from '../components/post/AuthorCard';
+import { RelatedPosts } from '../components/post/RelatedPosts';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { CommentSection } from '../components/CommentSection';
-import { PostCard } from '../components/PostCard';
-import { safeHttpUrl } from '../utils/safeUrl';
 import {
-  Heart,
-  Share2,
-  Calendar,
-  Eye,
-  Edit3,
-  Trash2,
-  BookOpen,
   ArrowLeft,
-  UserCheck,
-  UserPlus,
-  UserMinus,
-  Globe,
-  Mail,
-  Loader2,
-  Sparkles,
 } from 'lucide-react';
 import { getErrorMessage, isCancelled } from '../utils/errors';
 import { ErrorState } from '../components/ErrorState';
-import { formatDate } from '../utils/date';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 
 const RELATED_POSTS_LIMIT = 4;
@@ -239,126 +228,11 @@ export const PostDetailPage: React.FC = () => {
 
   return (
     <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Floating Side Action Bar (Desktop sticky) */}
-      <div className="hidden xl:block absolute right-full top-36 mr-6 2xl:mr-10 h-full">
-        <div className="sticky top-36 flex flex-col items-center gap-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-full shadow-md z-10">
-          <button
-            onClick={handleToggleLike}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all ${
-              isLiked
-                ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shadow-inner'
-                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-            }`}
-            title={isLiked ? '좋아요 취소' : '좋아요'}
-          >
-            <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
-            <span className="text-[11px] font-bold mt-0.5">{likeCount}</span>
-          </button>
+      <FloatingPostActions isLiked={isLiked} likeCount={likeCount} copied={copied} onToggleLike={handleToggleLike} onShare={handleShare} />
 
-          <div className="w-6 h-px bg-slate-200 dark:bg-slate-800" />
+      <PostHeader post={post} isAuthor={Boolean(isAuthor)} onDelete={handleDeletePost} />
 
-          <button
-            onClick={handleShare}
-            className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative"
-            title="링크 복사"
-          >
-            <Share2 className="w-5 h-5" />
-            {copied && (
-              <span className="absolute left-14 bg-slate-900 text-white text-xs px-2.5 py-1 rounded whitespace-nowrap shadow-lg">
-                복사 완료!
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Article Header */}
-      <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 leading-tight tracking-tight mb-4">
-          {post.title}
-        </h1>
-
-        <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500 dark:text-slate-400 pb-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <Link to={`/@${post.username}`} className="font-bold text-slate-800 dark:text-slate-200 hover:underline">
-              {post.nickname}
-            </Link>
-            <span>·</span>
-            <span className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              {formatDate(post.publishedAt, 'dateLong', '임시저장')}
-            </span>
-            <span>·</span>
-            <span className="flex items-center gap-1">
-              <Eye className="w-4 h-4" /> 조회 {post.viewCount}
-            </span>
-          </div>
-
-          {/* Edit/Delete Actions for Author */}
-          {isAuthor && (
-            <div className="flex items-center gap-2">
-              <Link
-                to={`/edit/${post.id}`}
-                className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium"
-              >
-                <Edit3 className="w-3.5 h-3.5" /> 수정
-              </Link>
-              <button
-                onClick={handleDeletePost}
-                className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1 rounded transition-colors text-xs font-medium"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> 삭제
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Tags */}
-        {post.tags && post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            {post.tags.map((tag) => (
-              <Link
-                key={tag}
-                to={`/?tag=${encodeURIComponent(tag)}`}
-                className="text-xs font-semibold px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-full transition-colors"
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
-        )}
-      </header>
-
-      {/* Series Info Box (Velog style) */}
-      {seriesDetail && (
-        <div className="mb-8 p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
-          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold mb-3 text-base">
-            <BookOpen className="w-5 h-5" />
-            <Link to={`/@${post.username}/series/${seriesDetail.series.slug}`} className="hover:underline">
-              {seriesDetail.series.title}
-            </Link>
-          </div>
-          <ol className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
-            {seriesDetail.posts.map((p, idx) => {
-              const isCurrent = p.id === post.id;
-              return (
-                <li key={p.id} className="flex items-center gap-2">
-                  <span className={`text-xs font-semibold ${isCurrent ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-slate-500'}`}>
-                    {idx + 1}.
-                  </span>
-                  {isCurrent ? (
-                    <span className="text-emerald-700 dark:text-emerald-300 font-bold">{p.title} (현재 글)</span>
-                  ) : (
-                    <Link to={`/@${post.username}/${p.slug}`} className="hover:text-slate-900 dark:hover:text-slate-200 hover:underline truncate">
-                      {p.title}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
+      <SeriesInfoBox post={post} seriesDetail={seriesDetail} />
 
       {/* Thumbnail (Only show if not already present in article body) */}
       {post.thumbnailUrl && !isThumbnailInContent && (
@@ -372,123 +246,18 @@ export const PostDetailPage: React.FC = () => {
         <MarkdownViewer content={content} />
       </article>
 
-      {/* Mobile / Tablet Bottom Like & Share */}
-      <div className="flex xl:hidden items-center justify-center gap-4 py-6 border-y border-slate-200 dark:border-slate-800 my-8">
-        <button
-          onClick={handleToggleLike}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
-            isLiked
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-          }`}
-        >
-          <Heart className={`w-4 h-4 ${isLiked ? 'fill-white' : ''}`} />
-          <span>좋아요 {likeCount}</span>
-        </button>
+      <MobilePostActions isLiked={isLiked} likeCount={likeCount} copied={copied} onToggleLike={handleToggleLike} onShare={handleShare} />
 
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-sm transition-all"
-        >
-          <Share2 className="w-4 h-4" />
-          <span>{copied ? '복사됨!' : '공유하기'}</span>
-        </button>
-      </div>
+      <AuthorCard
+        post={post}
+        author={detail.author}
+        isAuthor={Boolean(isAuthor)}
+        authorFollowing={authorFollowing}
+        followLoading={followLoading}
+        onToggleFollow={handleToggleAuthorFollow}
+      />
 
-      {/* Author Bio Card */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs mt-12">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <Link to={`/@${post.username}`} className="flex-shrink-0">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center text-xl overflow-hidden border border-emerald-200 dark:border-emerald-800">
-              {post.profileImageUrl ? (
-                <img src={post.profileImageUrl} alt={post.nickname} className="w-full h-full object-cover" />
-              ) : (
-                post.nickname[0]
-              )}
-            </div>
-          </Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Link to={`/@${post.username}`} className="font-bold text-slate-900 dark:text-slate-100 text-lg hover:underline truncate">
-                {post.nickname}
-              </Link>
-              <span className="text-xs text-slate-400 dark:text-slate-500">@{post.username}</span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
-              {detail.author?.bio || '지식을 기록하고 나누는 것을 즐기는 DORO 블로거입니다.'}
-            </p>
-
-            {/* Author Social Links */}
-            <div className="flex items-center gap-3 mt-2 text-slate-400 dark:text-slate-500">
-              {safeHttpUrl(detail.author?.githubUrl) && (
-                <a href={safeHttpUrl(detail.author?.githubUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors" title="GitHub">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                  </svg>
-                </a>
-              )}
-              {safeHttpUrl(detail.author?.websiteUrl) && (
-                <a href={safeHttpUrl(detail.author?.websiteUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" title="웹사이트">
-                  <Globe className="w-3.5 h-3.5" />
-                </a>
-              )}
-              {detail.author?.publicEmail && (
-                <a href={`mailto:${detail.author.publicEmail}`} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" title={`이메일 (${detail.author.publicEmail})`}>
-                  <Mail className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Follow Author Button (if not author) */}
-        {!isAuthor && (
-          <button
-            disabled={followLoading}
-            onClick={handleToggleAuthorFollow}
-            className={`group inline-flex items-center justify-center min-w-[84px] gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shadow-xs flex-shrink-0 self-start sm:self-center cursor-pointer ${
-              authorFollowing
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            {followLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : authorFollowing ? (
-              <>
-                <UserCheck className="w-3.5 h-3.5 group-hover:hidden" />
-                <UserMinus className="w-3.5 h-3.5 hidden group-hover:inline text-rose-600 dark:text-rose-400" />
-                <span className="group-hover:hidden">팔로잉</span>
-                <span className="hidden group-hover:inline text-rose-600 dark:text-rose-400">언팔로우</span>
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>팔로우</span>
-              </>
-            )}
-          </button>
-        )}
-      </div>
-
-
-      {/* Related Posts Recommendation Grid */}
-      {relatedPosts.length > 0 && (
-        <section className="mt-14 mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              함께 읽으면 좋은 연관 글
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {relatedPosts.map((rel) => (
-              <PostCard key={rel.id} post={rel} />
-            ))}
-          </div>
-        </section>
-      )}
+      <RelatedPosts relatedPosts={relatedPosts} />
 
       {/* Comments */}
       <CommentSection
