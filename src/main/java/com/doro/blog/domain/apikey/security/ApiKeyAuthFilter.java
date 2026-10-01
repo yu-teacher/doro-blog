@@ -1,9 +1,12 @@
 package com.doro.blog.domain.apikey.security;
 
+import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.domain.apikey.entity.ApiKey;
 import com.doro.blog.domain.apikey.service.ApiKeyService;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import com.hunnit_beasts.doro.sdk.domain.DoroUserContext;
 import jakarta.servlet.FilterChain;
@@ -20,7 +23,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +33,10 @@ import java.util.UUID;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final ApiKeyService apiKeyService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // 필터는 Spring MVC 의 메시지 컨버터를 거치지 않으므로, Instant(timestamp)를 직렬화할 수 있는 매퍼를 직접 구성한다
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     public static final String API_KEY_HEADER = "X-API-Key";
 
@@ -68,19 +73,24 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
 
-            Map<String, Object> errBody = Map.of(
-                    "success", false,
-                    "error", Map.of(
-                            "code", "AUTH-401-02",
-                            "message", "유효하지 않거나 만료된 API 키입니다."
-                    )
-            );
+            ApiResponse<Void> errBody = ApiResponse.error(HttpStatus.UNAUTHORIZED, "AUTH-401-02", "유효하지 않거나 만료된 API 키입니다.");
             response.getWriter().write(objectMapper.writeValueAsString(errBody));
             return;
         }
 
         ApiKey apiKey = optKey.get();
         BlogUser owner = apiKey.getUser();
+
+        // API 키는 글 자동 발행용 범위로 제한한다 (키 발급/폐기, 계정 변경 등 관리 API 는 JWT 로만)
+        if (!ApiKeyScope.allows(uri)) {
+            log.warn("API Key used outside its scope: keyId={}, ip={}, method={}, uri={}", apiKey.getId(), clientIp, method, uri);
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(objectMapper.writeValueAsString(
+                    ApiResponse.error(HttpStatus.FORBIDDEN, "AUTH-403-02", "API 키로는 사용할 수 없는 기능입니다. 로그인 후 이용해 주세요.")));
+            return;
+        }
 
         // Inject DoroUser into DoroUserContext so @CurrentDoroUser and @DoroGuard resolve seamlessly!
         DoroUser doroUser = new DoroUser(

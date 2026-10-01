@@ -99,6 +99,9 @@ export const CodeDocumentation: React.FC<CodeDocumentationProps> = ({ apiEndpoin
             인증: X-API-Key 또는 Authorization: Bearer
           </span>
         </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          API 키는 글·시리즈·태그·이미지 업로드 API 에만 사용할 수 있습니다. 키 발급/폐기와 계정 설정은 로그인 후 이용해 주세요.
+        </p>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
