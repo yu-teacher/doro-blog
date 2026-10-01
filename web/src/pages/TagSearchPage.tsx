@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
-import type { PostSummary, TagItem } from '../api/types';
+import type { PostSummary } from '../api/types';
 import { PostCard } from '../components/PostCard';
 import { Tag as TagIcon, Hash, X, Plus, Clock, TrendingUp, Loader2 } from 'lucide-react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -9,6 +9,8 @@ import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { trackEvent } from '../utils/analytics';
 import { countTags } from '../utils/tags';
+import { addSelectedTag, buildTagSearchParams, parseSelectedTags, removeSelectedTag } from '../utils/tagQuery';
+import { useAsyncResource } from '../hooks/useAsyncResource';
 
 const TAG_PAGE_SIZE = 15;
 const CO_OCCURRING_TAGS_LIMIT = 15;
@@ -16,25 +18,9 @@ const CO_OCCURRING_TAGS_LIMIT = 15;
 export const TagSearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Read tags from URL: e.g. /tags?tag=Spring&tag=Docker or /tags?tags=Spring,Docker
-  const rawTagParam = searchParams.getAll('tag');
-  const rawTagsParam = searchParams.get('tags');
-  
-  // Create a stable serialized key for tags to avoid unnecessary re-renders
-  const tagsKey = React.useMemo(() => {
-    const list: string[] = [];
-    if (rawTagParam && rawTagParam.length > 0) {
-      list.push(...rawTagParam);
-    }
-    if (rawTagsParam) {
-      list.push(...rawTagsParam.split(','));
-    }
-    return Array.from(new Set(list.map((t) => t.trim().toLowerCase()).filter(Boolean))).sort().join(',');
-  }, [rawTagParam, rawTagsParam]);
-
-  const selectedTags = React.useMemo(() => {
-    return tagsKey ? tagsKey.split(',') : [];
-  }, [tagsKey]);
+  // 주소에서 선택된 태그를 읽는다. 같은 태그 조합이면 같은 키라서 불필요한 재요청이 없다
+  const tagsKey = parseSelectedTags(searchParams).join(',');
+  const selectedTags = React.useMemo(() => (tagsKey ? tagsKey.split(',') : []), [tagsKey]);
 
   const sort = searchParams.get('sort') || 'latest';
 
@@ -55,20 +41,7 @@ export const TagSearchPage: React.FC = () => {
       onFirstPage: (res) => trackEvent('tag_search', { tags: tagsKey, sort, result_count: res.totalElements }),
     }
   );
-  const [popularTags, setPopularTags] = useState<TagItem[]>([]);
-
-  useEffect(() => {
-    fetchPopularTags();
-  }, []);
-
-  const fetchPopularTags = async () => {
-    try {
-      const res = await blogApi.getPopularTags();
-      setPopularTags(res || []);
-    } catch (err) {
-      console.error('Failed to fetch popular tags', err);
-    }
-  };
+  const popularTags = useAsyncResource((signal) => blogApi.getPopularTags(signal), []).data ?? [];
 
   // 함께 쓰인 태그: 현재 글에 쓰였지만 아직 선택하지 않은 태그
   const coOccurringTags = React.useMemo(
@@ -81,33 +54,10 @@ export const TagSearchPage: React.FC = () => {
     enabled: hasMore && !loading && !loadingMore && !error,
   });
 
-  // Tag manipulation
-  const handleAddTag = (tagToAdd: string) => {
-    const clean = tagToAdd.trim();
-    if (!clean || selectedTags.includes(clean)) return;
-    const newTags = [...selectedTags, clean];
-    updateUrl(newTags, sort);
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    const newTags = selectedTags.filter((t) => t.toLowerCase() !== tagToRemove.toLowerCase());
-    updateUrl(newTags, sort);
-  };
-
-  const handleSortChange = (newSort: string) => {
-    updateUrl(selectedTags, newSort);
-  };
-
-  const updateUrl = (tags: string[], s: string) => {
-    const params = new URLSearchParams();
-    if (tags.length > 0) {
-      params.set('tags', tags.join(','));
-    }
-    if (s !== 'latest') {
-      params.set('sort', s);
-    }
-    setSearchParams(params);
-  };
+  const updateUrl = (tags: string[], newSort: string) => setSearchParams(buildTagSearchParams(tags, newSort));
+  const handleAddTag = (tag: string) => updateUrl(addSelectedTag(selectedTags, tag), sort);
+  const handleRemoveTag = (tag: string) => updateUrl(removeSelectedTag(selectedTags, tag), sort);
+  const handleSortChange = (newSort: string) => updateUrl(selectedTags, newSort);
 
   return (
     <div className="max-w-[1728px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
