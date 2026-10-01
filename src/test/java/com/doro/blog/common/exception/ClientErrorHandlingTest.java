@@ -41,4 +41,17 @@ class ClientErrorHandlingTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @Test
+    @DisplayName("Guard 장애는 500 이 아니라 503 으로 응답한다")
+    void guardOutageIs503() {
+        var write = handler.handleGuardUnavailable(
+                new com.hunnit_beasts.doro.sdk.exception.DoroGuardWriteFailedException("down", new RuntimeException()));
+        var check = handler.handleGuardUnavailable(
+                new com.hunnit_beasts.doro.sdk.exception.DoroGuardUnavailableException("down", new RuntimeException()));
+
+        assertThat(write.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(check.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(write.getBody().toString()).doesNotContain("down");
+    }
 }

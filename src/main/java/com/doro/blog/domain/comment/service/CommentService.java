@@ -14,6 +14,8 @@ import com.doro.blog.domain.user.service.BlogUserService;
 import com.doro.blog.domain.notification.entity.NotificationType;
 import com.doro.blog.domain.notification.service.NotificationService;
 import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
+import com.doro.blog.infra.guard.GuardTuples;
+import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class CommentService {
     private final PostRepository postRepository;
     private final BlogUserService userService;
     private final DoroGuardClient guardClient;
+    private final GuardTuples guardTuples;
     private final NotificationService notificationService;
     private final PostCounterService counterService;
 
@@ -59,8 +62,8 @@ public class CommentService {
         // Zanzibar ReBAC 튜플 등록:
         // 1. blog_comment:<id>#author@user:<userId>
         // 2. blog_comment:<id>#post@blog_post:<postId> (이를 통해 post#author가 can_delete 권한을 획득)
-        guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
-        guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
+        guardTuples.write("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
+        guardTuples.write("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
 
         // 알림 발송: 글 작성자에게 댓글 알림
         notificationService.sendNotification(
@@ -112,8 +115,8 @@ public class CommentService {
         Comment saved = commentRepository.save(reply);
         counterService.incrementComment(post);
 
-        guardClient.writeTuple("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
-        guardClient.writeTuple("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
+        guardTuples.write("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
+        guardTuples.write("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
 
         // 알림 발송 1: 부모 댓글 작성자에게 대댓글(REPLY) 알림
         notificationService.sendNotification(
@@ -185,8 +188,8 @@ public class CommentService {
         if (comment.isRoot() && !comment.getChildren().isEmpty()) {
             comment.markDeleted();
         } else {
-            guardClient.deleteTuple("blog_comment", commentId.toString(), "author", "user", comment.getUser().getId().toString());
-            guardClient.deleteTuple("blog_comment", commentId.toString(), "post", "blog_post", comment.getPost().getId().toString());
+            guardTuples.deleteAfterCommit("blog_comment", commentId.toString(), "author", "user", comment.getUser().getId().toString());
+            guardTuples.deleteAfterCommit("blog_comment", commentId.toString(), "post", "blog_post", comment.getPost().getId().toString());
             commentRepository.delete(comment);
         }
     }

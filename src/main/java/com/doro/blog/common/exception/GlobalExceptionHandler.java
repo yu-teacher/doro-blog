@@ -3,6 +3,8 @@ package com.doro.blog.common.exception;
 import com.doro.blog.common.response.ApiResponse;
 import com.doro.blog.common.web.PageLimits;
 import com.hunnit_beasts.doro.sdk.exception.DoroAccessDeniedException;
+import com.hunnit_beasts.doro.sdk.exception.DoroGuardUnavailableException;
+import com.hunnit_beasts.doro.sdk.exception.DoroGuardWriteFailedException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,6 +38,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), "인가 검증 실패: 해당 리소스에 대한 권한이 없습니다."));
+    }
+
+    /** 인가 서비스(Guard)를 쓸 수 없어 요청을 처리하지 못한 경우: 서버 버그(500)가 아니라 일시적 장애(503)이다. */
+    @ExceptionHandler({DoroGuardUnavailableException.class, DoroGuardWriteFailedException.class})
+    public ResponseEntity<ApiResponse<Void>> handleGuardUnavailable(RuntimeException e) {
+        log.error("DORO Guard unavailable: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(ErrorCode.SERVICE_UNAVAILABLE.getCode(), ErrorCode.SERVICE_UNAVAILABLE.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

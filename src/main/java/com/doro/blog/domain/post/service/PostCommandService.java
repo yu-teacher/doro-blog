@@ -12,7 +12,7 @@ import com.doro.blog.domain.series.repository.SeriesRepository;
 import com.doro.blog.domain.tag.service.TagService;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.service.BlogUserService;
-import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
+import com.doro.blog.infra.guard.GuardTuples;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +29,7 @@ public class PostCommandService {
     private final SeriesRepository seriesRepository;
     private final BlogUserService userService;
     private final TagService tagService;
-    private final DoroGuardClient guardClient;
+    private final GuardTuples guardTuples;
 
 
 
@@ -78,7 +78,7 @@ public class PostCommandService {
         tagService.syncPostTags(saved, request.tags());
 
         // Zanzibar ReBAC 관계 튜플 등록: blog_post:<id>#author@user:<userId>
-        guardClient.writeTuple("blog_post", saved.getId().toString(), "author", "user", user.getId().toString());
+        guardTuples.write("blog_post", saved.getId().toString(), "author", "user", user.getId().toString());
 
         List<String> tags = tagService.getPostTagNames(saved.getId());
         return PostSummaryResponse.from(saved, tags);
@@ -150,7 +150,7 @@ public class PostCommandService {
         }
 
         // Zanzibar ReBAC 관계 튜플 삭제
-        guardClient.deleteTuple("blog_post", postId.toString(), "author", "user", post.getUser().getId().toString());
+        guardTuples.deleteAfterCommit("blog_post", postId.toString(), "author", "user", post.getUser().getId().toString());
 
         postRepository.delete(post);
     }

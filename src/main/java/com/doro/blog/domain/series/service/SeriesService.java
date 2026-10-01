@@ -13,7 +13,7 @@ import com.doro.blog.domain.series.repository.SeriesRepository;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.service.BlogUserService;
-import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
+import com.doro.blog.infra.guard.GuardTuples;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class SeriesService {
     private final PostRepository postRepository;
     private final BlogUserRepository userRepository;
     private final BlogUserService userService;
-    private final DoroGuardClient guardClient;
+    private final GuardTuples guardTuples;
 
     @Transactional
     public SeriesResponse createSeries(DoroUser doroUser, CreateSeriesRequest request) {
@@ -55,7 +55,7 @@ public class SeriesService {
         Series saved = seriesRepository.save(series);
 
         // Zanzibar ReBAC 관계 튜플 등록: blog_series:<id>#owner@user:<userId>
-        guardClient.writeTuple("blog_series", saved.getId().toString(), "owner", "user", user.getId().toString());
+        guardTuples.write("blog_series", saved.getId().toString(), "owner", "user", user.getId().toString());
 
         return SeriesResponse.from(saved);
     }
@@ -173,7 +173,7 @@ public class SeriesService {
         }
 
         // Zanzibar ReBAC 관계 튜플 삭제
-        guardClient.deleteTuple("blog_series", seriesId.toString(), "owner", "user", series.getUser().getId().toString());
+        guardTuples.deleteAfterCommit("blog_series", seriesId.toString(), "owner", "user", series.getUser().getId().toString());
 
         seriesRepository.delete(series);
     }

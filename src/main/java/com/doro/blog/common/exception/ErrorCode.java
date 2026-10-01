@@ -31,6 +31,9 @@ public enum ErrorCode {
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "COMMON-409-01", "이미 존재하는 리소스입니다."),
 
+    // 503 Service Unavailable
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "SYS-503-01", "권한 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."),
+
     // 500 Internal Server Error
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS-500-01", "서버 내부 오류가 발생했습니다.");
 
