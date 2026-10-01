@@ -66,6 +66,7 @@ public class PostService {
         if (request.seriesId() != null) {
             series = seriesRepository.findById(request.seriesId())
                     .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+            requireSeriesOwner(series, user.getId());
             seriesOrder = series.getPostCount() + 1;
             series.incrementPostCount();
         }
@@ -234,15 +235,19 @@ public class PostService {
                 ? request.slug().toLowerCase().trim()
                 : post.getSlug();
 
-        String summary = generateSummary(request.summary(), request.content());
+        // 본문과 요약이 모두 생략된 부분 수정이면 기존 요약을 그대로 둔다 (null 은 Post.update 에서 무시됨)
+        String summary = (request.summary() == null && request.content() == null)
+                ? null
+                : generateSummary(request.summary(), request.content());
 
         // 시리즈 변경 처리
         if (request.seriesId() != null && (post.getSeries() == null || !post.getSeries().getId().equals(request.seriesId()))) {
+            Series newSeries = seriesRepository.findById(request.seriesId())
+                    .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+            requireSeriesOwner(newSeries, post.getUser().getId());
             if (post.getSeries() != null) {
                 post.getSeries().decrementPostCount();
             }
-            Series newSeries = seriesRepository.findById(request.seriesId())
-                    .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
             post.assignSeries(newSeries, newSeries.getPostCount() + 1);
             newSeries.incrementPostCount();
         } else if (request.seriesId() == null && post.getSeries() != null) {
@@ -258,7 +263,7 @@ public class PostService {
         }
 
         String resolvedThumbnail = resolveThumbnail(request.thumbnailUrl(), request.content());
-        post.update(request.title(), slug, summary, request.content() != null ? request.content() : "", resolvedThumbnail, request.status());
+        post.update(request.title(), slug, summary, request.content(), resolvedThumbnail, request.status());
 
         if (request.tags() != null) {
             tagService.syncPostTags(post, request.tags());
@@ -396,6 +401,13 @@ public class PostService {
 
     private static final java.util.regex.Pattern FIRST_IMAGE_PATTERN =
             java.util.regex.Pattern.compile("!\\[.*?\\]\\((https?://[^\\s)]+|/[^\\s)]+)\\)");
+
+    /** 다른 사용자의 시리즈에 글을 붙이지 못하게 한다. */
+    private void requireSeriesOwner(Series series, UUID authorId) {
+        if (!series.getUser().getId().equals(authorId)) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "본인의 시리즈에만 글을 추가할 수 있습니다.");
+        }
+    }
 
     private String resolveThumbnail(String explicitThumbnailUrl, String content) {
         if (explicitThumbnailUrl != null && !explicitThumbnailUrl.isBlank()) {

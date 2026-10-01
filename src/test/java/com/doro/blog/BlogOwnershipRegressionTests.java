@@ -1,0 +1,110 @@
+package com.doro.blog;
+
+import com.doro.blog.common.exception.BlogException;
+import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.domain.comment.dto.CommentDtos.CreateCommentRequest;
+import com.doro.blog.domain.comment.dto.CommentDtos.CreateReplyRequest;
+import com.doro.blog.domain.comment.service.CommentService;
+import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
+import com.doro.blog.domain.post.dto.PostDtos.UpdatePostRequest;
+import com.doro.blog.domain.post.entity.PostStatus;
+import com.doro.blog.domain.post.service.PostService;
+import com.doro.blog.domain.series.dto.SeriesDtos.CreateSeriesRequest;
+import com.doro.blog.domain.series.service.SeriesService;
+import com.hunnit_beasts.doro.sdk.domain.DoroUser;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** 코드 리뷰에서 확인된 소유권/부분 수정/댓글 소속 결함의 회귀 방지 테스트. */
+@SpringBootTest
+class BlogOwnershipRegressionTests {
+
+    @Autowired
+    private PostService postService;
+
+    @Autowired
+    private SeriesService seriesService;
+
+    @Autowired
+    private CommentService commentService;
+
+    private DoroUser mockUser(String prefix) {
+        UUID id = UUID.randomUUID();
+        return new DoroUser(id, prefix + "_" + id.toString().substring(0, 8) + "@doro.local", UUID.randomUUID(), 100, "USER");
+    }
+
+    private CreatePostRequest publishedPost(String title, UUID seriesId) {
+        return new CreatePostRequest(title, null, null, "본문 " + title, null, PostStatus.PUBLISHED, seriesId, null);
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 시리즈에 글을 생성하면 ACCESS_DENIED 이고 시리즈 글 수는 변하지 않는다")
+    void createPostInForeignSeriesIsDenied() {
+        DoroUser owner = mockUser("owner");
+        DoroUser attacker = mockUser("attacker");
+        var series = seriesService.createSeries(owner, new CreateSeriesRequest("남의 시리즈", null, null, null));
+
+        assertThatThrownBy(() -> postService.createPost(attacker, publishedPost("끼어들기", series.id())))
+                .isInstanceOf(BlogException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+
+        assertThat(seriesService.getSeriesDetail(series.id(), owner).series().postCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("글을 다른 사용자의 시리즈로 옮기면 ACCESS_DENIED 이고 기존 시리즈 글 수는 유지된다")
+    void moveToForeignSeriesIsDenied() {
+        DoroUser author = mockUser("author");
+        DoroUser other = mockUser("other");
+        var mine = seriesService.createSeries(author, new CreateSeriesRequest("내 시리즈", null, null, null));
+        var theirs = seriesService.createSeries(other, new CreateSeriesRequest("남의 시리즈", null, null, null));
+        var post = postService.createPost(author, publishedPost("내 글", mine.id()));
+
+        assertThatThrownBy(() -> postService.updatePost(post.id(), new UpdatePostRequest(
+                "내 글", null, null, "본문 내 글", null, PostStatus.PUBLISHED, theirs.id(), null)))
+                .isInstanceOf(BlogException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+
+        assertThat(seriesService.getSeriesDetail(mine.id(), author).series().postCount()).isEqualTo(1);
+        assertThat(seriesService.getSeriesDetail(theirs.id(), other).series().postCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("본문 없이 보낸 수정 요청은 기존 본문과 요약을 지우지 않는다")
+    void updateWithoutContentKeepsContentAndSummary() {
+        DoroUser author = mockUser("author");
+        var draft = postService.createPost(author, new CreatePostRequest(
+                "초안", null, "직접 쓴 요약", "지켜야 할 본문", null, PostStatus.DRAFT, null, null));
+
+        postService.updatePost(draft.id(), new UpdatePostRequest(
+                "제목만 수정", null, null, null, null, PostStatus.DRAFT, null, null));
+
+        var detail = postService.getPostById(draft.id(), author);
+        assertThat(detail.content()).isEqualTo("지켜야 할 본문");
+        assertThat(detail.post().summary()).isEqualTo("직접 쓴 요약");
+        assertThat(detail.post().title()).isEqualTo("제목만 수정");
+    }
+
+    @Test
+    @DisplayName("다른 글의 댓글을 부모로 지정한 답글은 거부되고 댓글 수가 늘지 않는다")
+    void replyToCommentOfAnotherPostIsRejected() {
+        DoroUser author = mockUser("author");
+        DoroUser reader = mockUser("reader");
+        var postA = postService.createPost(author, publishedPost("글 A", null));
+        var postB = postService.createPost(author, publishedPost("글 B", null));
+        var commentOnA = commentService.createRootComment(postA.id(), reader, new CreateCommentRequest("A 의 댓글"));
+
+        assertThatThrownBy(() -> commentService.createReply(postB.id(), commentOnA.id(), reader, new CreateReplyRequest("엉뚱한 답글")))
+                .isInstanceOf(BlogException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
+
+        assertThat(postService.getPostById(postB.id(), author).post().commentCount()).isZero();
+    }
+}

@@ -87,6 +87,14 @@ public class CommentService {
         Comment parent = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
 
+        // 부모 댓글은 같은 글에 속해야 하고, 삭제된 댓글에는 답글을 달 수 없다
+        if (!parent.getPost().getId().equals(postId)) {
+            throw new BlogException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+        if (parent.isDeleted()) {
+            throw new BlogException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
         // 2-Level 계층 제한: 이미 부모가 있는 댓글(대댓글)에는 추가 답글 불가
         if (parent.getParent() != null) {
             throw new BlogException(ErrorCode.INVALID_COMMENT_DEPTH);
