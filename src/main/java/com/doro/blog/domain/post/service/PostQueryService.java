@@ -2,6 +2,7 @@ package com.doro.blog.domain.post.service;
 
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.common.util.LikeEscape;
 import com.doro.blog.common.util.Handles;
 import com.doro.blog.domain.like.repository.PostLikeRepository;
 import com.doro.blog.domain.post.dto.PostDtos.*;
@@ -70,7 +71,7 @@ public class PostQueryService {
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
         Pageable pageable = PageRequest.of(page, size);
-        String keyword = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
+        String keyword = (query != null && !query.trim().isEmpty()) ? LikeEscape.escape(query.trim()) : null;
         String normalizedTag = (tag != null && !tag.trim().isEmpty()) ? tag.trim().toLowerCase() : null;
 
         Page<Post> posts;
@@ -205,7 +206,7 @@ public class PostQueryService {
         if (query == null || query.trim().isEmpty()) {
             return org.springframework.data.domain.Page.empty(pageable);
         }
-        return summaryMapper.toSummaries(postRepository.searchPublishedPosts(query.trim(), pageable));
+        return summaryMapper.toSummaries(postRepository.searchPublishedPosts(LikeEscape.escape(query.trim()), pageable));
     }
 
     @Transactional(readOnly = true)

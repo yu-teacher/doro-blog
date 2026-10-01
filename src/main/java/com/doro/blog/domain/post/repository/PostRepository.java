@@ -56,7 +56,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Page<Post> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.status = 'PUBLISHED' " +
-           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "ORDER BY p.publishedAt DESC")
     Page<Post> searchUserPostsByKeyword(
             @Param("userId") UUID userId,
@@ -72,7 +72,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     );
 
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) " +
-           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "ORDER BY p.publishedAt DESC")
     Page<Post> searchUserPostsByKeywordAndTag(
             @Param("userId") UUID userId,
@@ -107,7 +107,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) ORDER BY p.publishedAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.summary) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!' OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') ORDER BY p.publishedAt DESC")
     Page<Post> searchPublishedPosts(
             @Param("keyword") String keyword,
             Pageable pageable

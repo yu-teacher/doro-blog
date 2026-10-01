@@ -176,4 +176,18 @@ class BlogOwnershipRegressionTests {
                 .isInstanceOf(BlogException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SLUG_ALREADY_EXISTS);
     }
+
+    @Test
+    @DisplayName("검색어의 % 와 _ 는 와일드카드가 아니라 글자로 취급한다")
+    void searchTreatsWildcardsLiterally() {
+        DoroUser author = mockUser("author");
+        String marker = "mk" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        postCommands.createPost(author, new CreatePostRequest(
+                marker + " 100%_done", null, null, "본문", null, PostStatus.PUBLISHED, null, null));
+        postCommands.createPost(author, new CreatePostRequest(
+                marker + " 100xxdone", null, null, "본문", null, PostStatus.PUBLISHED, null, null));
+
+        assertThat(postQueries.searchPosts(marker, 0, 20).getTotalElements()).isEqualTo(2);
+        assertThat(postQueries.searchPosts(marker + " 100%_done", 0, 20).getTotalElements()).isEqualTo(1);
+    }
 }
