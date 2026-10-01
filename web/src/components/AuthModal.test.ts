@@ -98,4 +98,22 @@ describe('AuthModal', () => {
     expect(host.textContent).toContain('로그인에 실패했습니다');
     expect(useAuthStore.getState().loginModalOpen).toBe(true);
   });
+
+  it('저장된 계정을 고르면 loginWithSavedAccount 를 호출하고, 실패하면 비밀번호 입력 화면으로 전환한다', async () => {
+    localStorage.setItem('doro_saved_accounts', JSON.stringify([{ userId: 'u1', email: 'a@doro.test', name: 'A', lastUsedAt: 1 }]));
+    const loginWithSavedAccount = vi.fn().mockRejectedValue(new Error('REAUTH_REQUIRED'));
+    useAuthStore.setState({ loginWithSavedAccount });
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render();
+    act(() => useAuthStore.getState().openLoginModal());
+
+    const account = [...host.querySelectorAll('div')].filter((d) => d.textContent?.includes('a@doro.test') && d.className.includes('cursor-pointer')).pop() as HTMLElement;
+    await act(async () => { account.click(); });
+    await flush();
+
+    expect(loginWithSavedAccount).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('input[type="password"]')).not.toBeNull();
+    expect((host.querySelector('input[type="email"]') as HTMLInputElement).value).toBe('a@doro.test');
+    expect(host.textContent).toContain('비밀번호를 한 번 더 확인');
+  });
 });
