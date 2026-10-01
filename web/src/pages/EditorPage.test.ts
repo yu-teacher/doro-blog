@@ -120,4 +120,46 @@ describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
 
     expect(textarea().value).toBe('서버 본문');
   });
+
+  it('출간 흐름: 출간하기 → 설정창이 제목/본문에서 기본값을 채움 → 출간하면 PUBLISHED 로 글을 만든다', async () => {
+    const createPost = vi.spyOn(blogApi, 'createPost').mockResolvedValue({ id: 'new1' } as never);
+    await render();
+
+    typeInto(host!.querySelector('input[type="text"]') as HTMLInputElement, '출간 테스트 글');
+    typeInto(textarea(), '## 소개\n![표지](https://img.test/cover.png)\n본문 내용입니다');
+
+    const openPublish = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '출간하기') as HTMLButtonElement;
+    await act(async () => { openPublish.click(); });
+    // 설정창: 본문 첫 이미지가 썸네일로, 본문 앞부분이 요약으로 채워져 있다
+    expect(host!.textContent).toContain('포스트 미리보기');
+    const urlInputs = [...host!.querySelectorAll('input')].map((i) => i.value);
+    expect(host!.querySelector('img[src="https://img.test/cover.png"]')).not.toBeNull();
+    expect(urlInputs.some((v) => v === '출간-테스트-글')).toBe(true);
+
+    const publish = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.trim() === '출간하기').pop() as HTMLButtonElement;
+    await act(async () => { publish.click(); });
+    await flush();
+
+    expect(createPost).toHaveBeenCalledTimes(1);
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({
+      title: '출간 테스트 글',
+      status: 'PUBLISHED',
+      slug: '출간-테스트-글',
+      thumbnailUrl: 'https://img.test/cover.png',
+    }));
+  });
+
+  it('임시 저장 버튼은 DRAFT 로 저장한다', async () => {
+    const createPost = vi.spyOn(blogApi, 'createPost').mockResolvedValue({ id: 'd1' } as never);
+    vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    await render();
+    typeInto(host!.querySelector('input[type="text"]') as HTMLInputElement, '초안 제목');
+    typeInto(textarea(), '초안 본문');
+
+    const save = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '임시저장') as HTMLButtonElement;
+    await act(async () => { save.click(); });
+    await flush();
+
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ title: '초안 제목', status: 'DRAFT' }));
+  });
 });

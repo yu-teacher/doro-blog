@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
-import type { Series, PostStatus, PostSummary } from '../api/types';
-import { extractFirstImage, stripMarkdown } from '../utils/markdown';
+import type { PostStatus, PostSummary } from '../api/types';
+import { stripMarkdown } from '../utils/markdown';
 import { trackEvent } from '../utils/analytics';
 import {
 } from 'lucide-react';
@@ -15,6 +15,8 @@ import { useMarkdownEditor } from '../hooks/useMarkdownEditor';
 import { useImageUpload } from '../hooks/useImageUpload';
 import { useLocalDraft } from '../hooks/useLocalDraft';
 import { useServerDrafts } from '../hooks/useServerDrafts';
+import { useSeriesList } from '../hooks/useSeriesList';
+import { suggestPublishDefaults } from '../utils/publishDefaults';
 import { ServerDraftsModal } from '../components/editor/ServerDraftsModal';
 import { TagInput } from '../components/editor/TagInput';
 import { MarkdownToolbar } from '../components/editor/MarkdownToolbar';
@@ -67,7 +69,6 @@ export const EditorPage: React.FC = () => {
   const [slug, setSlug] = useState('');
   const [status, setStatus] = useState<PostStatus>('PUBLISHED');
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>('');
-  const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [newSeriesTitle, setNewSeriesTitle] = useState('');
   const [showNewSeriesInput, setShowNewSeriesInput] = useState(false);
 
@@ -190,23 +191,7 @@ export const EditorPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // 내 시리즈 목록 (프로필 객체가 갱신될 때마다가 아니라 사용자명이 바뀔 때만 다시 불러온다)
-  const username = user?.username;
-  useEffect(() => {
-    if (!isAuthenticated || !username) return;
-    let cancelled = false;
-    blogApi
-      .getUserSeries(username)
-      .then((res) => {
-        if (!cancelled) setSeriesList(res || []);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) console.error('Failed to load series', err);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, username]);
+  const { series: seriesList, create: createSeries } = useSeriesList(user?.username, isAuthenticated);
 
   // 기존 글 수정: 글 id 가 바뀔 때만 불러온다 (프로필 갱신으로 편집 중인 내용이 덮어써지지 않게)
   useEffect(() => {
@@ -263,25 +248,11 @@ export const EditorPage: React.FC = () => {
       return;
     }
 
-    if (!slug) {
-      setSlug(generateSlug(title) || 'post');
-    }
-    if (!summary) {
-      // Auto-extract first 120 chars of clean plain text as summary
-      const plain = stripMarkdown(content).slice(0, 120);
-      setSummary(plain);
-    }
-
-    // Auto-detect thumbnail from first markdown image if not explicitly set
-    if (!thumbnailUrl) {
-      const firstImg = extractFirstImage(content);
-      if (firstImg) {
-        setThumbnailUrl(firstImg);
-        setThumbnailAutoDetected(true);
-      } else {
-        setThumbnailAutoDetected(false);
-      }
-    }
+    const defaults = suggestPublishDefaults(title, content, { slug, summary, thumbnailUrl });
+    setSlug(defaults.slug);
+    setSummary(defaults.summary);
+    setThumbnailUrl(defaults.thumbnailUrl);
+    if (!thumbnailUrl) setThumbnailAutoDetected(defaults.thumbnailAutoDetected);
 
     setShowPublishModal(true);
   };
@@ -300,11 +271,7 @@ export const EditorPage: React.FC = () => {
   const handleCreateSeries = async () => {
     if (!newSeriesTitle.trim()) return;
     try {
-      const created = await blogApi.createSeries({
-        title: newSeriesTitle.trim(),
-        slug: generateSlug(newSeriesTitle.trim()),
-      });
-      setSeriesList([created, ...seriesList]);
+      const created = await createSeries(newSeriesTitle);
       setSelectedSeriesId(created.id);
       setNewSeriesTitle('');
       setShowNewSeriesInput(false);
