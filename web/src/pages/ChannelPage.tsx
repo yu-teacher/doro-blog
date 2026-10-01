@@ -31,6 +31,7 @@ import {
   Bookmark,
   Heart,
 } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 /** 사용자 채널 경로(/@name)로 해석하면 안 되는 시스템 경로 */
 const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
@@ -571,7 +572,7 @@ export const ChannelPage: React.FC = () => {
                   </div>
                   <div className="mt-6 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">{series.postCount}개의 포스트</span>
-                    <span>최근 업데이트: {new Date(series.updatedAt).toLocaleDateString('ko-KR')}</span>
+                    <span>최근 업데이트: {formatDate(series.updatedAt)}</span>
                   </div>
                 </Link>
               ))}

@@ -13,6 +13,7 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
+import { formatRelative } from '../utils/date';
 
 export const NotificationDropdown: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
@@ -141,22 +142,6 @@ export const NotificationDropdown: React.FC = () => {
     } catch (err) {
       console.error('Failed to delete notification:', err);
     }
-  };
-
-  // Format relative time in Korean
-  const formatTimeAgo = (dateStr: string) => {
-    const now = new Date();
-    const past = new Date(dateStr);
-    const diffSec = Math.floor((now.getTime() - past.getTime()) / 1000);
-
-    if (diffSec < 60) return '방금 전';
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}분 전`;
-    const diffHour = Math.floor(diffMin / 60);
-    if (diffHour < 24) return `${diffHour}시간 전`;
-    const diffDay = Math.floor(diffHour / 24);
-    if (diffDay < 7) return `${diffDay}일 전`;
-    return past.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
   };
 
   if (!isAuthenticated) return null;
@@ -315,7 +300,7 @@ export const NotificationDropdown: React.FC = () => {
 
                       {/* Relative Time */}
                       <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                        {formatTimeAgo(item.createdAt)}
+                        {formatRelative(item.createdAt, 'monthDay')}
                       </div>
                     </div>
 

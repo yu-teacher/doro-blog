@@ -33,6 +33,7 @@ import {
 import { getErrorMessage } from '../utils/errors';
 import { generateSlug } from '../utils/slug';
 import { useDraftAutosave, type DraftSnapshot } from '../hooks/useDraftAutosave';
+import { formatDate } from '../utils/date';
 
 const LOCAL_AUTOSAVE_DELAY_MS = 2_000;
 const SERVER_AUTOSAVE_DELAY_MS = 5_000;
@@ -182,7 +183,7 @@ export const EditorPage: React.FC = () => {
   const autoSavedLabel = (() => {
     const at = autosave.error ? new Date() : autosave.lastSavedAt;
     if (!at) return null;
-    const clock = at.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const clock = formatDate(at, 'clock');
     return autosave.error ? `로컬 저장됨 (${clock})` : `DB 동기화 완료 (${clock})`;
   })();
 
@@ -1146,12 +1147,7 @@ export const EditorPage: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
                       <span>
-                        {new Date(d.createdAt).toLocaleDateString('ko-KR', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDate(d.createdAt, 'dateTimeShort')}
                       </span>
                       {d.tags && d.tags.length > 0 && (
                         <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">

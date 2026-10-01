@@ -18,6 +18,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { getErrorMessage } from '../utils/errors';
+import { formatDate } from '../utils/date';
 
 const MY_POSTS_PAGE_SIZE = 10;
 
@@ -179,8 +180,8 @@ export const MyPostsPage: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      작성일: {new Date(post.createdAt).toLocaleDateString('ko-KR')}
-                      {post.publishedAt && ` · 출간일: ${new Date(post.publishedAt).toLocaleDateString('ko-KR')}`}
+                      작성일: {formatDate(post.createdAt)}
+                      {post.publishedAt && ` · 출간일: ${formatDate(post.publishedAt)}`}
                       {` · 조회 ${post.viewCount} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`}
                     </p>
                   </div>

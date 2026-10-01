@@ -4,6 +4,7 @@ import { blogApi } from '../api/blogApi';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
 import { BookOpen, Calendar, ArrowLeft, Lock } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 export const SeriesDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
@@ -75,7 +76,7 @@ export const SeriesDetailPage: React.FC = () => {
         <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
           <span className="font-semibold text-slate-700 dark:text-slate-300">총 {series.postCount}화</span>
           <span>·</span>
-          <span>마지막 업데이트 {new Date(series.updatedAt).toLocaleDateString('ko-KR')}</span>
+          <span>마지막 업데이트 {formatDate(series.updatedAt)}</span>
         </div>
       </div>
 
@@ -114,9 +115,7 @@ export const SeriesDetailPage: React.FC = () => {
                 <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>
-                    {post.publishedAt
-                      ? new Date(post.publishedAt).toLocaleDateString('ko-KR')
-                      : '미출간'}
+                    {formatDate(post.publishedAt, 'date', '미출간')}
                   </span>
                 </div>
               </div>

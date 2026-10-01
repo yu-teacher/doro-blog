@@ -19,6 +19,7 @@ import { blogApi } from '../api/blogApi';
 import { ApiKey, ApiKeyLog, CreateApiKeyResponse } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../utils/errors';
+import { formatDate, formatDateTime } from '../utils/date';
 
 export const DevelopersPage: React.FC = () => {
   const { isAuthenticated, openLoginModal } = useAuthStore();
@@ -384,10 +385,10 @@ jobs:
                         )}
                       </td>
                       <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
-                        {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString('ko-KR') : '사용 이력 없음'}
+                        {formatDateTime(k.lastUsedAt, '사용 이력 없음')}
                       </td>
                       <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
-                        {k.expiresAt ? new Date(k.expiresAt).toLocaleDateString('ko-KR') : '무기한'}
+                        {formatDate(k.expiresAt, 'date', '무기한')}
                       </td>
                       <td className="px-5 py-4 text-right">
                         {k.isActive && !k.isExpired && (
@@ -705,7 +706,7 @@ jobs:
                           {log.errorMessage || '-'}
                         </td>
                         <td className="px-4 py-3.5 text-right text-slate-400 text-[11px] font-mono whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString('ko-KR')}
+                          {formatDateTime(log.createdAt)}
                         </td>
                       </tr>
                     );

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { getErrorMessage, isCancelled } from '../utils/errors';
 import { ErrorState } from '../components/ErrorState';
+import { formatDate } from '../utils/date';
 
 const RELATED_POSTS_LIMIT = 4;
 
@@ -285,13 +286,7 @@ export const PostDetailPage: React.FC = () => {
             <span>·</span>
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              {post.publishedAt
-                ? new Date(post.publishedAt).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
-                : '임시저장'}
+              {formatDate(post.publishedAt, 'dateLong', '임시저장')}
             </span>
             <span>·</span>
             <span className="flex items-center gap-1">

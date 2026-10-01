@@ -4,34 +4,16 @@ import { PostSummary } from '../api/types';
 import { Heart, MessageSquare, BookOpen, Eye } from 'lucide-react';
 import { stripMarkdown } from '../utils/markdown';
 import { trackEvent } from '../utils/analytics';
+import { formatRelative } from '../utils/date';
 
 interface PostCardProps {
   post: PostSummary;
   channelUsername?: string;
 }
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMinutes < 1) return '방금 전';
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
-  if (diffHours < 24) return `${diffHours}시간 전`;
-  if (diffDays < 7) return `${diffDays}일 전`;
-  return d.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
 
 export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => {
-  const publishedDate = formatDate(post.publishedAt || post.createdAt);
+  const publishedDate = formatRelative(post.publishedAt || post.createdAt, 'dateShort');
   const authorName = post.nickname || post.username || '익명';
   const cleanSummary = stripMarkdown(post.summary) || '게시글 내용 미리보기가 제공되지 않습니다.';
 

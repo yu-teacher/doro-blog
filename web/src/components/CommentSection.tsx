@@ -5,6 +5,7 @@ import type { Comment } from '../api/types';
 import { MessageSquare, CornerDownRight, Trash2, Send } from 'lucide-react';
 import { trackEvent } from '../utils/analytics';
 import { getErrorMessage } from '../utils/errors';
+import { formatDate } from '../utils/date';
 
 interface CommentSectionProps {
   postId: string;
@@ -143,13 +144,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     <span className="font-semibold text-slate-900 dark:text-slate-200 text-sm">{comment.nickname}</span>
                     <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">@{comment.username}</span>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {new Date(comment.createdAt).toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatDate(comment.createdAt, 'dateTime')}
                     </p>
                   </div>
                 </div>
@@ -244,12 +239,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs">{reply.nickname}</span>
                             <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-1.5">@{reply.username}</span>
                             <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-2">
-                              {new Date(reply.createdAt).toLocaleDateString('ko-KR', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {formatDate(reply.createdAt, 'dateTime')}
                             </span>
                           </div>
                         </div>
