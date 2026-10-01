@@ -38,3 +38,9 @@ export function stripMarkdown(markdown?: string | null): string {
 
   return text.trim();
 }
+
+/** 마크다운 본문에서 첫 이미지의 주소를 찾는다 (http(s), /media/, /uploads/ 로 시작하는 것만). */
+export function extractFirstImage(markdown: string): string | null {
+  const match = markdown.match(/!\[.*?\]\(((?:https?:\/\/|\/media\/|\/uploads\/)[^\s)]+)\)/);
+  return match ? match[1] : null;
+}

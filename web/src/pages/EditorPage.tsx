@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
 import type { Series, PostStatus, PostSummary } from '../api/types';
-import { stripMarkdown } from '../utils/markdown';
+import { extractFirstImage, stripMarkdown } from '../utils/markdown';
 import { trackEvent } from '../utils/analytics';
 import {
 } from 'lucide-react';
@@ -16,6 +16,7 @@ import { useImageUpload } from '../hooks/useImageUpload';
 import { useLocalDraft } from '../hooks/useLocalDraft';
 import { useServerDrafts } from '../hooks/useServerDrafts';
 import { ServerDraftsModal } from '../components/editor/ServerDraftsModal';
+import { TagInput } from '../components/editor/TagInput';
 import { MarkdownToolbar } from '../components/editor/MarkdownToolbar';
 import { EditorPreview } from '../components/editor/EditorPreview';
 import { DraftRestoreBanner } from '../components/editor/DraftRestoreBanner';
@@ -49,7 +50,6 @@ export const EditorPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -242,34 +242,6 @@ export const EditorPage: React.FC = () => {
     };
   }, [id, isAuthenticated, navigate]);
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Prevent duplicate firing during Korean IME composition
-    if (e.nativeEvent.isComposing) {
-      return;
-    }
-
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = tagInput.trim().replace(/^#/, '');
-      if (val && !tags.includes(val)) {
-        setTags([...tags, val]);
-      }
-      setTagInput('');
-    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
-      setTags(tags.slice(0, -1));
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
-  // Extract first image from markdown content
-  const extractFirstImage = (text: string): string | null => {
-    const match = text.match(/!\[.*?\]\(((?:https?:\/\/|\/media\/|\/uploads\/)[^\s)]+)\)/);
-    return match ? match[1] : null;
-  };
-
   // 서식 삽입, 단축키, 되돌리기/다시 실행
   const {
     handleContentChange,
@@ -449,27 +421,7 @@ export const EditorPage: React.FC = () => {
             className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none mb-4 w-full bg-transparent"
           />
 
-          {/* Tags input bar */}
-          <div className="flex flex-wrap items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-            {tags.map((t) => (
-              <span
-                key={t}
-                onClick={() => handleRemoveTag(t)}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-full text-xs font-semibold cursor-pointer transition-colors"
-                title="클릭하여 태그 삭제"
-              >
-                #{t} ✕
-              </span>
-            ))}
-            <input
-              type="text"
-              placeholder="태그를 입력하세요 (Enter 또는 쉼표)"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleAddTag}
-              className="text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none flex-1 min-w-[200px] bg-transparent"
-            />
-          </div>
+          <TagInput tags={tags} onChange={setTags} />
 
           <MarkdownToolbar
             insertHeading={insertHeading}
