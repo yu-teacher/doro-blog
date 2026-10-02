@@ -7,6 +7,7 @@ import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.SetBucketPolicyArgs;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -113,6 +114,16 @@ public class MinioStorageService implements StorageService {
         } catch (Exception e) {
             log.error("Failed to upload image to MinIO: {}", e.getMessage(), e);
             throw new BlogException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    @Override
+    public void delete(String objectKey) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
+            log.info("Deleted media object: key={}", objectKey);
+        } catch (Exception e) {
+            throw new IllegalStateException("MinIO 오브젝트 삭제에 실패했습니다: " + objectKey, e);
         }
     }
 

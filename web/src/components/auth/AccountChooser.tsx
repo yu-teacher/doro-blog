@@ -1,4 +1,5 @@
 import React from 'react';
+import { AUTH_DIALOG_TITLE_ID } from './authDialog';
 import type { SavedAccount } from '../../store/savedAccounts';
 import { ChevronRight, ShieldCheck, Sparkles, Trash2, UserPlus } from 'lucide-react';
 
@@ -14,7 +15,7 @@ interface AccountChooserProps {
 export const AccountChooser: React.FC<AccountChooserProps> = ({ savedAccounts, errorMsg, onSelectAccount, onRemoveAccount, onUseOtherAccount }) => (
   <div>
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg">
+                <div id={AUTH_DIALOG_TITLE_ID} className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg">
                   <ShieldCheck className="w-6 h-6" />
                   <span>DORO 계정 선택</span>
                 </div>
@@ -29,7 +30,7 @@ export const AccountChooser: React.FC<AccountChooserProps> = ({ savedAccounts, e
               </p>
 
               {errorMsg && (
-                <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs rounded-xl font-medium">
+                <div role="alert" className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs rounded-xl font-medium">
                   {errorMsg}
                 </div>
               )}
@@ -42,6 +43,13 @@ export const AccountChooser: React.FC<AccountChooserProps> = ({ savedAccounts, e
                     onClick={() => onSelectAccount(acc)}
                     role="button"
                     tabIndex={0}
+                    onKeyDown={(e) => {
+                      // 행 안쪽의 삭제 버튼에서 올라온 키 입력은 무시하고, 행 자체에서 Enter/Space 만 선택으로 처리한다
+                      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        onSelectAccount(acc);
+                      }
+                    }}
                     className="group flex items-center justify-between p-3.5 rounded-2xl border border-gray-200/90 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-all cursor-pointer shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -71,7 +79,8 @@ export const AccountChooser: React.FC<AccountChooserProps> = ({ savedAccounts, e
                         type="button"
                         onClick={(e) => onRemoveAccount(e, acc.email)}
                         title="이 기기에서 계정 기록 삭제"
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all"
+                        aria-label="이 기기에서 계정 기록 삭제"
+                        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

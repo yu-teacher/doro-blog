@@ -33,6 +33,7 @@ export const ReplyItem: React.FC<ReplyItemProps> = ({ reply, canDelete, onDelete
           onClick={() => onDelete(reply.id)}
           className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 transition-colors"
           title="답글 삭제"
+          aria-label="답글 삭제"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

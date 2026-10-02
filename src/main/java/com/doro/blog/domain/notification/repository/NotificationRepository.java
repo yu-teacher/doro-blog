@@ -1,6 +1,7 @@
 package com.doro.blog.domain.notification.repository;
 
 import com.doro.blog.domain.notification.entity.Notification;
+import com.doro.blog.domain.notification.entity.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,4 +28,10 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     void markAllAsRead(@Param("recipientId") UUID recipientId);
 
     void deleteByIdAndRecipientId(UUID id, UUID recipientId);
+
+    boolean existsByRecipientIdAndSenderIdAndTypeAndTargetPostIdAndCreatedAtAfter(
+            UUID recipientId, UUID senderId, NotificationType type, UUID targetPostId, Instant after);
+
+    boolean existsByRecipientIdAndSenderIdAndTypeAndTargetPostIdIsNullAndCreatedAtAfter(
+            UUID recipientId, UUID senderId, NotificationType type, Instant after);
 }

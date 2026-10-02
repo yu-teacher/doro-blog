@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary } from '../api/types';
@@ -76,6 +77,11 @@ export const ChannelPage: React.FC = () => {
   );
 
   const profile = profileRes.data;
+  useDocumentMeta({
+    title: profile ? `${profile.blogTitle || profile.nickname} (@${profile.username}) - DORO.log` : null,
+    description: profile?.bio,
+    canonicalPath: profile ? `/@${profile.username}` : null,
+  });
   const setProfile = profileRes.setData;
   const userTags = tagsRes.data ?? [];
   const activities = activityRes.data ?? [];

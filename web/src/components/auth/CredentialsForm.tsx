@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { ArrowLeft, ExternalLink, Lock, Mail, ShieldCheck, UserCheck } from 'lucide-react';
+
+import { AUTH_DIALOG_TITLE_ID } from './authDialog';
 
 const DORO_SIGNUP_URL = '/portal/signup';
 
@@ -22,7 +24,12 @@ interface CredentialsFormProps {
 /** 이메일/비밀번호 로그인 및 회원가입 폼 (포털 가입 안내 포함). */
 export const CredentialsForm: React.FC<CredentialsFormProps> = ({
   isSignUpMode, hasSavedAccounts, email, setEmail, password, setPassword, name, setName, errorMsg, loading, onSubmit, onBackToChooser, onToggleSignUp,
-}) => (
+}) => {
+  const baseId = useId();
+  const nameId = `${baseId}-name`;
+  const emailId = `${baseId}-email`;
+  const passwordId = `${baseId}-password`;
+  return (
   <div>
               {hasSavedAccounts && (
                 <button
@@ -37,7 +44,7 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
                 </button>
               )}
 
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg mb-1">
+              <div id={AUTH_DIALOG_TITLE_ID} className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg mb-1">
                 <ShieldCheck className="w-6 h-6" />
                 <span>DORO ID {isSignUpMode ? '회원가입' : '직접 로그인'}</span>
               </div>
@@ -48,7 +55,7 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
               </p>
 
               {errorMsg && (
-                <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs rounded-xl font-medium">
+                <div role="alert" className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs rounded-xl font-medium">
                   {errorMsg}
                 </div>
               )}
@@ -56,9 +63,10 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
               <form onSubmit={onSubmit} className="space-y-3.5">
                 {isSignUpMode && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">이름</label>
+                    <label htmlFor={nameId} className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">이름</label>
                     <div className="relative">
                       <input
+                        id={nameId}
                         type="text"
                         placeholder="홍길동"
                         value={name}
@@ -72,9 +80,10 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">이메일 (DORO ID)</label>
+                  <label htmlFor={emailId} className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">이메일 (DORO ID)</label>
                   <div className="relative">
                     <input
+                      id={emailId}
                       type="email"
                       placeholder="name@doro.local"
                       value={email}
@@ -87,9 +96,10 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">비밀번호</label>
+                  <label htmlFor={passwordId} className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">비밀번호</label>
                   <div className="relative">
                     <input
+                      id={passwordId}
                       type="password"
                       placeholder="••••••••"
                       value={password}
@@ -140,4 +150,5 @@ export const CredentialsForm: React.FC<CredentialsFormProps> = ({
                 </div>
               </div>
             </div>
-);
+  );
+};

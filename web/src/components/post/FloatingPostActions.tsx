@@ -23,6 +23,7 @@ export const FloatingPostActions: React.FC<FloatingPostActionsProps> = ({ isLike
               : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
           }`}
           title={isLiked ? '좋아요 취소' : '좋아요'}
+          aria-label={isLiked ? '좋아요 취소' : '좋아요'}
         >
           <Heart className={`w-5 h-5 ${isLiked ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
           <span className="text-[11px] font-bold mt-0.5">{likeCount}</span>
@@ -34,6 +35,7 @@ export const FloatingPostActions: React.FC<FloatingPostActionsProps> = ({ isLike
           onClick={onShare}
           className="flex items-center justify-center w-12 h-12 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative"
           title="링크 복사"
+          aria-label="링크 복사"
         >
           <Share2 className="w-5 h-5" />
           {copied && (

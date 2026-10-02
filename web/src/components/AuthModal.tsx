@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AccountChooser } from './auth/AccountChooser';
 import { CredentialsForm } from './auth/CredentialsForm';
+import { ModalShell } from './ModalShell';
+import { AUTH_DIALOG_TITLE_ID } from './auth/authDialog';
 import { useAuthStore } from '../store/authStore';
 import { getSavedAccounts, removeSavedAccount, type SavedAccount } from '../store/savedAccounts';
 
@@ -113,14 +115,7 @@ export const AuthModal: React.FC = () => {
   if (!loginModalOpen) return null;
 
   return (
-    <div
-      onClick={handleClose}
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95 text-slate-900 dark:text-slate-100 cursor-default"
-      >
+    <ModalShell onClose={handleClose} labelledBy={AUTH_DIALOG_TITLE_ID} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer" panelClassName="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95 text-slate-900 dark:text-slate-100 cursor-default">
         {authMode === 'saved_accounts' && savedAccounts.length > 0 ? (
           <AccountChooser
             savedAccounts={savedAccounts}
@@ -162,7 +157,6 @@ export const AuthModal: React.FC = () => {
         >
           닫기
         </button>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

@@ -18,6 +18,10 @@ import {
 import { getErrorMessage, isCancelled } from '../utils/errors';
 import { ErrorState } from '../components/ErrorState';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { stripMarkdown } from '../utils/markdown';
+
+const SITE_NAME = 'DORO.log';
 
 const RELATED_POSTS_LIMIT = 4;
 
@@ -41,6 +45,12 @@ export const PostDetailPage: React.FC = () => {
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
     const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useDocumentMeta({
+    title: detail?.post.title ? `${detail.post.title} - ${SITE_NAME}` : null,
+    canonicalPath: detail ? `/@${detail.post.username}/${detail.post.slug}` : null,
+    description: detail ? detail.post.summary || stripMarkdown(detail.content) : null,
+  });
 
   // 글이 바뀌거나 페이지를 떠나면 진행 중인 요청을 취소하고, 늦게 도착한 이전 글의 응답은 버린다
   useEffect(() => {
@@ -69,10 +79,6 @@ export const PostDetailPage: React.FC = () => {
           post_title: postData.post.title,
           author: cleanUsername,
         });
-
-        if (postData.post.title) {
-          document.title = `${postData.post.title} - DORO.log`;
-        }
 
         // 본문 이후의 부가 정보(댓글/시리즈/추천)는 서로 독립적이므로 병렬로 불러오고, 실패해도 글은 보여준다
         const [commentsRes, seriesRes, relatedRes] = await Promise.allSettled([

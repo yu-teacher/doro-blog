@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalShell } from '../ModalShell';
 import type { PostSummary } from '../../api/types';
 import { formatDate } from '../../utils/date';
 import { FileText, Trash2, X } from 'lucide-react';
@@ -14,21 +15,15 @@ interface ServerDraftsModalProps {
 
 /** 서버에 저장된 임시 글 목록을 보여주고 골라서 불러오는 모달. */
 export const ServerDraftsModal: React.FC<ServerDraftsModalProps> = ({ serverDrafts, currentPostId, onSelect, onDelete, onClose }) => (
-    <div
-      onClick={() => onClose()}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 cursor-default p-6"
-      >
+    <ModalShell onClose={onClose} labelledBy="server-drafts-title" overlayClassName="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer" panelClassName="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 cursor-default p-6">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-500" />
-            <h3 className="text-lg font-bold">서버 DB 임시 글 목록 ({serverDrafts.length})</h3>
+            <h3 id="server-drafts-title" className="text-lg font-bold">서버 DB 임시 글 목록 ({serverDrafts.length})</h3>
           </div>
           <button
             type="button"
+            aria-label="닫기"
             onClick={() => onClose()}
             className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
           >
@@ -71,6 +66,7 @@ export const ServerDraftsModal: React.FC<ServerDraftsModalProps> = ({ serverDraf
                       onClick={(e) => onDelete(d.id, e)}
                       className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                       title="임시 글 삭제"
+                      aria-label="임시 글 삭제"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -90,7 +86,6 @@ export const ServerDraftsModal: React.FC<ServerDraftsModalProps> = ({ serverDraf
             ))
           )}
         </div>
-      </div>
-    </div>
+      </ModalShell>
   
 );

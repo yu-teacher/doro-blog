@@ -56,6 +56,7 @@ export const Header: React.FC = () => {
               onClick={toggleTheme}
               className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+              aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -65,6 +66,7 @@ export const Header: React.FC = () => {
               onClick={search.toggle}
               className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               title="검색"
+              aria-label="검색"
             >
               <Search className="w-5 h-5" />
             </button>

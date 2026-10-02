@@ -53,6 +53,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             onClick={() => onDelete(comment.id)}
             className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 transition-colors"
             title="댓글 삭제"
+            aria-label="댓글 삭제"
           >
             <Trash2 className="w-4 h-4" />
           </button>

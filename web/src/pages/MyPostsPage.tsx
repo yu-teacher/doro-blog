@@ -208,6 +208,7 @@ export const MyPostsPage: React.FC = () => {
                       onClick={() => handleDeletePost(post.id)}
                       className="p-2 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
                       title="글 삭제"
+                      aria-label="글 삭제"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

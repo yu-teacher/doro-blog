@@ -24,6 +24,7 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
             : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
         }`}
         title="DORO 서비스 바로가기 (앱 런처)"
+        aria-label="DORO 서비스 바로가기 (앱 런처)"
       >
         <LayoutGrid className="w-5 h-5" />
       </button>

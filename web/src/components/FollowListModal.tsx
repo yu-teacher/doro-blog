@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ModalShell } from './ModalShell';
 import { Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { FollowUser } from '../api/types';
@@ -71,14 +72,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[85vh] cursor-default"
-      >
+    <ModalShell onClose={onClose} ariaLabel="팔로워 및 팔로잉 목록" overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer" panelClassName="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[85vh] cursor-default">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-6">
@@ -104,6 +98,8 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
             </button>
           </div>
           <button
+            type="button"
+            aria-label="닫기"
             onClick={onClose}
             className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
@@ -189,7 +185,6 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
             })
           )}
         </div>
-      </div>
-    </div>
+      </ModalShell>
   );
 };

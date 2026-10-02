@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ModalShell } from './ModalShell';
 import { blogApi } from '../api/blogApi';
 import type { UserProfile, UpdateProfilePayload } from '../api/types';
 import { useAuthStore } from '../store/authStore';
@@ -93,23 +94,18 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[90vh] cursor-default"
-      >
+    <ModalShell onClose={onClose} labelledBy="profile-edit-title" overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 cursor-pointer" panelClassName="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[90vh] cursor-default">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
+            <h2 id="profile-edit-title" className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
               프로필 설정 및 정보 고도화
             </h2>
           </div>
           <button
+            type="button"
+            aria-label="닫기"
             onClick={onClose}
             className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
@@ -172,7 +168,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
           {activeSubTab === 'about' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                <label htmlFor="profile-about" className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                   상세 소개글 (Markdown 지원)
                 </label>
                 <span className="text-[11px] text-slate-400">
@@ -180,6 +176,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 </span>
               </div>
               <textarea
+                id="profile-about"
                 rows={10}
                 value={formData.aboutMarkdown ?? ''}
                 onChange={(e) => setField('aboutMarkdown')(e.target.value)}
@@ -208,7 +205,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </ModalShell>
   );
 };

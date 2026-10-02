@@ -19,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -32,6 +34,9 @@ public class NotificationService {
     // Notification 컬럼 길이(V4__notifications.sql)
     private static final int TITLE_MAX_LENGTH = 255;
     private static final int MESSAGE_MAX_LENGTH = 500;
+
+    /** 같은 사람이 같은 대상에 한 좋아요/팔로우 알림을 다시 만들지 않는 기간. */
+    private static final Duration TOGGLE_DEDUPE_WINDOW = Duration.ofHours(24);
 
     /**
      * 알림을 저장한다. 글/댓글과 같은 트랜잭션에서 저장하므로 컬럼 길이를 넘는 값이 들어가면 INSERT 가 커밋 시점에 실패해
@@ -61,6 +66,12 @@ public class NotificationService {
             return;
         }
 
+        // 좋아요/팔로우는 토글을 반복해 같은 알림을 계속 만들 수 있으므로 같은 행위는 일정 시간 안에 한 번만 알린다
+        if (isRepeatedToggleNotification(recipient, sender, type, post)) {
+            log.debug("Skipped duplicate {} notification within {}", type, TOGGLE_DEDUPE_WINDOW);
+            return;
+        }
+
         Notification notification = Notification.builder()
                 .recipient(recipient)
                 .sender(sender)
@@ -73,6 +84,18 @@ public class NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+    }
+
+    private boolean isRepeatedToggleNotification(BlogUser recipient, BlogUser sender, NotificationType type, Post post) {
+        if (type != NotificationType.LIKE && type != NotificationType.FOLLOW) {
+            return false;
+        }
+        Instant since = Instant.now().minus(TOGGLE_DEDUPE_WINDOW);
+        return post != null
+                ? notificationRepository.existsByRecipientIdAndSenderIdAndTypeAndTargetPostIdAndCreatedAtAfter(
+                        recipient.getId(), sender.getId(), type, post.getId(), since)
+                : notificationRepository.existsByRecipientIdAndSenderIdAndTypeAndTargetPostIdIsNullAndCreatedAtAfter(
+                        recipient.getId(), sender.getId(), type, since);
     }
 
     private static String truncate(String value, int maxLength) {

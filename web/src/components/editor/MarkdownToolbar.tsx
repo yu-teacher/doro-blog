@@ -32,6 +32,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertHeading(1)}
           className="px-2 py-1 rounded-md text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="대제목 (H1)"
+          aria-label="대제목 (H1)"
         >
           H1
         </button>
@@ -40,6 +41,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertHeading(2)}
           className="px-2 py-1 rounded-md text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="중제목 (H2)"
+          aria-label="중제목 (H2)"
         >
           H2
         </button>
@@ -48,6 +50,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertHeading(3)}
           className="px-2 py-1 rounded-md text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="소제목 (H3)"
+          aria-label="소제목 (H3)"
         >
           H3
         </button>
@@ -56,6 +59,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertHeading(4)}
           className="px-2 py-1 rounded-md text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="세부제목 (H4)"
+          aria-label="세부제목 (H4)"
         >
           H4
         </button>
@@ -68,6 +72,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertFormatting('**', '**', '굵은 텍스트')}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="굵게 (Bold)"
+          aria-label="굵게 (Bold)"
         >
           <Bold className="w-3.5 h-3.5" />
         </button>
@@ -76,6 +81,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertFormatting('*', '*', '기울임 텍스트')}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="기울임 (Italic)"
+          aria-label="기울임 (Italic)"
         >
           <Italic className="w-3.5 h-3.5" />
         </button>
@@ -84,6 +90,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertFormatting('~~', '~~', '취소선 텍스트')}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="취소선 (Strikethrough)"
+          aria-label="취소선 (Strikethrough)"
         >
           <Strikethrough className="w-3.5 h-3.5" />
         </button>
@@ -104,6 +111,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertFormatting('[', '](https://)', '링크 텍스트')}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="링크 삽입"
+          aria-label="링크 삽입"
         >
           <Link2 className="w-3.5 h-3.5" />
         </button>
@@ -112,6 +120,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={insertCodeBlock}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="코드 블록"
+          aria-label="코드 블록"
         >
           <Code className="w-3.5 h-3.5" />
         </button>
@@ -120,6 +129,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={() => insertFormatting('\n\n---\n\n', '', '')}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="구분선"
+          aria-label="구분선"
         >
           <Minus className="w-3.5 h-3.5" />
         </button>
@@ -133,6 +143,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           disabled={uploadingEditorImage}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors text-xs font-medium"
           title="이미지 파일 첨부"
+          aria-label="이미지 파일 첨부"
         >
           {uploadingEditorImage ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
@@ -150,6 +161,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={onUndo}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="실행 취소 (Cmd+Z / Ctrl+Z)"
+          aria-label="실행 취소 (Cmd+Z / Ctrl+Z)"
         >
           <Undo2 className="w-3.5 h-3.5" />
         </button>
@@ -158,6 +170,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           onClick={onRedo}
           className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           title="다시 실행 (Cmd+Shift+Z / Ctrl+Y)"
+          aria-label="다시 실행 (Cmd+Shift+Z / Ctrl+Y)"
         >
           <Redo2 className="w-3.5 h-3.5" />
         </button>

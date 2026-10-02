@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalShell } from '../ModalShell';
 import type { Series, PostStatus } from '../../api/types';
 import { BookOpen, Check, Globe, Link2, Loader2, Lock, RefreshCw, Sparkles, Trash2, Upload } from 'lucide-react';
 
@@ -38,24 +39,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   username,
   summary, setSummary, thumbnailUrl, setThumbnailUrl, slug, setSlug, status, setStatus, selectedSeriesId, setSelectedSeriesId, seriesList, newSeriesTitle, setNewSeriesTitle, showNewSeriesInput, setShowNewSeriesInput, showManualUrlInput, setShowManualUrlInput, thumbnailAutoDetected, setThumbnailAutoDetected, uploadingThumbnail, thumbnailFileInputRef, handleThumbnailDrop, saving, onCreateSeries, onPublish, onClose,
 }) => (
-    <div
-      onClick={() => onClose()}
-      className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-slate-900 dark:text-slate-100 cursor-default"
-      >
+    <ModalShell onClose={onClose} labelledBy="publish-modal-title" overlayClassName="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer" panelClassName="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-slate-900 dark:text-slate-100 cursor-default">
         {/* Modal Left: Post Thumbnail & Summary Preview */}
         <div className="w-full md:w-1/2 p-8 bg-slate-50 dark:bg-slate-950/50 border-r border-slate-100 dark:border-slate-800 flex flex-col justify-between overflow-y-auto">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">포스트 미리보기</h3>
+            <h3 id="publish-modal-title" className="text-lg font-bold text-slate-900 dark:text-white mb-4">포스트 미리보기</h3>
 
             {/* Velog-style 1.91:1 (~16:9) Thumbnail Upload Box */}
             <div className="mb-5">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+              <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
                 대표 썸네일
-              </label>
+              </span>
 
               {thumbnailUrl ? (
                 <div className="relative aspect-video rounded-2xl overflow-hidden shadow-sm group border border-slate-200 dark:border-slate-800 bg-slate-950">
@@ -74,7 +68,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                   )}
 
                   {/* Hover Overlay with Re-upload / Delete Buttons */}
-                  <div className="absolute inset-0 bg-black/50 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                  <div className="absolute inset-0 bg-black/50 backdrop-blur-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-3">
                     <button
                       type="button"
                       onClick={() => thumbnailFileInputRef.current?.click()}
@@ -98,10 +92,19 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               ) : (
                 /* Dropzone when no thumbnail */
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="썸네일 이미지 업로드"
                   onClick={() => thumbnailFileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      thumbnailFileInputRef.current?.click();
+                    }
+                  }}
                   onDrop={handleThumbnailDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  className="aspect-video bg-white dark:bg-slate-800/80 hover:bg-emerald-50/50 dark:hover:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-all flex flex-col items-center justify-center cursor-pointer p-6 text-center group"
+                  className="aspect-video bg-white dark:bg-slate-800/80 hover:bg-emerald-50/50 dark:hover:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-all flex flex-col items-center justify-center cursor-pointer p-6 text-center group focus-visible:outline-2 focus-visible:outline-emerald-500"
                 >
                   {uploadingThumbnail ? (
                     <div className="flex flex-col items-center gap-2 text-emerald-600 dark:text-emerald-400">
@@ -151,6 +154,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               {showManualUrlInput && (
                 <input
                   type="text"
+                  aria-label="썸네일 이미지 URL"
                   placeholder="https://... 이미지 URL"
                   value={thumbnailUrl}
                   onChange={(e) => {
@@ -165,10 +169,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             {/* Summary / Excerpt */}
             <div>
               <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                <span>포스트 한 줄 소개</span>
+                <label htmlFor="publish-summary">포스트 한 줄 소개</label>
                 <span>{summary.length}/150</span>
               </div>
               <textarea
+                id="publish-summary"
                 rows={4}
                 maxLength={150}
                 value={summary}
@@ -185,10 +190,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           <div className="space-y-6">
             {/* Visibility */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 dark:text-white mb-2">공개 설정</label>
-              <div className="grid grid-cols-2 gap-3">
+              <span id="publish-visibility-label" className="block text-sm font-bold text-slate-900 dark:text-white mb-2">공개 설정</span>
+              <div role="group" aria-labelledby="publish-visibility-label" className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  aria-pressed={status === 'PUBLISHED'}
                   onClick={() => setStatus('PUBLISHED')}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
                     status === 'PUBLISHED'
@@ -200,6 +206,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 </button>
                 <button
                   type="button"
+                  aria-pressed={status === 'PRIVATE'}
                   onClick={() => setStatus('PRIVATE')}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
                     status === 'PRIVATE'
@@ -214,10 +221,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
             {/* Custom Slug */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 dark:text-white mb-1">URL 슬러그</label>
+              <label htmlFor="publish-slug" className="block text-sm font-bold text-slate-900 dark:text-white mb-1">URL 슬러그</label>
               <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
                 <span className="font-mono">/@{username}/</span>
                 <input
+                  id="publish-slug"
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
@@ -229,7 +237,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             {/* Series Selection */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <label htmlFor="publish-series" className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                   <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> 시리즈 설정
                 </label>
                 <button
@@ -245,6 +253,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 <div className="flex gap-2 mb-3 animate-in fade-in">
                   <input
                     type="text"
+                    aria-label="새 시리즈 이름"
                     placeholder="새 시리즈 이름"
                     value={newSeriesTitle}
                     onChange={(e) => setNewSeriesTitle(e.target.value)}
@@ -261,6 +270,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               )}
 
               <select
+                id="publish-series"
                 value={selectedSeriesId}
                 onChange={(e) => setSelectedSeriesId(e.target.value)}
                 className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -304,7 +314,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </ModalShell>
   
 );

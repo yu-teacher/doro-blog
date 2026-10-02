@@ -28,6 +28,9 @@ spring:
     multipart:
       max-file-size: 15MB
       max-request-size: 15MB
+      # 요청 본문을 컨트롤러가 파일을 꺼낼 때 비로소 읽는다. 그래야 인증 검사(UploadAuthInterceptor)가 먼저 실행되어
+      # 로그인하지 않은 요청이 15MB 를 다 올린 뒤에야 거부되는 일이 없다.
+      resolve-lazily: true
   flyway:
     enabled: true
     baseline-on-migrate: true

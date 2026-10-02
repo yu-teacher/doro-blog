@@ -73,8 +73,9 @@ export const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick,
       <button
         type="button"
         title="알림 삭제"
+        aria-label="알림 삭제"
         onClick={(e) => onDelete(e, item.id, item.isRead)}
-        className="absolute bottom-2 right-2 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors opacity-0 group-hover:opacity-100"
+        className="absolute bottom-2 right-2 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

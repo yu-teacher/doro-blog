@@ -1,6 +1,6 @@
 # 📝 Doro Blog
 
-> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (JWT verified locally via JWKS, authorization through a Zanzibar-style ReBAC engine), so this service contains **no role-check `if` statements**. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **369 automated tests** (155 backend + 214 frontend).
+> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (JWT verified locally via JWKS, authorization through a Zanzibar-style ReBAC engine), so this service contains **no role-check `if` statements**. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **396 automated tests** (167 backend + 229 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
 직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인·권한 검사 코드는 이 서비스 안에 없습니다.
@@ -79,7 +79,7 @@ flowchart LR
 **프런트엔드** React 19 · Vite · TypeScript · zustand · vitest — 화면 로직은 훅(`usePaginatedList`, `useDraftAutosave` 등)과 순수 함수로 분리해 단위 테스트합니다.
 
 ## 🧪 테스트
-백엔드 **155개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **214개**, ESLint·타입 검사 통과.
+백엔드 **167개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **229개**, ESLint·타입 검사 통과.
 
 ## 🚀 실행
 ```bash

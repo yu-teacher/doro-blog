@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useDeferredValue } from 'react';
 import { MarkdownViewer } from '../MarkdownViewer';
 
 interface EditorPreviewProps {
@@ -8,7 +8,10 @@ interface EditorPreviewProps {
 }
 
 /** 작성 중인 글의 실시간 미리보기 (제목, 태그, 마크다운 본문). */
-export const EditorPreview: React.FC<EditorPreviewProps> = ({ title, tags, content }) => (
+export const EditorPreview: React.FC<EditorPreviewProps> = ({ title, tags, content }) => {
+  // 입력은 즉시 반영하고 무거운 마크다운 렌더는 한가할 때 따라가게 해 타이핑 지연을 줄인다.
+  const deferredContent = useDeferredValue(content);
+  return (
   <>
     {/* Right Side: Live Markdown Preview */}
     <div className="hidden lg:block w-1/2 p-10 bg-slate-50 dark:bg-slate-900/50 overflow-y-auto">
@@ -25,8 +28,9 @@ export const EditorPreview: React.FC<EditorPreviewProps> = ({ title, tags, conte
             ))}
           </div>
         )}
-        <MarkdownViewer content={content || '*작성 중인 내용이 여기에 실시간으로 표시됩니다.*'} />
+        <MarkdownViewer content={deferredContent || '*작성 중인 내용이 여기에 실시간으로 표시됩니다.*'} />
       </div>
     </div>
   </>
-);
+  );
+};

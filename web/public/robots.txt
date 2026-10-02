@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /write
+Disallow: /edit/
+Disallow: /me/

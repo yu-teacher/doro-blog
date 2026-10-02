@@ -115,6 +115,7 @@ export const TagSearchPage: React.FC = () => {
                 onClick={() => handleRemoveTag(t)}
                 className="w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors ml-0.5"
                 title={`${t} 태그 제거`}
+                aria-label={`${t} 태그 제거`}
               >
                 <X className="w-3 h-3 text-white" />
               </button>

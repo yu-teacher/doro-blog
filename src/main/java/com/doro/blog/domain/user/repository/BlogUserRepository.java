@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface BlogUserRepository extends JpaRepository<BlogUser, UUID> {
+
+    boolean existsByProfileImageUrlContaining(String key);
     Optional<BlogUser> findByUsername(String username);
     boolean existsByUsername(String username);
 

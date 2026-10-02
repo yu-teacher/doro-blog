@@ -3,6 +3,8 @@ package com.doro.blog.domain.post.service;
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.common.util.SlugGenerator;
+import com.doro.blog.domain.upload.service.MediaCleanup;
+import com.doro.blog.domain.upload.service.MediaReferences;
 import com.doro.blog.domain.post.dto.PostDtos.*;
 import com.doro.blog.domain.post.entity.Post;
 import com.doro.blog.domain.post.entity.PostStatus;
@@ -30,6 +32,7 @@ public class PostCommandService {
     private final BlogUserService userService;
     private final TagService tagService;
     private final GuardTuples guardTuples;
+    private final MediaCleanup mediaCleanup;
 
 
 
@@ -50,7 +53,7 @@ public class PostCommandService {
         Series series = null;
         Integer seriesOrder = null;
         if (request.seriesId() != null) {
-            series = seriesRepository.findById(request.seriesId())
+            series = seriesRepository.findByIdForUpdate(request.seriesId())
                     .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
             requireSeriesOwner(series, user.getId());
             seriesOrder = postRepository.nextSeriesOrder(series.getId());
@@ -109,7 +112,7 @@ public class PostCommandService {
 
         // 시리즈 변경 처리
         if (request.seriesId() != null && (post.getSeries() == null || !post.getSeries().getId().equals(request.seriesId()))) {
-            Series newSeries = seriesRepository.findById(request.seriesId())
+            Series newSeries = seriesRepository.findByIdForUpdate(request.seriesId())
                     .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
             requireSeriesOwner(newSeries, post.getUser().getId());
             if (post.getSeries() != null) {
@@ -148,6 +151,9 @@ public class PostCommandService {
         if (post.getSeries() != null) {
             seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
         }
+
+        // 이 글이 쓰던 업로드 파일(본문 이미지, 썸네일). 다른 곳에서 안 쓰면 커밋 후 스토리지에서 지운다
+        mediaCleanup.deleteUnreferencedAfterCommit(postId, MediaReferences.keysIn(post.getContent(), post.getThumbnailUrl()));
 
         // 태그별 글 수에서 이 글을 뺀다 (안 빼면 인기 태그 집계가 삭제된 글만큼 영구히 부풀어 오른다)
         tagService.releasePostTags(postId);

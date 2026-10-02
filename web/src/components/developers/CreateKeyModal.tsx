@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalShell } from '../ModalShell';
 import { Key, Loader2, Plus } from 'lucide-react';
 
 interface CreateKeyModalProps {
@@ -14,12 +15,14 @@ interface CreateKeyModalProps {
 /** 새 API 키 발급 모달 (키 이름과 만료 기간). */
 export const CreateKeyModal: React.FC<CreateKeyModalProps> = ({ keyName, setKeyName, expireDays, setExpireDays, issuing, onSubmit, onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-      <div
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+    <ModalShell
+      onClose={onClose}
+      labelledBy="create-key-title"
+      closeOnOverlayClick={false}
+      overlayClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+      panelClassName="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95"
+    >
+        <h3 id="create-key-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
           <Key className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />새 API 키 발급
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
@@ -28,10 +31,11 @@ export const CreateKeyModal: React.FC<CreateKeyModalProps> = ({ keyName, setKeyN
 
         <form onSubmit={onSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label htmlFor="create-key-name" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               키 이름 (용도 구분용)
             </label>
             <input
+              id="create-key-name"
               type="text"
               required
               maxLength={50}
@@ -43,10 +47,10 @@ export const CreateKeyModal: React.FC<CreateKeyModalProps> = ({ keyName, setKeyN
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <span id="create-key-expire" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               만료 기간
-            </label>
-            <div className="grid grid-cols-4 gap-2 text-xs">
+            </span>
+            <div role="group" aria-labelledby="create-key-expire" className="grid grid-cols-4 gap-2 text-xs">
               {[
                 { label: '30일', value: 30 },
                 { label: '90일', value: 90 },
@@ -56,6 +60,7 @@ export const CreateKeyModal: React.FC<CreateKeyModalProps> = ({ keyName, setKeyN
                 <button
                   key={opt.value}
                   type="button"
+                  aria-pressed={expireDays === opt.value}
                   onClick={() => setExpireDays(opt.value)}
                   className={`py-2 rounded-xl font-medium border transition-all ${
                     expireDays === opt.value
@@ -87,8 +92,7 @@ export const CreateKeyModal: React.FC<CreateKeyModalProps> = ({ keyName, setKeyN
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </ModalShell>
   
   );
 };

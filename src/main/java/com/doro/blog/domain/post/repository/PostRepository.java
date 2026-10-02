@@ -15,6 +15,11 @@ import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
+    /** 다른 글의 본문이나 썸네일이 이 업로드 키를 가리키는지. (글 삭제 때 공유 중인 이미지를 지우지 않기 위함) */
+    @Query("SELECT COUNT(p) > 0 FROM Post p WHERE p.id <> :excludedId "
+            + "AND (p.content LIKE CONCAT('%', :key, '%') OR p.thumbnailUrl LIKE CONCAT('%', :key, '%'))")
+    boolean existsOtherPostReferencing(@Param("excludedId") UUID excludedId, @Param("key") String key);
+
     /** 시리즈를 지울 때 소속 글의 연결을 한 번의 UPDATE 로 풀어 준다 (글을 전부 읽어 하나씩 고치지 않는다). */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update Post p set p.series = null, p.seriesOrder = null where p.series.id = :seriesId")
