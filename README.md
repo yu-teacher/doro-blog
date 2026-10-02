@@ -1,5 +1,7 @@
 # 📝 Doro Blog
 
+[![CI](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml/badge.svg)](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml)
+
 > **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (JWT verified locally via JWKS, authorization through a Zanzibar-style ReBAC engine), so this service contains **no role-check `if` statements**. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **396 automated tests** (167 backend + 229 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
@@ -80,6 +82,7 @@ flowchart LR
 
 ## 🧪 테스트
 백엔드 **167개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **229개**, ESLint·타입 검사 통과.
+`main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard·MinIO 스택 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행
 ```bash
