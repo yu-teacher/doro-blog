@@ -20,9 +20,21 @@ JAR_REL="build/libs/doro-blog-0.0.1-SNAPSHOT.jar"
 HEALTH_TIMEOUT_SEC="${HEALTH_TIMEOUT_SEC:-120}"
 JAVA_IMAGE="${CI_JAVA_IMAGE:-gradle:9.5.1-jdk25}"
 NODE_IMAGE="${CI_NODE_IMAGE:-node:24-alpine}"
-CACHE="${CI_CACHE_DIR:-$HOME/.cache/doro-ci}"
+# Doro CI 와 Gradle 캐시를 나누어 쓴다: 같은 캐시 폴더를 동시에 쓰면 Gradle 의 캐시 잠금 대기(60초)로 빌드가 실패할 수 있다.
+CACHE="${CI_CACHE_DIR:-$HOME/.cache/blog-deploy}"
 TS="$(date +%Y%m%d-%H%M%S)"
 SNAP="$HOME/backups/pre-blog-deploy-$TS"
+# 배포 로그를 서버에도 남긴다(러너가 로그 파일을 업로드 후 지우므로). 실패하면 GitHub 주석으로 마지막 줄도 남긴다.
+LOG_DIR="$HOME/logs"; mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/blog-deploy-$TS.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+on_exit() {
+  local rc=$?
+  if [ "$rc" -ne 0 ] && [ "${GITHUB_ACTIONS:-}" = true ]; then
+    printf '::error title=deploy-on-server.sh failed (exit %s)::%s\n' "$rc" "$(tail -n 25 "$LOG_FILE" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+  fi
+}
+trap on_exit EXIT
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
