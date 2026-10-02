@@ -72,7 +72,15 @@ type blog_comment {
   relation editor: author
   relation can_delete: author | post#author
 }
+
+type blog_user {
+  relation follower: user      # 팔로우 기록 (쓰기 전용, 판정에는 쓰지 않음)
+}
 ```
+
+**스키마 등록은 안전한 병합으로 합니다.** Guard의 스키마 등록은 "전체 교체"라서, 기동할 때 `BlogSchemaInitializer`가 Guard의 활성 스키마를 읽어 **없는 블로그 타입만 뒤에 덧붙여**(`BlogSchemaMerger`) 다시 등록합니다. 기존 타입(IAM·다른 서비스 포함)은 한 글자도 바꾸지 않고, 이미 다 있으면 아무 것도 하지 않으며(재기동해도 버전이 늘지 않음), 이름이 같은데 내용이 다른 블로그 타입은 바꾸지 않고 경고만 남깁니다. 이 호출에는 서비스 토큰의 `schema-write` 권한이 필요합니다.
+
+**코드와 스키마가 어긋나지 않도록** `BlogSchemaCoversUsedTuplesTest`가 소스를 스캔해, 코드가 쓰는 모든 튜플·`check`·`@DoroGuard`의 (타입, 릴레이션)이 이 파일에 선언돼 있는지 검사합니다. Guard의 검증 모드가 `ENFORCE`이면 선언되지 않은 튜플은 거부되고 `GuardTuples.write`가 예외를 던져 글·댓글 저장까지 롤백되므로, 튜플을 새로 쓰는 코드를 추가하면 스키마에도 선언해야 합니다.
 
 ---
 
