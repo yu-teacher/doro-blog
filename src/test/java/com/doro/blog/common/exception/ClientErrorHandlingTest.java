@@ -54,4 +54,32 @@ class ClientErrorHandlingTest {
         assertThat(check.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(write.getBody().toString()).doesNotContain("down");
     }
+
+    @Test
+    @DisplayName("업로드 용량 초과는 500 이 아니라 413")
+    void uploadTooLargeIs413() {
+        var response = handler.handleUploadTooLarge(new org.springframework.web.multipart.MaxUploadSizeExceededException(15L));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
+    @Test
+    @DisplayName("multipart 필수 파트 누락은 500 이 아니라 400")
+    void missingPartIs400() {
+        var response = handler.handleMissingPart(new org.springframework.web.multipart.support.MissingServletRequestPartException("file"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("유니크 제약 위반만 409 이고, 그 밖의 무결성 오류는 '이미 존재' 로 가리지 않고 500")
+    void onlyUniqueViolationIsConflict() {
+        var unique = new org.springframework.dao.DataIntegrityViolationException("dup",
+                new java.sql.SQLException("duplicate key", "23505"));
+        var notNull = new org.springframework.dao.DataIntegrityViolationException("null",
+                new java.sql.SQLException("null value in column", "23502"));
+
+        assertThat(handler.handleDataIntegrity(unique).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(handler.handleDataIntegrity(notNull).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

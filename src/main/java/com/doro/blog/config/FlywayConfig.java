@@ -55,7 +55,6 @@ public class FlywayConfig {
                 .baselineVersion("0")
                 .load();
 
-        flyway.repair();
         flyway.migrate();
         log.info("Blog Flyway migration completed successfully.");
         return flyway;

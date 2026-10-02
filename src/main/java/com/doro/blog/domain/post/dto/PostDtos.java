@@ -16,6 +16,8 @@ public class PostDtos {
     /** 글 하나에 붙일 수 있는 태그 수와 태그 이름 길이 (tags.name 은 VARCHAR(50)). */
     public static final int MAX_TAGS = 20;
     public static final int MAX_TAG_LENGTH = 50;
+    /** 본문 최대 길이(문자). 무제한이면 요약·썸네일 추출과 저장이 요청 하나로 서버를 오래 붙잡을 수 있다. */
+    public static final int MAX_CONTENT_LENGTH = 1_000_000;
 
 
     public record CreatePostRequest(
@@ -28,6 +30,7 @@ public class PostDtos {
             @Size(max = 500, message = "요약문은 최대 500자입니다.")
             String summary,
 
+            @Size(max = MAX_CONTENT_LENGTH, message = "본문은 최대 1,000,000자입니다.")
             String content,
 
             @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")
@@ -53,6 +56,7 @@ public class PostDtos {
             @Size(max = 500, message = "요약문은 최대 500자입니다.")
             String summary,
 
+            @Size(max = MAX_CONTENT_LENGTH, message = "본문은 최대 1,000,000자입니다.")
             String content,
 
             @Size(max = BlogUserDtos.MAX_IMAGE_URL_LENGTH, message = "썸네일 주소는 최대 500자입니다.")

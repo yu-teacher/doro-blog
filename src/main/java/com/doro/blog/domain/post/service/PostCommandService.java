@@ -149,6 +149,9 @@ public class PostCommandService {
             seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
         }
 
+        // 태그별 글 수에서 이 글을 뺀다 (안 빼면 인기 태그 집계가 삭제된 글만큼 영구히 부풀어 오른다)
+        tagService.releasePostTags(postId);
+
         // Zanzibar ReBAC 관계 튜플 삭제
         guardTuples.deleteAfterCommit("blog_post", postId.toString(), "author", "user", post.getUser().getId().toString());
 

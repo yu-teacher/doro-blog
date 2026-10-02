@@ -24,6 +24,9 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** PostgreSQL SQLState: unique_violation */
+    private static final String UNIQUE_VIOLATION = "23505";
+
     @ExceptionHandler(BlogException.class)
     public ResponseEntity<ApiResponse<Void>> handleBlogException(BlogException e) {
         log.warn("BlogException occurred: code={}, message={}", e.getErrorCode().getCode(), e.getMessage());
@@ -129,10 +132,44 @@ public class GlobalExceptionHandler {
                         "요청 파라미터가 허용 범위를 벗어났습니다. (page ≥ 0, 1 ≤ size ≤ " + PageLimits.MAX_SIZE + ")"));
     }
 
-    /** 동시 요청이나 중복 값으로 인한 유니크 제약 위반은 서버 오류가 아니라 충돌이다. */
+    /** 업로드 용량 초과는 클라이언트 오류(413)다. */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        log.warn("Upload too large: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "업로드 용량이 허용 한도를 넘었습니다."));
+    }
+
+    /** multipart 요청에 필수 파트(file)가 없는 경우. */
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(org.springframework.web.multipart.support.MissingServletRequestPartException e) {
+        log.warn("Missing request part: {}", e.getRequestPartName());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "필수 항목이 누락되었습니다: " + e.getRequestPartName()));
+    }
+
+    /** 클라이언트가 받을 수 없는 응답 형식(Accept)을 요구한 경우. */
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotAcceptable(org.springframework.web.HttpMediaTypeNotAcceptableException e) {
+        log.warn("HttpMediaTypeNotAcceptableException: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_ACCEPTABLE)
+                .body(ApiResponse.error(HttpStatus.NOT_ACCEPTABLE, "NOT_ACCEPTABLE", "요청한 응답 형식을 제공할 수 없습니다."));
+    }
+
+    /**
+     * 유니크 제약 위반(SQLState 23505)만 충돌(409)이다. NOT NULL·길이 초과 같은 다른 무결성 오류는
+     * 클라이언트 잘못이 아니라 서버 버그이므로 "이미 존재" 로 가리지 않고 ERROR 로 남기며 500 으로 응답한다.
+     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e) {
-        log.warn("Data integrity violation: {}", e.getMostSpecificCause().getMessage());
+        Throwable cause = e.getMostSpecificCause();
+        if (!(cause instanceof java.sql.SQLException sql && UNIQUE_VIOLATION.equals(sql.getSQLState()))) {
+            return handleGenericException(e);
+        }
+        log.warn("Unique constraint violation: {}", cause.getMessage());
         return ResponseEntity
                 .status(ErrorCode.DUPLICATE_RESOURCE.getHttpStatus())
                 .body(ApiResponse.error(ErrorCode.DUPLICATE_RESOURCE.getHttpStatus(), ErrorCode.DUPLICATE_RESOURCE.getCode(), ErrorCode.DUPLICATE_RESOURCE.getMessage()));

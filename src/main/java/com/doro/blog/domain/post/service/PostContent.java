@@ -8,8 +8,16 @@ public final class PostContent {
     private PostContent() {
     }
 
+    /** 요약과 썸네일은 본문 앞부분만 보면 되므로, 정규식에 넣는 길이를 제한해 아주 긴 본문이 CPU 를 오래 쓰지 못하게 한다. */
+    private static final int SUMMARY_SOURCE_LIMIT = 10_000;
+    private static final int THUMBNAIL_SCAN_LIMIT = 50_000;
+
+    private static String head(String text, int limit) {
+        return text.length() > limit ? text.substring(0, limit) : text;
+    }
+
     private static final java.util.regex.Pattern FIRST_IMAGE_PATTERN =
-            java.util.regex.Pattern.compile("!\\[.*?\\]\\((https?://[^\\s)]+|/[^\\s)]+)\\)");
+            java.util.regex.Pattern.compile("!\\[[^\\]\\n]{0,200}\\]\\((https?://[^\\s)]{1,2000}|/[^\\s)]{1,2000})\\)");
 
     public static String resolveThumbnail(String explicitThumbnailUrl, String content) {
         if (explicitThumbnailUrl != null && !explicitThumbnailUrl.isBlank()) {
@@ -22,7 +30,7 @@ public final class PostContent {
         if (content == null || content.isBlank()) {
             return null;
         }
-        java.util.regex.Matcher matcher = FIRST_IMAGE_PATTERN.matcher(content);
+        java.util.regex.Matcher matcher = FIRST_IMAGE_PATTERN.matcher(head(content, THUMBNAIL_SCAN_LIMIT));
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
@@ -37,7 +45,7 @@ public final class PostContent {
         if (content == null || content.isBlank()) {
             return "";
         }
-        String plain = stripMarkdown(content);
+        String plain = stripMarkdown(head(content, SUMMARY_SOURCE_LIMIT));
         return plain.length() > 150 ? plain.substring(0, 150).trim() + "..." : plain;
     }
 
@@ -47,15 +55,15 @@ public final class PostContent {
         }
         String text = markdown;
         // 1. Remove markdown image syntax ![alt](url)
-        text = text.replaceAll("!\\[[^\\]]*\\]\\([^)]*\\)", "");
+        text = text.replaceAll("!\\[[^\\]]{0,500}\\]\\([^)]{0,2000}\\)", "");
         // 2. Convert markdown links [text](url) to text
-        text = text.replaceAll("\\[([^\\]]+)\\]\\([^)]*\\)", "$1");
+        text = text.replaceAll("\\[([^\\]]{1,500})\\]\\([^)]{0,2000}\\)", "$1");
         // 3. Remove fenced code blocks ```...```
         text = text.replaceAll("(?s)```.*?```", " ");
         // 4. Remove inline code `...`
-        text = text.replaceAll("`[^`]*`", " ");
+        text = text.replaceAll("`[^`]{0,500}`", " ");
         // 5. Remove HTML tags <...>
-        text = text.replaceAll("<[^>]*>", " ");
+        text = text.replaceAll("<[^>]{0,500}>", " ");
         // 6. Remove headings, blockquotes, list markers
         text = text.replaceAll("(?m)^[\\s]*[#>-]+[\\s]+", "");
         text = text.replaceAll("(?m)^[\\s]*\\d+\\.[\\s]+", "");

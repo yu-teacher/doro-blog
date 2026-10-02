@@ -132,7 +132,7 @@ class BlogEdgeCaseTests {
         }
 
         @Test
-        @DisplayName("삭제된 댓글 수정 시도 시 IllegalStateException 발생")
+        @DisplayName("삭제된 댓글 수정 시도 시 COMMENT_NOT_FOUND (500 이 아니라 404)")
         void testEditDeletedCommentFails() {
             DoroUser author = createMockUser("author");
             DoroUser reader = createMockUser("reader");
@@ -150,7 +150,8 @@ class BlogEdgeCaseTests {
             // 수정 시도 -> 예외
             assertThatThrownBy(() ->
                     commentService.updateComment(root.id(), reader, new UpdateCommentRequest("수정 시도"))
-            ).isInstanceOf(IllegalStateException.class);
+            ).isInstanceOf(BlogException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
         }
     }
 

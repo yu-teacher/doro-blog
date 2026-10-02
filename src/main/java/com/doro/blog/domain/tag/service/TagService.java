@@ -29,13 +29,23 @@ public class TagService {
     /** tags.name 컬럼 길이. 요청 검증을 우회한 경로(API 키 등)에서도 INSERT 가 실패하지 않게 한 번 더 자른다. */
     private static final int MAX_TAG_LENGTH = 50;
 
+    /** 글 삭제 시 태그별 글 수에서 이 글을 뺀다. 연결 행 자체는 글 삭제와 함께 DB 가 지운다. */
+    @Transactional
+    public void releasePostTags(UUID postId) {
+        postTagRepository.findTagIdsByPostId(postId).stream()
+                .sorted()
+                .forEach(tagId -> tagRepository.adjustPostCount(tagId, -1));
+    }
+
     @Transactional
     public void syncPostTags(Post post, List<String> rawTagNames) {
         // 기존 태그 연결 조회 및 카운트 감소
         List<PostTag> currentPostTags = postTagRepository.findAllByPostIdWithTag(post.getId());
-        for (PostTag pt : currentPostTags) {
-            tagRepository.adjustPostCount(pt.getTag().getId(), -1);
-        }
+        // 동시 요청끼리 같은 태그 행을 서로 다른 순서로 잠그면 교착이 나므로 항상 id 순으로 갱신한다
+        currentPostTags.stream()
+                .map(pt -> pt.getTag().getId())
+                .sorted()
+                .forEach(tagId -> tagRepository.adjustPostCount(tagId, -1));
         postTagRepository.deleteAllByPostId(post.getId());
 
         if (rawTagNames == null || rawTagNames.isEmpty()) {
@@ -49,6 +59,7 @@ public class TagService {
                 .map(name -> name.length() > MAX_TAG_LENGTH ? name.substring(0, MAX_TAG_LENGTH) : name)
                 .filter(name -> !name.isEmpty())
                 .distinct()
+                .sorted()
                 .toList();
 
         for (String name : normalizedNames) {

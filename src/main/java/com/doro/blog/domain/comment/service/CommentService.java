@@ -163,6 +163,9 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
 
+        if (comment.isDeleted()) {
+            throw new BlogException(ErrorCode.COMMENT_NOT_FOUND);
+        }
         if (!comment.getUser().getId().equals(doroUser.userId())) {
             throw new BlogException(ErrorCode.ACCESS_DENIED, "댓글 작성자 본인만 수정할 수 있습니다.");
         }
@@ -175,6 +178,11 @@ public class CommentService {
     public void deleteComment(UUID commentId, DoroUser doroUser) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 이미 삭제 표시된 댓글(자식이 남아 있어 행만 남은 루트)은 없는 댓글로 본다: 다시 지우면 댓글 수가 또 줄어든다
+        if (comment.isDeleted()) {
+            throw new BlogException(ErrorCode.COMMENT_NOT_FOUND);
+        }
 
         // Zanzibar ReBAC: 댓글 작성자 본인 OR 원글 작성자(post#author) 권한 확인
         boolean canDelete = doroUser.isAuthenticated() && (
