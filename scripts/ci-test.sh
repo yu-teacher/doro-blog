@@ -22,6 +22,17 @@ export CI_DB_PORT CI_GUARD_HTTP_PORT CI_GUARD_GRPC_PORT CI_MINIO_PORT
 STACK_TIMEOUT_SEC="${CI_STACK_TIMEOUT_SEC:-240}"
 COMPOSE=(docker compose -p blog-ci -f docker-compose.ci.yml)
 
+# GitHub Actions 에서는 실패 원인을 주석(annotation)으로도 남긴다: 로그를 열지 않아도 실패 화면과 API 로 원인을 볼 수 있다.
+LOG_FILE="$(mktemp)"
+exec > >(tee -a "$LOG_FILE") 2>&1
+report_failure() {
+  local rc=$1
+  if [ "$rc" -ne 0 ] && [ "${GITHUB_ACTIONS:-}" = true ]; then
+    printf '::error title=ci-test.sh failed (exit %s)::%s\n' "$rc" "$(tail -n 25 "$LOG_FILE" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+  fi
+}
+trap 'report_failure $?' EXIT
+
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
@@ -33,7 +44,7 @@ run_web() {
 run_backend() {
   [ -d "$DORO_DIR/guard" ] || die "$DORO_DIR/guard 가 없다. Doro 레포를 형제 디렉터리에 체크아웃한다 (DORO_DIR 로 경로 지정)"
   # 실패했을 때만 Guard 로그를 보여 주고, 어떤 경우든 스택은 내린다
-  trap 'rc=$?; [ $rc -eq 0 ] || "${COMPOSE[@]}" logs --tail 60 guard-api >&2 || true; "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true' EXIT
+  trap 'rc=$?; [ $rc -eq 0 ] || "${COMPOSE[@]}" logs --tail 60 guard-api >&2 || true; "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true; report_failure $rc' EXIT
   log "== 격리 스택 기동 (Postgres/Redis/Guard/MinIO) =="
   "${COMPOSE[@]}" up -d --build
   deadline=$((SECONDS + STACK_TIMEOUT_SEC))
