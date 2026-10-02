@@ -144,8 +144,9 @@ type blog_comment {
 ```
 
 ### 로컬 애플리케이션 기동
+운영 설정에는 기본 비밀번호가 없으므로 `DB_PASSWORD`, `MINIO_SECRET_KEY`를 환경변수로 지정해야 합니다(`.env.example` 참고). 테스트(`./gradlew test`)는 로컬 docker 개발용 값을 자동으로 주입합니다.
 ```bash
-./gradlew bootRun
+DB_PASSWORD=... MINIO_SECRET_KEY=... ./gradlew bootRun
 ```
 
 ### Swagger 3.0 UI 접속
