@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 블로그 CI 와 같은 검증을 로컬에서도 그대로 돌린다: 격리된 스택(Postgres/Redis/Guard/MinIO)을 올리고
+# 블로그 CI 와 같은 검증을 로컬에서도 그대로 돌린다: 격리된 스택(Postgres/Redis/Guard/S3)을 올리고
 # 백엔드·프런트 테스트를 실행한 뒤 스택을 내린다. 개발·운영 DB 는 건드리지 않는다.
 #
 #   scripts/ci-test.sh            # 전체
@@ -45,7 +45,7 @@ run_backend() {
   [ -d "$DORO_DIR/guard" ] || die "$DORO_DIR/guard 가 없다. Doro 레포를 형제 디렉터리에 체크아웃한다 (DORO_DIR 로 경로 지정)"
   # 실패했을 때만 Guard 로그를 보여 주고, 어떤 경우든 스택은 내린다
   trap 'rc=$?; [ $rc -eq 0 ] || "${COMPOSE[@]}" logs --tail 60 guard-api >&2 || true; "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true; report_failure $rc' EXIT
-  log "== 격리 스택 기동 (Postgres/Redis/Guard/MinIO) =="
+  log "== 격리 스택 기동 (Postgres/Redis/Guard/S3) =="
   "${COMPOSE[@]}" up -d --build
   deadline=$((SECONDS + STACK_TIMEOUT_SEC))
   until curl -fsS "http://127.0.0.1:${CI_GUARD_HTTP_PORT}/actuator/health" >/dev/null 2>&1; do

@@ -1,4 +1,4 @@
-# CI 전용 일회용 스택: 테스트가 필요로 하는 Postgres / Redis / Guard / MinIO 를 격리해서 띄운다.
+# CI 전용 일회용 스택: 테스트가 필요로 하는 Postgres / Redis / Guard / S3 호환 스토리지를 격리해서 띄운다.
 # 개발·운영 DB 에 접속하지 않는다. scripts/ci-test.sh 가 올리고 내린다 (직접 쓸 때: docker compose -p blog-ci -f docker-compose.ci.yml up -d --build).
 # Guard 는 Doro 레포(형제 디렉터리, DORO_DIR)의 소스를 빌드해서 쓴다.
 name: blog-ci
@@ -52,11 +52,12 @@ services:
       redis:
         condition: service_healthy
 
-  minio:
-    image: quay.io/minio/minio:latest
-    command: server /data
+  # MinIO 는 공개 컨테이너 이미지 배포를 중단해서(quay.io/minio/minio 401) CI 에서 받을 수 없다.
+  # 대신 S3 호환 목 서버를 쓴다. 인증 없이 객체를 읽을 수 있어 업로드 결과 검증 테스트가 그대로 동작한다.
+  # 로컬 개발·운영은 계속 MinIO 를 쓴다.
+  s3:
+    image: adobe/s3mock:latest
     environment:
-      MINIO_ROOT_USER: doro_admin
-      MINIO_ROOT_PASSWORD: ${CI_MINIO_SECRET:-ci-only-secret}
+      initialBuckets: doro-blog-media
     ports:
-      - "127.0.0.1:${CI_MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${CI_MINIO_PORT:-9000}:9090"

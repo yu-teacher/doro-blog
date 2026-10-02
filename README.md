@@ -82,7 +82,7 @@ flowchart LR
 
 ## 🧪 테스트
 백엔드 **167개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **229개**, ESLint·타입 검사 통과.
-`main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard·MinIO 스택 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
+`main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행
 ```bash
