@@ -101,13 +101,38 @@ type blog_comment {
 | | `PUT` | `/api/v1/posts/{postId}` | 글 수정 | `@DoroGuard` editor |
 | | `DELETE` | `/api/v1/posts/{postId}` | 글 삭제 | `@DoroGuard` editor |
 | **Comment** | `POST` | `/api/v1/posts/{postId}/comments` | 루트 댓글 작성 | Authenticated |
-
 | | `POST` | `/api/v1/posts/{postId}/comments/{commentId}/replies` | 대댓글(답글) 작성 (2-Level) | Authenticated |
 | | `GET` | `/api/v1/posts/{postId}/comments` | 계층형 댓글 트리 조회 | Public |
 | | `PUT` | `/api/v1/comments/{commentId}` | 댓글 수정 | Author only |
 | | `DELETE` | `/api/v1/comments/{commentId}` | 댓글 삭제 (소프트삭제 지원) | `@DoroGuard` can_delete |
 | **Like** | `POST` | `/api/v1/posts/{postId}/likes` | 좋아요 토글 (1인 1좋아요) | Authenticated |
 | **Tag** | `GET` | `/api/v1/tags` | 인기 태그 및 글 개수 랭킹 | Public |
+
+---
+
+## 🔐 보안 설계
+
+- **업로드 3중 방어**
+  1. *내용 기반 형식 판별*: 확장자/Content-Type을 믿지 않고 매직 바이트로 jpeg·png·gif·webp·svg를 판별하며, 확장자가 판별 결과와 다르면 거부합니다. 저장 폴더는 허용 목록(`posts`, `thumbnails`)만 받습니다.
+  2. *SVG 허용 목록 정제(`SvgSanitizer`)*: 원본을 저장하지 않고, 허용된 요소·속성만 새 문서로 복사해 저장합니다. `script`, `foreignObject`, `on*` 이벤트, `javascript:`·외부 `href`/`url()`, 위험한 CSS를 제거하고, DOCTYPE은 XXE·엔티티 폭탄 방지를 위해 파싱 단계에서 금지합니다. 크기·깊이·노드 수에도 상한이 있습니다.
+  3. *게이트웨이 격리*: `/media/` 응답에 `default-src 'none'; sandbox` CSP를 걸어, 업로드 파일을 직접 열어도 스크립트가 실행되지 않습니다.
+- **API 키 스코프(`ApiKeyScope`)**: 키는 `/api/v1/posts`, `/series`, `/tags`, `/uploads`만 호출할 수 있고, 그 밖의 경로는 `403 AUTH-403-02`입니다.
+- **Guard 정합성(`GuardTuples`)**: 권한 튜플은 쓰기 실패 시 예외를 던져 트랜잭션을 롤백하고, 삭제는 커밋 이후에 수행합니다. Guard 장애는 `503 SYS-503-01`로 응답합니다.
+- **표준 에러 봉투**: 모든 오류는 `GlobalExceptionHandler`를 거쳐 `{ success:false, code, message, status }`로 응답합니다(필터에서 나는 401/403 포함).
+
+## ⚙️ 동시성 및 성능
+
+- **원자적 카운터**: 조회수·좋아요·댓글·팔로우·태그·시리즈 집계는 읽고-더하고-저장하지 않고 `UPDATE ... SET n = n + 1` 단일 SQL로 갱신합니다(`PostCounterService`). 동시 요청 테스트(`BlogCounterConcurrencyTests`)로 유실이 없음을 검증합니다.
+- **멱등 쓰기**: 좋아요·팔로우는 `INSERT ... ON CONFLICT DO NOTHING`의 반영 행 수로 중복 요청을 판단합니다.
+- **검색 인덱스**: 제목·요약·본문 검색은 `pg_trgm` GIN 인덱스(V7)를 타도록 LIKE 패턴을 애플리케이션에서 만들어 `ESCAPE '!'`와 함께 전달합니다. `EXPLAIN`으로 세 인덱스의 BitmapOr 사용을 확인했습니다.
+- **N+1 방지**: `BlogQueryCountTests`로 목록 API의 쿼리 수를 고정해 회귀를 막습니다.
+- **입력 한도 정합**: DTO 검증 길이와 DB 컬럼 길이를 맞췄고(`DtoLimitsTest`), 알림 제목·메시지는 컬럼 길이에 맞춰 잘라 저장합니다. 페이지 크기는 `PageLimits`로 상한(100)을 둡니다.
+
+## 🧪 테스트 및 배포
+
+- **백엔드**: 단위·통합·동시성 테스트. 업로드는 실제 MinIO에 대해 통합 테스트(`SvgUploadIntegrationTest`)를 수행합니다.
+- **프런트엔드**: vitest(jsdom) + ESLint(flat config) + `tsc -b`. 화면 로직은 `usePaginatedList`, `useAsyncResource`, `useDraftAutosave` 등 훅과 순수 함수로 분리해 단위 테스트합니다.
+- **배포**: `scripts/deploy.sh`가 테스트 → 빌드 → 롤백 스냅샷(이전 jar/dist, 이미지 태그) → DB 백업 → 전송 → 재기동 → 헬스체크 순서로 진행합니다. `--dry-run`으로 서버 상태만 점검할 수 있습니다.
 
 ---
 
