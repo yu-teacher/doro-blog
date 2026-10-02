@@ -25,8 +25,8 @@ export function getSavedAccounts(): SavedAccount[] {
         if (acc.email) accountMap.set(acc.email.toLowerCase(), acc);
       });
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn('Ignoring unreadable saved accounts', e);
   }
 
   // 2. Read from DORO IAM portal standard accounts (doro_auth_accounts)
@@ -54,8 +54,8 @@ export function getSavedAccounts(): SavedAccount[] {
         });
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn('Ignoring unreadable portal accounts', e);
   }
 
   return Array.from(accountMap.values()).sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0));
@@ -83,18 +83,49 @@ export function saveAccountHistory(account: Partial<SavedAccount> & { email: str
     current.unshift(updated);
   }
 
+  writeSavedAccounts(current);
+}
+
+function writeSavedAccounts(accounts: SavedAccount[]) {
   try {
-    localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(current));
-  } catch {
-    // ignore
+    localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(accounts));
+  } catch (e) {
+    console.warn('Failed to persist saved accounts', e);
   }
 }
 
 export function removeSavedAccount(email: string) {
-  const current = getSavedAccounts().filter((a) => a.email.toLowerCase() !== email.toLowerCase());
+  writeSavedAccounts(getSavedAccounts().filter((a) => a.email.toLowerCase() !== email.toLowerCase()));
+}
+
+/**
+ * 로그아웃한 계정의 토큰을 저장소(게시판 + 포털 공유)에서 지운다. 계정 정보(이름 등)는 남겨 두어
+ * 계정 선택 화면에는 계속 보이지만, 다시 들어가려면 비밀번호가 필요하다.
+ * 토큰이 남아 있으면 로그아웃 후에도 "원클릭 로그인"으로 같은 기기의 누구나 접근할 수 있다.
+ */
+export function clearSavedAccountTokens(email: string) {
+  const emailKey = email.toLowerCase();
+
+  writeSavedAccounts(
+    getSavedAccounts().map((a) => (a.email.toLowerCase() === emailKey ? { ...a, accessToken: undefined, refreshToken: undefined } : a)),
+  );
+
   try {
-    localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(current));
-  } catch {
-    // ignore
+    const raw = localStorage.getItem(STORAGE_KEY_PLATFORM_ACCOUNTS);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed)) {
+      const scrubbed = parsed.map((item: Record<string, unknown>) => {
+        if (typeof item.email === 'string' && item.email.toLowerCase() === emailKey) {
+          const identity = { ...item };
+          delete identity.accessToken;
+          delete identity.refreshToken;
+          return identity;
+        }
+        return item;
+      });
+      localStorage.setItem(STORAGE_KEY_PLATFORM_ACCOUNTS, JSON.stringify(scrubbed));
+    }
+  } catch (e) {
+    console.warn('Failed to clear portal account tokens', e);
   }
 }

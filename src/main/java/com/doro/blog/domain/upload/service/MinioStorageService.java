@@ -54,36 +54,16 @@ public class MinioStorageService implements StorageService {
             if (!exists) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
                 log.info("Created MinIO bucket: {}", bucket);
-
-                // Set public download policy
-                String policy = """
-                        {
-                          "Version": "2012-10-17",
-                          "Statement": [
-                            {
-                              "Effect": "Allow",
-                              "Principal": {"AWS": ["*"]},
-                              "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
-                              "Resource": ["arn:aws:s3:::%s"]
-                            },
-                            {
-                              "Effect": "Allow",
-                              "Principal": {"AWS": ["*"]},
-                              "Action": ["s3:GetObject"],
-                              "Resource": ["arn:aws:s3:::%s/*"]
-                            }
-                          ]
-                        }
-                        """.formatted(bucket, bucket);
-
-                minioClient.setBucketPolicy(
-                        SetBucketPolicyArgs.builder()
-                                .bucket(bucket)
-                                .config(policy)
-                                .build()
-                );
-                log.info("Configured public read policy for bucket: {}", bucket);
             }
+
+            // 정책은 버킷이 이미 있어도 매번 맞춘다: 예전 버전이 만든 버킷의 익명 목록 조회 권한도 이때 제거된다.
+            minioClient.setBucketPolicy(
+                    SetBucketPolicyArgs.builder()
+                            .bucket(bucket)
+                            .config(BucketPolicies.publicReadObjectsOnly(bucket))
+                            .build()
+            );
+            log.info("Configured public object-read policy for bucket: {}", bucket);
         } catch (Exception e) {
             log.warn("MinIO initialization warning (will retry on demand): {}", e.getMessage());
         }

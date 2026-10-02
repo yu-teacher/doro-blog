@@ -90,7 +90,7 @@ class BlogApplicationTests {
         assertThat(reply.id()).isNotNull();
 
         // 계층형 댓글 조회 검증
-        var commentTree = commentService.getCommentsByPostId(post.id());
+        var commentTree = commentService.getCommentsByPostId(post.id(), reader);
         assertThat(commentTree).hasSize(1);
         assertThat(commentTree.get(0).content()).isEqualTo("글 잘 읽었습니다!");
         assertThat(commentTree.get(0).replies()).hasSize(1);
@@ -98,7 +98,7 @@ class BlogApplicationTests {
 
         // 원글 작성자(Author)의 댓글 삭제 권한 검증 및 소프트 삭제
         commentService.deleteComment(rootComment.id(), author);
-        var afterDelete = commentService.getCommentsByPostId(post.id());
+        var afterDelete = commentService.getCommentsByPostId(post.id(), reader);
         assertThat(afterDelete.get(0).isDeleted()).isTrue();
         assertThat(afterDelete.get(0).content()).isEqualTo("삭제된 댓글입니다.");
         assertThat(afterDelete.get(0).replies()).hasSize(1);

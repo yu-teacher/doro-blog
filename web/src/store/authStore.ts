@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { decodeJwtPayload, getUserRole, isTokenExpired, isUserAdmin } from '../utils/jwt';
-import { saveAccountHistory, type SavedAccount } from './savedAccounts';
+import { clearSavedAccountTokens, saveAccountHistory, type SavedAccount } from './savedAccounts';
+import { revokeServerSession } from '../api/sessionRevocation';
 import { UserProfile } from '../api/types';
 import {
   RefreshOutcome,
@@ -30,7 +31,10 @@ interface AuthState {
   refreshAuthToken: () => Promise<string | null>;
   /** 갱신 결과를 refreshed/rejected/unavailable 로 구분해 돌려준다. rejected 일 때만 로그아웃해야 한다. */
   refreshSession: () => Promise<RefreshOutcome>;
+  /** 이 브라우저의 로그인 상태만 지운다. 세션이 이미 끝났거나 다른 탭이 로그아웃한 경우에 쓴다. */
   logout: () => void;
+  /** 사용자가 직접 로그아웃: 로컬 상태를 지우고 서버 세션도 폐기한다. */
+  signOut: () => Promise<void>;
 }
 
 const STORAGE_KEY_TOKEN = 'doro_blog_token';
@@ -139,6 +143,8 @@ if (rawToken && !isTokenExpired(rawToken)) {
     initialUser = readStoredUser();
   }
 }
+
+const LOGGED_OUT_STATE = { token: null, refreshToken: null, user: null, isAuthenticated: false, isAdmin: false, role: null } as const;
 
 let activeRefreshPromise: Promise<RefreshOutcome> | null = null;
 
@@ -263,9 +269,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const promise = withRefreshLock(async (): Promise<RefreshOutcome> => {
-      // 다른 탭이 이미 갱신했을 수 있으므로 메모리 상태보다 localStorage 의 최신 값을 우선한다.
-      const currentAccess = localStorage.getItem(STORAGE_KEY_TOKEN) || get().token;
-      const currentRefresh = localStorage.getItem(STORAGE_KEY_REFRESH) || get().refreshToken;
+      // localStorage 가 기준이다: 다른 탭이 갱신했을 수도, 로그아웃했을 수도 있다.
+      // 저장소에 토큰이 없는데 메모리 값으로 갱신하면 다른 탭에서 한 로그아웃을 되살리게 된다.
+      const currentAccess = localStorage.getItem(STORAGE_KEY_TOKEN);
+      const currentRefresh = localStorage.getItem(STORAGE_KEY_REFRESH);
       if (!currentRefresh) {
         return { kind: 'rejected' };
       }
@@ -306,11 +313,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    const { token, user } = get();
+    const email = emailOfToken(token) ?? user?.email?.toLowerCase() ?? null;
     clearExpirationTimer();
     localStorage.removeItem(STORAGE_KEY_TOKEN);
     localStorage.removeItem(STORAGE_KEY_REFRESH);
     localStorage.removeItem(STORAGE_KEY_USER);
-    set({ token: null, refreshToken: null, user: null, isAuthenticated: false, isAdmin: false, role: null });
+    if (email) clearSavedAccountTokens(email);
+    set(LOGGED_OUT_STATE);
+  },
+
+  signOut: async () => {
+    // 로컬 토큰을 지우기 전에 서버에 보낼 값을 잡아 둔다
+    const accessToken = localStorage.getItem(STORAGE_KEY_TOKEN) ?? get().token;
+    const refreshToken = localStorage.getItem(STORAGE_KEY_REFRESH) ?? get().refreshToken;
+    get().logout();
+    await revokeServerSession(accessToken, refreshToken);
   },
 }));
 
@@ -320,6 +338,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
  * - 액세스 토큰이 없거나 만료되었고 리프레시 토큰이 있으면 즉시 조용히 갱신한다.
  */
 export function initAuth(): void {
+  syncAuthAcrossTabs();
   const { token, refreshToken } = useAuthStore.getState();
   if (token && !isTokenExpired(token)) {
     scheduleExpiration(token);
@@ -330,4 +349,42 @@ export function initAuth(): void {
       console.warn('Initial background silent refresh failed', e);
     });
   }
+}
+
+let storageSyncStarted = false;
+
+/**
+ * 다른 탭에서 일어난 로그인/갱신/로그아웃을 이 탭의 상태에 반영한다.
+ * storage 이벤트는 값을 바꾼 탭이 아닌 다른 탭에만 오므로 되돌림(핑퐁)이 생기지 않는다.
+ * 이 탭이 localStorage 에 다시 쓰지 않는 것이 중요하다: 다시 쓰면 다른 탭의 로그아웃을 되살리게 된다.
+ */
+function syncAuthAcrossTabs(): void {
+  if (storageSyncStarted || typeof window === 'undefined') return;
+  storageSyncStarted = true;
+
+  window.addEventListener('storage', (event: StorageEvent) => {
+    const { key } = event;
+    if (key !== null && key !== STORAGE_KEY_TOKEN && key !== STORAGE_KEY_REFRESH && key !== STORAGE_KEY_USER) return;
+
+    const storedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const storedRefresh = localStorage.getItem(STORAGE_KEY_REFRESH);
+
+    if (!storedToken && !storedRefresh) {
+      // 다른 탭이 로그아웃했다 (또는 저장소가 통째로 비워졌다)
+      clearExpirationTimer();
+      useAuthStore.setState(LOGGED_OUT_STATE);
+      return;
+    }
+
+    const current = useAuthStore.getState();
+    if (storedToken && storedToken !== current.token && !isTokenExpired(storedToken)) {
+      // 다른 탭이 로그인하거나 토큰을 갱신했다
+      scheduleExpiration(storedToken);
+      useAuthStore.setState({ ...sessionFields(storedToken), refreshToken: storedRefresh, user: readStoredUser() ?? current.user });
+      return;
+    }
+    if (storedRefresh !== current.refreshToken || key === STORAGE_KEY_USER) {
+      useAuthStore.setState({ refreshToken: storedRefresh, user: readStoredUser() ?? current.user });
+    }
+  });
 }

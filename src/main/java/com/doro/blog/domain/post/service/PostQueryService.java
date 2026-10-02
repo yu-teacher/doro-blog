@@ -12,7 +12,6 @@ import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.tag.service.TagService;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
-import com.hunnit_beasts.doro.sdk.client.DoroGuardClient;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,7 +33,7 @@ public class PostQueryService {
     private final PostLikeRepository likeRepository;
     private final com.doro.blog.domain.user.repository.UserFollowRepository followRepository;
     private final TagService tagService;
-    private final DoroGuardClient guardClient;
+    private final PostAccess postAccess;
     private final PostCounterService counterService;
     private final PostSummaryMapper summaryMapper;
 
@@ -107,17 +106,9 @@ public class PostQueryService {
         Post post = postRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
-        // 비공개/임시저장 글 열람 인가 검증
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            boolean isAuthor = doroUser.isAuthenticated() && doroUser.userId().equals(user.getId());
-            if (!isAuthor) {
-                boolean hasAccess = doroUser.isAuthenticated() && guardClient.check(
-                        "blog_post", post.getId().toString(), "viewer", doroUser.userId().toString()
-                );
-                if (!hasAccess) {
-                    throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
-                }
-            }
+        // 볼 수 없는 글은 존재 여부도 알리지 않는다 (슬러그로 임시저장 글을 찾아내지 못하게 403 이 아니라 404)
+        if (!postAccess.canView(post, doroUser)) {
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
         }
 
         if (countView) {
@@ -141,16 +132,8 @@ public class PostQueryService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            boolean isAuthor = doroUser.isAuthenticated() && doroUser.userId().equals(post.getUser().getId());
-            if (!isAuthor) {
-                boolean hasAccess = doroUser.isAuthenticated() && guardClient.check(
-                        "blog_post", post.getId().toString(), "viewer", doroUser.userId().toString()
-                );
-                if (!hasAccess) {
-                    throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
-                }
-            }
+        if (!postAccess.canView(post, doroUser)) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
         }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());
@@ -219,13 +202,17 @@ public class PostQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<PostSummaryResponse> getRelatedPosts(String username, String slug, int limit) {
+    public List<PostSummaryResponse> getRelatedPosts(String username, String slug, int limit, DoroUser viewer) {
         String cleanUsername = Handles.stripAt(username);
         BlogUser user = userRepository.findByUsername(cleanUsername.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
         Post post = postRepository.findByUserIdAndSlug(user.getId(), slug.toLowerCase().trim())
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+
+        if (!postAccess.canView(post, viewer)) {
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
+        }
 
         List<String> tags = tagService.getPostTagNames(post.getId())
                 .stream().map(String::toLowerCase).toList();

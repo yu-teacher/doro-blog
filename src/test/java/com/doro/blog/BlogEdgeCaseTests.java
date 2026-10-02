@@ -122,13 +122,13 @@ class BlogEdgeCaseTests {
             ));
 
             var comment = commentService.createRootComment(post.id(), reader, new CreateCommentRequest("단독 댓글"));
-            assertThat(commentService.getCommentsByPostId(post.id())).hasSize(1);
+            assertThat(commentService.getCommentsByPostId(post.id(), reader)).hasSize(1);
 
             // 삭제
             commentService.deleteComment(comment.id(), reader);
 
             // 조회 시 목록에서 완전히 제거됨
-            assertThat(commentService.getCommentsByPostId(post.id())).isEmpty();
+            assertThat(commentService.getCommentsByPostId(post.id(), reader)).isEmpty();
         }
 
         @Test
@@ -228,7 +228,7 @@ class BlogEdgeCaseTests {
     class PrivatePostEdgeCases {
 
         @Test
-        @DisplayName("비공개(PRIVATE) 및 임시저장(DRAFT) 글은 타 사용자가 조회 시 ACCESS_DENIED 발생")
+        @DisplayName("비공개(PRIVATE) 및 임시저장(DRAFT) 글은 타 사용자가 슬러그로 조회하면 존재 자체를 숨기는 POST_NOT_FOUND")
         void testPrivatePostAccessDeniedForStranger() {
             DoroUser author = createMockUser("secretWriter");
             DoroUser stranger = createMockUser("curiousStranger");
@@ -241,11 +241,11 @@ class BlogEdgeCaseTests {
             var authorView = postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), author);
             assertThat(authorView.content()).isEqualTo("비밀 본문");
 
-            // 타 사용자 stranger 열람 시도 -> ACCESS_DENIED
+            // 타 사용자 stranger 열람 시도 -> 없는 글과 같은 응답(슬러그로 존재 여부를 알아내지 못하게)
             assertThatThrownBy(() ->
                     postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), stranger)
             ).isInstanceOf(BlogException.class)
-             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.POST_NOT_FOUND);
         }
     }
 

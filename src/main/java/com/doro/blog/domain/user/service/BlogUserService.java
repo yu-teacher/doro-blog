@@ -69,7 +69,7 @@ public class BlogUserService {
     public UserProfileResponse getProfileById(UUID userId) {
         BlogUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
-        return UserProfileResponse.from(user, null);
+        return UserProfileResponse.forOwner(user);
     }
 
     @Transactional
@@ -87,7 +87,7 @@ public class BlogUserService {
                 request.linkedinUrl(),
                 request.aboutMarkdown()
         );
-        return UserProfileResponse.from(user, null);
+        return UserProfileResponse.forOwner(user);
     }
 
     @Transactional
@@ -105,6 +105,6 @@ public class BlogUserService {
         }
 
         user.updateUsername(cleanUsername);
-        return UserProfileResponse.from(user, null);
+        return UserProfileResponse.forOwner(user);
     }
 }

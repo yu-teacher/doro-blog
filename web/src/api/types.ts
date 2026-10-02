@@ -22,7 +22,8 @@ export interface PageResponse<T> {
 export interface UserProfile {
   id: string;
   username: string;
-  email: string;
+  /** 계정 이메일. 본인 프로필(/users/me)에서만 내려오고 다른 사람의 공개 프로필에는 없다. */
+  email?: string;
   nickname: string;
   bio?: string;
   profileImageUrl?: string;

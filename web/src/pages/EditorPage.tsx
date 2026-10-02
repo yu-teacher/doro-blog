@@ -78,6 +78,9 @@ export const EditorPage: React.FC = () => {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   // 서버에서 글 본문을 불러오는 동안은 자동 저장을 멈춘다 (불완전한 내용으로 서버 글을 덮어쓰지 않도록)
   const [loadingPostContent, setLoadingPostContent] = useState(false);
+  // 서버에서 불러온 글의 현재 상태. 자동 저장은 DRAFT 를 보내므로, 출간/비공개 글에는 걸지 않는다
+  const [loadedPostStatus, setLoadedPostStatus] = useState<PostStatus | null>(null);
+  const serverAutosaveBlocked = loadedPostStatus !== null && loadedPostStatus !== 'DRAFT';
 
   const draftKey = `doro_editor_draft_${user?.username || 'guest'}`;
 
@@ -119,7 +122,7 @@ export const EditorPage: React.FC = () => {
     postId: currentPostId,
     save: saveDraftToServer,
     onCreated: handleDraftCreated,
-    paused: loadingPostContent,
+    paused: loadingPostContent || serverAutosaveBlocked,
     delayMs: SERVER_AUTOSAVE_DELAY_MS,
   });
 
@@ -155,6 +158,7 @@ export const EditorPage: React.FC = () => {
       const full = await blogApi.getPostById(draft.id);
       currentPostIdRef.current = draft.id;
       setCurrentPostId(draft.id);
+      setLoadedPostStatus('DRAFT');
       setTitle(draft.title || '');
       setContent(full.content);
       setTags(draft.tags || []);
@@ -178,6 +182,7 @@ export const EditorPage: React.FC = () => {
       if (currentPostIdRef.current === draftId) {
         currentPostIdRef.current = null;
         setCurrentPostId(null);
+        setLoadedPostStatus(null);
       }
     } catch (err: unknown) {
       alert(getErrorMessage(err, '임시 저장 글 삭제에 실패했습니다.'));
@@ -211,6 +216,7 @@ export const EditorPage: React.FC = () => {
         setThumbnailUrl(data.post.thumbnailUrl || '');
         setSlug(data.post.slug);
         setStatus(data.post.status);
+        setLoadedPostStatus(data.post.status);
         if (data.post.seriesId) setSelectedSeriesId(data.post.seriesId);
       })
       .catch((err: unknown) => {

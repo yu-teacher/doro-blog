@@ -6,6 +6,7 @@ import com.doro.blog.domain.comment.dto.CommentDtos.*;
 import com.doro.blog.domain.comment.entity.Comment;
 import com.doro.blog.domain.comment.repository.CommentRepository;
 import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.service.PostAccess;
 import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.post.service.PostCounterService;
@@ -37,6 +38,7 @@ public class CommentService {
     private final GuardTuples guardTuples;
     private final NotificationService notificationService;
     private final PostCounterService counterService;
+    private final PostAccess postAccess;
 
     @Transactional
     public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
@@ -144,8 +146,11 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public List<CommentResponse> getCommentsByPostId(UUID postId) {
-        if (!postRepository.existsById(postId)) {
+    public List<CommentResponse> getCommentsByPostId(UUID postId, DoroUser viewer) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        // 비공개/임시저장 글의 댓글은 글을 볼 수 있는 사람에게만 보인다
+        if (!postAccess.canView(post, viewer)) {
             throw new BlogException(ErrorCode.POST_NOT_FOUND);
         }
 

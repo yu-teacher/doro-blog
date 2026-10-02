@@ -205,9 +205,10 @@ public class PostController {
     public ApiResponse<List<PostSummaryResponse>> getRelatedPosts(
             @PathVariable("username") String username,
             @PathVariable("slug") String slug,
-            @RequestParam(name = "limit", defaultValue = "4") @Min(1) @Max(PageLimits.MAX_LIMIT) int limit
+            @RequestParam(name = "limit", defaultValue = "4") @Min(1) @Max(PageLimits.MAX_LIMIT) int limit,
+            @CurrentDoroUser DoroUser doroUser
     ) {
-        return ApiResponse.success(postQueries.getRelatedPosts(username, slug, limit));
+        return ApiResponse.success(postQueries.getRelatedPosts(username, slug, limit, doroUser));
     }
 }
 

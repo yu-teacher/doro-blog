@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { user, isAuthenticated, isAdmin, openLoginModal, logout } = useAuthStore();
+  const { user, isAuthenticated, isAdmin, openLoginModal, signOut } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   // 앱 런처와 사용자 메뉴는 동시에 하나만 열린다
   const [openMenu, setOpenMenu] = useState<'apps' | 'user' | null>(null);
@@ -87,7 +87,7 @@ export const Header: React.FC = () => {
               onToggle={() => setOpenMenu(openMenu === 'user' ? null : 'user')}
               onClose={() => setOpenMenu(null)}
               onLogin={openLoginModal}
-              onLogout={logout}
+              onLogout={signOut}
             />
           </div>
         </div>

@@ -1,6 +1,7 @@
 package com.doro.blog.domain.user.dto;
 
 import com.doro.blog.domain.user.entity.BlogUser;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -22,7 +23,8 @@ public class BlogUserDtos {
     public record UserProfileResponse(
             UUID id,
             String username,
-            String email,
+            /** IAM 계정 이메일(비공개). 본인 응답({@link #forOwner})에서만 채워지고, 공개 응답에서는 키 자체가 빠진다. */
+            @JsonInclude(JsonInclude.Include.NON_NULL) String email,
             String nickname,
             String bio,
             String profileImageUrl,
@@ -38,15 +40,21 @@ public class BlogUserDtos {
             Boolean isFollowing,
             Instant createdAt
     ) {
-        public static UserProfileResponse from(BlogUser user) {
-            return from(user, null);
+        /** 공개 프로필: 계정 이메일을 담지 않는다. 방문자용 연락처는 {@code publicEmail} 이다. */
+        public static UserProfileResponse from(BlogUser user, Boolean isFollowing) {
+            return build(user, isFollowing, null);
         }
 
-        public static UserProfileResponse from(BlogUser user, Boolean isFollowing) {
+        /** 본인 프로필: 계정 이메일을 포함한다. */
+        public static UserProfileResponse forOwner(BlogUser user) {
+            return build(user, null, user.getEmail());
+        }
+
+        private static UserProfileResponse build(BlogUser user, Boolean isFollowing, String accountEmail) {
             return new UserProfileResponse(
                     user.getId(),
                     user.getUsername(),
-                    user.getEmail(),
+                    accountEmail,
                     user.getNickname(),
                     user.getBio(),
                     user.getProfileImageUrl(),

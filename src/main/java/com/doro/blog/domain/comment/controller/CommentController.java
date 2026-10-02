@@ -44,8 +44,11 @@ public class CommentController {
 
     @Operation(summary = "글의 전체 계층형 댓글 트리 조회 (공개)", description = "부모 댓글 아래 자식 대댓글 배열이 중첩된 트리 구조 반환")
     @GetMapping("/api/v1/posts/{postId}/comments")
-    public ApiResponse<List<CommentResponse>> getCommentsByPostId(@PathVariable("postId") UUID postId) {
-        return ApiResponse.success(commentService.getCommentsByPostId(postId));
+    public ApiResponse<List<CommentResponse>> getCommentsByPostId(
+            @PathVariable("postId") UUID postId,
+            @CurrentDoroUser DoroUser doroUser
+    ) {
+        return ApiResponse.success(commentService.getCommentsByPostId(postId, doroUser));
     }
 
     @Operation(summary = "댓글 수정 (작성자 본인)", description = "댓글 본문 수정")
