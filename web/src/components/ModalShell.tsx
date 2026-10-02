@@ -16,7 +16,31 @@ interface ModalShellProps {
 const FIELD_SELECTOR = 'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])';
 const BUTTON_SELECTOR = 'button:not([disabled]), a[href]';
 
-/** 열릴 때 첫 입력칸(없으면 첫 버튼)으로 포커스를 옮기고, 닫히면 원래 포커스 위치로 돌려준다. Esc 로 닫는다. */
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([type="hidden"]):not([disabled])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+/**
+ * Tab 으로 대화상자 밖으로 포커스가 새지 않게, 다음에 포커스를 줄 요소를 정한다.
+ * 정할 필요가 없으면(대화상자 안에서 평소처럼 이동하면 되면) null 을 돌려준다.
+ */
+export function nextFocusTarget(focusables: HTMLElement[], active: Element | null, shift: boolean): HTMLElement | null {
+  if (focusables.length === 0) return null;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const index = active instanceof HTMLElement ? focusables.indexOf(active) : -1;
+  if (index === -1) return shift ? last : first; // 포커스가 대화상자 밖(또는 패널 자체)에 있으면 안으로 끌어온다
+  if (shift && active === first) return last;
+  if (!shift && active === last) return first;
+  return null;
+}
+
+/** 열릴 때 첫 입력칸(없으면 첫 버튼)으로 포커스를 옮기고, 닫히면 원래 포커스 위치로 돌려준다. Esc 로 닫고, Tab 은 대화상자 안에서만 순환한다. */
 export function useDialogBehavior(onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -34,6 +58,19 @@ export function useDialogBehavior(onClose: () => void) {
       if (e.key === 'Escape') {
         e.stopPropagation();
         onCloseRef.current();
+        return;
+      }
+      if (e.key === 'Tab' && panel) {
+        const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+        if (focusables.length === 0) {
+          e.preventDefault(); // 포커스할 곳이 없으면 패널에 머문다
+          return;
+        }
+        const target = nextFocusTarget(focusables, document.activeElement, e.shiftKey);
+        if (target) {
+          e.preventDefault();
+          target.focus();
+        }
       }
     };
     document.addEventListener('keydown', onKeyDown);

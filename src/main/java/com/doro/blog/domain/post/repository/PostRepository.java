@@ -57,7 +57,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Page<Post> findAllByStatusOrderByPublishedAtDesc(PostStatus status, Pageable pageable);
 
-    Page<Post> findAllByStatusOrderByLikeCountDesc(PostStatus status, Pageable pageable);
+    /** 좋아요 수가 같은 글(대부분 0)에서도 페이지 경계가 흔들리지 않도록 발행일, id 로 순서를 끝까지 정한다. */
+    Page<Post> findAllByStatusOrderByLikeCountDescPublishedAtDescIdDesc(PostStatus status, Pageable pageable);
 
     Page<Post> findAllByUserIdAndStatusOrderByPublishedAtDesc(UUID userId, PostStatus status, Pageable pageable);
 

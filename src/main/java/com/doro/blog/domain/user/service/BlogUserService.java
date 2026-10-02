@@ -32,10 +32,7 @@ public class BlogUserService {
         return userRepository.findById(doroUser.userId()).orElseGet(() -> {
             log.info("JIT Provisioning new BlogUser for IAM userId={}", doroUser.userId());
 
-            String baseUsername = doroUser.email().split("@")[0].toLowerCase().replaceAll("[^a-z0-9_-]", "");
-            if (baseUsername.length() < 3) {
-                baseUsername = "user" + doroUser.userIndex();
-            }
+            String baseUsername = UsernamePolicy.baseFromEmail(doroUser.email(), doroUser.userIndex());
 
             String finalUsername = baseUsername;
             int counter = 1;
@@ -96,6 +93,9 @@ public class BlogUserService {
         String cleanUsername = Handles.stripAt(newUsername);
         cleanUsername = cleanUsername.toLowerCase().trim();
 
+        if (UsernamePolicy.isReserved(cleanUsername)) {
+            throw new BlogException(ErrorCode.INVALID_INPUT, "사용할 수 없는 username입니다.");
+        }
         if (!cleanUsername.matches("^[a-z0-9_-]{3,50}$")) {
             throw new BlogException(ErrorCode.INVALID_INPUT, "username은 3~50자의 영문 소문자, 숫자, '-', '_'만 사용 가능합니다.");
         }

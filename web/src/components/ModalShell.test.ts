@@ -1,7 +1,7 @@
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ModalShell } from './ModalShell';
+import { ModalShell, nextFocusTarget } from './ModalShell';
 import { AuthModal } from './AuthModal';
 import { ProfileEditModal } from './ProfileEditModal';
 import { useAuthStore } from '../store/authStore';
@@ -128,5 +128,66 @@ describe('모달 접근성 적용', () => {
     expect(host!.querySelector(`label[for="${first.id}"]`)?.textContent).toBe('닉네임');
     pressEscape();
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('포커스 트랩 (Tab 이 대화상자 밖으로 새지 않는다)', () => {
+  const pressTab = (shiftKey = false) => {
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true });
+    act(() => {
+      document.dispatchEvent(event);
+    });
+    return event;
+  };
+
+  const makeButtons = (n: number) => Array.from({ length: n }, () => document.createElement('button'));
+
+  it('nextFocusTarget: 마지막에서 Tab 은 처음으로, 처음에서 Shift+Tab 은 마지막으로 순환한다', () => {
+    const [a, b, c] = makeButtons(3);
+    expect(nextFocusTarget([a, b, c], c, false)).toBe(a);
+    expect(nextFocusTarget([a, b, c], a, true)).toBe(c);
+  });
+
+  it('nextFocusTarget: 중간 요소에서는 브라우저의 기본 이동에 맡긴다(null)', () => {
+    const [a, b, c] = makeButtons(3);
+    expect(nextFocusTarget([a, b, c], b, false)).toBeNull();
+    expect(nextFocusTarget([a, b, c], b, true)).toBeNull();
+  });
+
+  it('nextFocusTarget: 포커스가 밖에 있으면 안으로 끌어오고, 포커스할 요소가 없으면 null', () => {
+    const [a, , c] = makeButtons(3);
+    const outside = document.createElement('button');
+    expect(nextFocusTarget([a, c], outside, false)).toBe(a);
+    expect(nextFocusTarget([a, c], outside, true)).toBe(c);
+    expect(nextFocusTarget([], outside, false)).toBeNull();
+  });
+
+  it('대화상자 마지막 요소에서 Tab 을 누르면 첫 요소로 돌아간다', () => {
+    mount(createElement(ModalShell, {
+      onClose: vi.fn(), ariaLabel: '테스트', overlayClassName: 'o', panelClassName: 'p',
+      children: createElement(Fragment, null,
+        createElement('button', { id: 'a' }, 'a'),
+        createElement('button', { id: 'b' }, 'b')),
+    }));
+    host!.querySelector<HTMLElement>('#b')!.focus();
+
+    const event = pressTab(false);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement?.id).toBe('a');
+  });
+
+  it('첫 요소에서 Shift+Tab 은 마지막 요소로 간다', () => {
+    mount(createElement(ModalShell, {
+      onClose: vi.fn(), ariaLabel: '테스트', overlayClassName: 'o', panelClassName: 'p',
+      children: createElement(Fragment, null,
+        createElement('button', { id: 'a' }, 'a'),
+        createElement('button', { id: 'b' }, 'b')),
+    }));
+    host!.querySelector<HTMLElement>('#a')!.focus();
+
+    pressTab(true);
+
+    expect(document.activeElement?.id).toBe('b');
   });
 });

@@ -55,7 +55,7 @@ public class PostQueryService {
         } else if (cleanTags.size() > 1) {
             posts = postRepository.findAllByAllTagNames(cleanTags, cleanTags.size(), pageable);
         } else if ("popular".equalsIgnoreCase(sort)) {
-            posts = postRepository.findAllByStatusOrderByLikeCountDesc(PostStatus.PUBLISHED, pageable);
+            posts = postRepository.findAllByStatusOrderByLikeCountDescPublishedAtDescIdDesc(PostStatus.PUBLISHED, pageable);
         } else {
             posts = postRepository.findAllByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable);
         }

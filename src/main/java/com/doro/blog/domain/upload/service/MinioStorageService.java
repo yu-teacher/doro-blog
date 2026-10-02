@@ -43,14 +43,23 @@ public class MinioStorageService implements StorageService {
 
     private MinioClient minioClient;
 
+    /** 버킷과 공개 읽기 정책이 준비됐는지. 기동 때 MinIO 가 죽어 있었다면 첫 요청에서 다시 준비한다. */
+    private volatile boolean bucketReady;
+
     @PostConstruct
     public void init() {
-        try {
-            this.minioClient = MinioClient.builder()
-                    .endpoint(endpoint)
-                    .credentials(accessKey, secretKey)
-                    .build();
+        this.minioClient = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
+        prepareBucket();
+    }
 
+    private synchronized void prepareBucket() {
+        if (bucketReady) {
+            return;
+        }
+        try {
             boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
             if (!exists) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
@@ -65,8 +74,9 @@ public class MinioStorageService implements StorageService {
                             .build()
             );
             log.info("Configured public object-read policy for bucket: {}", bucket);
+            bucketReady = true;
         } catch (Exception e) {
-            log.warn("MinIO initialization warning (will retry on demand): {}", e.getMessage());
+            log.warn("MinIO bucket preparation failed (will retry on the next upload): {}", e.getMessage());
         }
     }
 
@@ -75,6 +85,8 @@ public class MinioStorageService implements StorageService {
         if (file == null || file.isEmpty()) {
             throw new BlogException(ErrorCode.INVALID_FILE_TYPE);
         }
+
+        prepareBucket();
 
         String displayName = UploadPaths.displayName(file.getOriginalFilename());
 

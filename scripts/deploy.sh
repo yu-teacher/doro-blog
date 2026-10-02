@@ -75,10 +75,10 @@ REMOTE
 # ------------------------------------------------------------ 전송 (compose 파일은 보내지 않는다)
 log "== 전송 =="
 "${SSH[@]}" "mkdir -p ~/$REMOTE_DIR/build/libs ~/$REMOTE_DIR/web/dist"
-rsync -az "$JAR" "$SERVER:$REMOTE_DIR/build/libs/"
-rsync -az --delete web/dist/ "$SERVER:$REMOTE_DIR/web/dist/"
-rsync -az web/nginx.conf web/Dockerfile "$SERVER:$REMOTE_DIR/web/"
-rsync -az Dockerfile "$SERVER:$REMOTE_DIR/"
+rsync -az -e "ssh -o BatchMode=yes" "$JAR" "$SERVER:$REMOTE_DIR/build/libs/"
+rsync -az -e "ssh -o BatchMode=yes" --delete web/dist/ "$SERVER:$REMOTE_DIR/web/dist/"
+rsync -az -e "ssh -o BatchMode=yes" web/nginx.conf web/Dockerfile "$SERVER:$REMOTE_DIR/web/"
+rsync -az -e "ssh -o BatchMode=yes" Dockerfile "$SERVER:$REMOTE_DIR/"
 
 # ------------------------------------------------------------ 재기동 + 헬스체크
 log "== 재기동 =="

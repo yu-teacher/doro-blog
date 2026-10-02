@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 
 @Slf4j
@@ -44,8 +45,41 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         return new RestTemplate(factory);
     }
 
+    /** Guard 가 아직 안 떠 있을 때 백그라운드로 다시 시도하는 간격과 최대 횟수. */
+    @Value("${doro.guard.schema-sync-retry-seconds:15}")
+    private long retryDelaySeconds;
+
+    @Value("${doro.guard.schema-sync-max-retries:20}")
+    private int maxRetries;
+
     @Override
     public void run(ApplicationArguments args) {
+        if (syncOnce()) {
+            return;
+        }
+        // 첫 시도가 실패했다: 서비스는 계속 기동하되, 성공할 때까지 백그라운드에서 재시도한다.
+        // (재시도 없이 넘어가면 Guard 가 부팅 중이었던 경우 재시작 전까지 스키마가 조용히 비어 있게 된다.)
+        Thread.ofVirtual().name("blog-schema-sync-retry").start(this::retryUntilSynced);
+    }
+
+    void retryUntilSynced() {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                Thread.sleep(Duration.ofSeconds(retryDelaySeconds));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            log.info("Retrying Guard schema sync ({}/{})", attempt, maxRetries);
+            if (syncOnce()) {
+                return;
+            }
+        }
+        log.error("Guard schema sync did not succeed after {} retries - blog types may be missing in Guard until restart", maxRetries);
+    }
+
+    /** @return 더 시도할 필요가 없으면 true(동기화 완료이거나 할 일이 없음), 나중에 다시 시도해야 하면 false */
+    boolean syncOnce() {
         RestTemplate restTemplate = newRestTemplate();
         log.info("Checking DORO Guard Zanzibar schema synchronization...");
         try {
@@ -55,7 +89,7 @@ public class BlogSchemaInitializer implements ApplicationRunner {
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 log.warn("Could not retrieve active schema from Guard: status={}", response.getStatusCode());
-                return;
+                return false;
             }
 
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -65,7 +99,7 @@ public class BlogSchemaInitializer implements ApplicationRunner {
             Resource blogSchemaRes = resourceLoader.getResource("classpath:blog-schema.doro");
             if (!blogSchemaRes.exists()) {
                 log.warn("blog-schema.doro not found in classpath.");
-                return;
+                return true; // 재시도해도 달라지지 않는다
             }
 
             String blogDsl;
@@ -82,7 +116,7 @@ public class BlogSchemaInitializer implements ApplicationRunner {
             }
             if (!merge.changed()) {
                 log.info("DORO Guard already contains every blog schema type. Sync complete.");
-                return;
+                return true;
             }
             log.info("Registering missing blog schema types in DORO Guard: {}", merge.addedTypes());
             String combinedDsl = merge.mergedDsl();
@@ -94,12 +128,14 @@ public class BlogSchemaInitializer implements ApplicationRunner {
             ResponseEntity<String> postRes = restTemplate.postForEntity(schemaUrl, request, String.class);
             if (postRes.getStatusCode().is2xxSuccessful()) {
                 log.info("Successfully registered Blog ReBAC schema to DORO Guard dynamically.");
-            } else {
-                log.warn("Failed to register blog schema: status={}", postRes.getStatusCode());
+                return true;
             }
+            log.warn("Failed to register blog schema: status={}", postRes.getStatusCode());
+            return false;
 
         } catch (Exception e) {
-            log.warn("Guard schema dynamic sync skipped (Guard may be offline or unreachable): {}", e.getMessage());
+            log.warn("Guard schema dynamic sync failed (Guard may be offline or unreachable): {}", e.getMessage());
+            return false;
         }
     }
 
