@@ -19,3 +19,9 @@ type blog_comment {
   relation editor: author
   relation can_delete: author | post#author
 }
+
+# 팔로우 관계. 현재는 쓰기 전용 기록이고 권한 판정에는 쓰지 않는다(팔로워 수/목록은 DB 기준).
+# 그래도 FollowService 가 쓰는 튜플이므로 선언해 두어야 Guard 검증 모드가 ENFORCE 여도 거부되지 않는다.
+type blog_user {
+  relation follower: user
+}

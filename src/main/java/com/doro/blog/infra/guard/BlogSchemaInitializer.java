@@ -61,11 +61,6 @@ public class BlogSchemaInitializer implements ApplicationRunner {
             JsonNode root = objectMapper.readTree(response.getBody());
             String activeDsl = root.path("data").asText("");
 
-            if (activeDsl.contains("type blog_post") && activeDsl.contains("type blog_series")) {
-                log.info("DORO Guard already contains blog schema types. Sync complete.");
-                return;
-            }
-
             // blog-schema.doro 읽기
             Resource blogSchemaRes = resourceLoader.getResource("classpath:blog-schema.doro");
             if (!blogSchemaRes.exists()) {
@@ -78,7 +73,19 @@ public class BlogSchemaInitializer implements ApplicationRunner {
                 blogDsl = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
 
-            String combinedDsl = activeDsl + "\n\n" + blogDsl;
+            // Guard 스키마 등록은 전체 교체다. 활성 스키마는 그대로 두고, Guard 에 없는 블로그 타입만 뒤에 덧붙인다.
+            // (예전에는 blog_post/blog_series 가 있으면 끝냈기 때문에 나중에 추가한 타입이 운영에 등록되지 않았다.)
+            BlogSchemaMerger.Result merge = BlogSchemaMerger.merge(activeDsl, blogDsl);
+            if (!merge.differingTypes().isEmpty()) {
+                log.warn("Guard already has blog types whose content differs from blog-schema.doro: {}. "
+                        + "They are NOT changed automatically; review them in Guard.", merge.differingTypes());
+            }
+            if (!merge.changed()) {
+                log.info("DORO Guard already contains every blog schema type. Sync complete.");
+                return;
+            }
+            log.info("Registering missing blog schema types in DORO Guard: {}", merge.addedTypes());
+            String combinedDsl = merge.mergedDsl();
 
             HttpHeaders headers = guardHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
