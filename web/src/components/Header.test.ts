@@ -45,7 +45,7 @@ function typeInto(el: HTMLInputElement, value: string) {
 
 describe('Header', () => {
   beforeEach(() => {
-    useAuthStore.setState({ isAuthenticated: false, isAdmin: false, user: null, token: null, refreshToken: null, loginModalOpen: false });
+    useAuthStore.setState({ isAuthenticated: false, isAdmin: false, user: null });
     vi.spyOn(blogApi, 'getPopularTags').mockResolvedValue([
       { id: '1', name: 'spring', postCount: 4 }, { id: '2', name: 'react', postCount: 2 },
     ] as never);
@@ -58,12 +58,14 @@ describe('Header', () => {
     vi.restoreAllMocks();
   });
 
-  it('비로그인이면 로그인/회원가입 버튼이 있고, 로그인 버튼이 로그인 모달을 연다', async () => {
+  it('비로그인이면 로그인 버튼이 있고, 누르면 Doro 로그인을 시작한다', async () => {
+    const login = vi.fn();
+    useAuthStore.setState({ login });
     await render();
-    const login = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '로그인') as HTMLButtonElement;
-    expect(login).toBeDefined();
-    act(() => login.click());
-    expect(useAuthStore.getState().loginModalOpen).toBe(true);
+    const button = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '로그인') as HTMLButtonElement;
+    expect(button).toBeDefined();
+    act(() => button.click());
+    expect(login).toHaveBeenCalledTimes(1);
   });
 
   it('검색창: 열면 입력이 나오고, #태그 입력 시 추천 태그가 보이며, 제출하면 해당 주소로 이동한다', async () => {
@@ -96,8 +98,8 @@ describe('Header', () => {
   });
 
   it('로그인 상태에서는 글쓰기 링크와 사용자 메뉴가 있고, 메뉴에서 로그아웃할 수 있다', async () => {
-    const logout = vi.fn();
-    useAuthStore.setState({ isAuthenticated: true, user, logout });
+    const signOut = vi.fn().mockResolvedValue(undefined);
+    useAuthStore.setState({ isAuthenticated: true, user, signOut });
     await render();
     expect(host!.querySelector('a[href="/write"]')).not.toBeNull();
 
@@ -108,6 +110,6 @@ describe('Header', () => {
 
     const out = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('로그아웃')) as HTMLButtonElement;
     act(() => out.click());
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 });

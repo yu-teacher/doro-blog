@@ -18,7 +18,7 @@ import { CreateKeyModal } from '../components/developers/CreateKeyModal';
 const API_LOGS_PAGE_SIZE = 20;
 
 export const DevelopersPage: React.FC = () => {
-  const { isAuthenticated, openLoginModal } = useAuthStore();
+  const { isAuthenticated, login } = useAuthStore();
 
   // API Key State
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -148,7 +148,7 @@ export const DevelopersPage: React.FC = () => {
 
       <ApiKeySection
         isAuthenticated={isAuthenticated}
-        openLoginModal={openLoginModal}
+        login={login}
         keys={keys}
         loadingKeys={loadingKeys}
         onCreate={() => setShowCreateModal(true)}

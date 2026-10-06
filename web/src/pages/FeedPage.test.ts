@@ -32,7 +32,7 @@ async function render(path: string) {
 
 describe('FeedPage', () => {
   beforeEach(() => {
-    useAuthStore.setState({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     vi.spyOn(blogApi, 'getPopularTags').mockResolvedValue([{ id: 'g', name: 'global-tag', postCount: 40 }] as TagItem[]);
   });
 

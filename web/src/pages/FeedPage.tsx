@@ -20,7 +20,7 @@ const NO_TAGS: readonly TagItem[] = [];
 export const FeedPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { isAuthenticated, openLoginModal } = useAuthStore();
+  const { isAuthenticated, login } = useAuthStore();
   const tab = searchParams.get('tab') || 'trending';
   const timeframe = searchParams.get('timeframe') || 'week';
   const selectedTag = searchParams.get('tag') || '';
@@ -150,7 +150,7 @@ export const FeedPage: React.FC = () => {
             관심 있는 작가를 팔로우하고, 새로운 글이 올라올 때 피드에서 바로 확인해 보세요.
           </p>
           <button
-            onClick={openLoginModal}
+            onClick={login}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-xs transition-colors"
           >
             <LogIn className="w-4 h-4" />
@@ -184,7 +184,7 @@ export const FeedPage: React.FC = () => {
             좋아요를 누른 글을 안전하게 보관하고 언제든지 다시 읽을 수 있습니다.
           </p>
           <button
-            onClick={openLoginModal}
+            onClick={login}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-xs transition-colors"
           >
             <LogIn className="w-4 h-4" />

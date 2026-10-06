@@ -236,7 +236,8 @@ class BffLoginFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.authenticated").value(true))
                 .andExpect(jsonPath("$.data.user.id").value(userId.toString()))
-                .andExpect(jsonPath("$.data.user.email").exists());
+                .andExpect(jsonPath("$.data.user.email").exists())
+                .andExpect(jsonPath("$.data.role").value("USER"));
         mockMvc.perform(get("/api/v1/bff/session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.authenticated").value(false));

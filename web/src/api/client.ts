@@ -1,63 +1,28 @@
-import axios, { InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { isTokenExpired } from '../utils/jwt';
+import { CSRF_HEADER, CSRF_VALUE } from './csrf';
 
+/** 로그인은 서버가 관리하는 세션 쿠키(HttpOnly)로 이루어진다. 같은 사이트 요청에는 브라우저가 쿠키를 알아서 붙인다. */
 export const apiClient = axios.create({
   baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
+    [CSRF_HEADER]: CSRF_VALUE,
   },
-});
-
-apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  let token = useAuthStore.getState().token;
-  const refreshToken = useAuthStore.getState().refreshToken;
-
-  // If token is missing/expired but refresh token exists, refresh seamlessly
-  if ((!token || isTokenExpired(token)) && refreshToken) {
-    token = await useAuthStore.getState().refreshAuthToken();
-  }
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
 });
 
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     // 취소(AbortController)는 오류 메시지로 바꾸지 않고 그대로 전달해 호출자가 구분할 수 있게 한다.
     if (axios.isCancel(error)) {
       return Promise.reject(error);
     }
 
-    const originalRequest = error.config;
-
-    // Handle 401 Unauthorized with token refresh and retry
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const { refreshToken, refreshSession, logout, openLoginModal } = useAuthStore.getState();
-      const sessionExpired = new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
-
-      if (!refreshToken) {
-        logout();
-        openLoginModal();
-        return Promise.reject(sessionExpired);
-      }
-
-      const outcome = await refreshSession();
-      if (outcome.kind === 'refreshed') {
-        originalRequest.headers.Authorization = `Bearer ${outcome.accessToken}`;
-        return apiClient(originalRequest);
-      }
-      if (outcome.kind === 'rejected') {
-        // 서버가 리프레시 토큰을 거부한 경우에만 로그아웃한다.
-        logout();
-        openLoginModal();
-        return Promise.reject(sessionExpired);
-      }
-      // unavailable(네트워크/5xx): 로그인 상태를 유지하고 원래 오류를 전달한다.
+    // 401: 세션이 끝났다. 화면 상태를 비로그인으로 맞춘다. (갑자기 다른 화면으로 보내지 않는다 — 작성 중인 글이 있을 수 있다)
+    if (error.response?.status === 401) {
+      useAuthStore.getState().markSignedOut();
+      return Promise.reject(new Error('로그인이 필요하거나 세션이 만료되었습니다. 다시 로그인해 주세요.'));
     }
 
     // 표준 오류 본문(최상위 message)을 우선하고, 이전 형식(error.message)도 읽는다
@@ -66,4 +31,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
-

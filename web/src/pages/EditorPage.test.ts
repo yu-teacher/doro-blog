@@ -61,7 +61,7 @@ function typeInto(el: HTMLTextAreaElement | HTMLInputElement, value: string) {
 describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
   beforeEach(() => {
     localStorage.clear();
-    useAuthStore.setState({ isAuthenticated: true, user, token: null, refreshToken: null });
+    useAuthStore.setState({ isAuthenticated: true, user });
     vi.spyOn(blogApi, 'getMyPosts').mockResolvedValue(emptyPage);
     vi.spyOn(blogApi, 'getUserSeries').mockResolvedValue([]);
   });

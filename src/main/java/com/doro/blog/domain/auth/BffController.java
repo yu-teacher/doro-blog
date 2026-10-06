@@ -41,7 +41,7 @@ public class BffController {
     private final BlogUserService userService;
 
     /** 응답 본문: 현재 로그인 상태와 내 프로필. 비로그인이어도 200 이다(화면이 401 오류 처리 없이 상태를 알 수 있게). */
-    public record SessionResponse(boolean authenticated, UserProfileResponse user) {}
+    public record SessionResponse(boolean authenticated, UserProfileResponse user, String role) {}
 
     @Operation(summary = "로그인 시작", description = "Doro 로그인 화면으로 이동한다. return 은 로그인 후 돌아올 사이트 내 경로.")
     @GetMapping("/login")
@@ -92,8 +92,8 @@ public class BffController {
     @GetMapping("/session")
     public ResponseEntity<ApiResponse<SessionResponse>> session(@CurrentDoroUser DoroUser doroUser) {
         SessionResponse body = (doroUser != null && doroUser.isAuthenticated())
-                ? new SessionResponse(true, userService.getProfileById(doroUser.userId()))
-                : new SessionResponse(false, null);
+                ? new SessionResponse(true, userService.getProfileById(doroUser.userId()), doroUser.role())
+                : new SessionResponse(false, null, null);
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(ApiResponse.success(body));
     }
 

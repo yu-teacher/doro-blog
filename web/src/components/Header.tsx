@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { AuthModal } from './AuthModal';
 import { AppLauncher } from './header/AppLauncher';
 import { AccountMenu } from './header/AccountMenu';
 import { SearchPanel } from './header/SearchPanel';
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { user, isAuthenticated, isAdmin, openLoginModal, signOut } = useAuthStore();
+  const { user, isAuthenticated, isAdmin, login, signOut } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   // 앱 런처와 사용자 메뉴는 동시에 하나만 열린다
   const [openMenu, setOpenMenu] = useState<'apps' | 'user' | null>(null);
@@ -88,7 +87,7 @@ export const Header: React.FC = () => {
               isOpen={openMenu === 'user'}
               onToggle={() => setOpenMenu(openMenu === 'user' ? null : 'user')}
               onClose={() => setOpenMenu(null)}
-              onLogin={openLoginModal}
+              onLogin={login}
               onLogout={signOut}
             />
           </div>
@@ -104,7 +103,6 @@ export const Header: React.FC = () => {
         />
       </header>
 
-      <AuthModal />
     </>
   );
 };

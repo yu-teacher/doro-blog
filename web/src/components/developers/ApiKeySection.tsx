@@ -5,7 +5,7 @@ import { CheckCircle2, Key, Loader2, Plus, Trash2 } from 'lucide-react';
 
 interface ApiKeySectionProps {
   isAuthenticated: boolean;
-  openLoginModal: () => void;
+  login: () => void;
   keys: ApiKey[];
   loadingKeys: boolean;
   onCreate: () => void;
@@ -13,7 +13,7 @@ interface ApiKeySectionProps {
 }
 
 /** API 키 목록과 발급/폐기 버튼. */
-export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, openLoginModal, keys, loadingKeys, onCreate, onRevoke }) => {
+export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, login, keys, loadingKeys, onCreate, onRevoke }) => {
   return (
     <>
     {/* API Key Management Section */}
@@ -38,7 +38,7 @@ export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, o
           </button>
         ) : (
           <button
-            onClick={openLoginModal}
+            onClick={login}
             className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 font-semibold transition-colors"
           >
             로그인하고 API 키 발급받기 →
@@ -141,7 +141,7 @@ export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, o
             발급된 키는 즉시 cURL, Python 스크립트, GitHub Actions 등에서 사용 가능합니다.
           </p>
           <button
-            onClick={openLoginModal}
+            onClick={login}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all shadow-sm"
           >
             DORO 계정으로 로그인하기

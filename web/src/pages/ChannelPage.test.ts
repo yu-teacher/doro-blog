@@ -44,7 +44,7 @@ async function render(path: string) {
 
 describe('ChannelPage', () => {
   beforeEach(() => {
-    useAuthStore.setState({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     vi.spyOn(blogApi, 'getUserTags').mockResolvedValue([{ name: 'spring', postCount: 2 }] as never);
     vi.spyOn(blogApi, 'getUserActivity').mockResolvedValue([]);
   });

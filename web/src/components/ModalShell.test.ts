@@ -2,9 +2,7 @@ import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModalShell, nextFocusTarget } from './ModalShell';
-import { AuthModal } from './AuthModal';
 import { ProfileEditModal } from './ProfileEditModal';
-import { useAuthStore } from '../store/authStore';
 import type { UserProfile } from '../api/types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -28,7 +26,6 @@ afterEach(() => {
   host?.remove();
   document.body.innerHTML = '';
   localStorage.clear();
-  useAuthStore.setState({ loginModalOpen: false });
   vi.restoreAllMocks();
 });
 
@@ -98,23 +95,6 @@ describe('ModalShell', () => {
 });
 
 describe('모달 접근성 적용', () => {
-  it('AuthModal: 대화상자 이름이 제목에 연결되고 라벨-입력이 연결되며 Esc 로 닫힌다', () => {
-    mount(createElement(AuthModal));
-    act(() => useAuthStore.getState().openLoginModal());
-    const dialog = host!.querySelector('[role="dialog"]')!;
-    const titleId = dialog.getAttribute('aria-labelledby')!;
-    expect(host!.querySelector(`#${titleId}`)?.textContent).toContain('DORO ID');
-
-    for (const input of host!.querySelectorAll('input')) {
-      const label = host!.querySelector(`label[for="${input.id}"]`);
-      expect(label, `input ${input.type} 의 label`).not.toBeNull();
-    }
-    expect(document.activeElement?.tagName).toBe('INPUT');
-
-    pressEscape();
-    expect(useAuthStore.getState().loginModalOpen).toBe(false);
-  });
-
   it('ProfileEditModal: 제목 연결, 닫기 버튼 aria-label, TextField 라벨 연결', () => {
     const profile = {
       id: 'u1', username: 'tester', nickname: '테스터', blogTitle: 'tester.log', followerCount: 0, followingCount: 0, createdAt: '2026-01-01T00:00:00Z',

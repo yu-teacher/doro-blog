@@ -43,7 +43,7 @@ describe('수정 화면 자동 저장과 글 상태', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
-    useAuthStore.setState({ isAuthenticated: true, user, token: null, refreshToken: null });
+    useAuthStore.setState({ isAuthenticated: true, user });
     vi.spyOn(blogApi, 'getMyPosts').mockResolvedValue(emptyPage);
     vi.spyOn(blogApi, 'getUserSeries').mockResolvedValue([]);
   });

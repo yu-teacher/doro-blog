@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
+import { LoginErrorNotice } from './components/LoginErrorNotice';
 import { FeedPage } from './pages/FeedPage';
 
 // 첫 화면(피드)은 즉시 로드하고 나머지 라우트는 필요할 때 내려받는다.
@@ -26,6 +27,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      <LoginErrorNotice />
       {!isEditor && <Header />}
 
       <main className="flex-1">

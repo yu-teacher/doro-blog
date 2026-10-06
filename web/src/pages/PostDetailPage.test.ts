@@ -35,7 +35,7 @@ async function render(path = '/@writer/test-post') {
 
 describe('PostDetailPage', () => {
   beforeEach(() => {
-    useAuthStore.setState({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     vi.spyOn(blogApi, 'getComments').mockResolvedValue([]);
     vi.spyOn(blogApi, 'getRelatedPosts').mockResolvedValue([]);
   });

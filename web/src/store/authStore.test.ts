@@ -1,82 +1,107 @@
+import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getUserRole, isTokenExpired } from '../utils/jwt';
-import { initAuth, useAuthStore } from './authStore';
+import { CSRF_HEADER, CSRF_VALUE } from '../api/csrf';
+import type { UserProfile } from '../api/types';
+import { buildLoginUrl, purgeLegacyLoginStorage, useAuthStore } from './authStore';
 
-function jwt(payload: Record<string, unknown>): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'RS256' })}.${encode(payload)}.signature`;
-}
+const user: UserProfile = {
+  id: 'u1', username: 'tester', email: 't@doro.test', nickname: '테스터', blogTitle: 'tester.log',
+  followerCount: 0, followingCount: 0, createdAt: '2026-01-01T00:00:00Z',
+};
 
-const nowSec = () => Math.floor(Date.now() / 1000);
+beforeEach(() => {
+  useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isAdmin: false });
+});
+afterEach(() => vi.restoreAllMocks());
 
-describe('토큰 판별', () => {
-  it('exp 가 지났거나 5초 이내면 만료로 본다', () => {
-    expect(isTokenExpired(jwt({ exp: nowSec() - 1 }))).toBe(true);
-    expect(isTokenExpired(jwt({ exp: nowSec() + 3 }))).toBe(true);
-    expect(isTokenExpired(jwt({ exp: nowSec() + 600 }))).toBe(false);
-  });
-
-  it('읽을 수 없는 토큰은 만료, exp 가 없는 토큰은 만료가 아니다', () => {
-    expect(isTokenExpired(null)).toBe(true);
-    expect(isTokenExpired('garbage')).toBe(true);
-    expect(isTokenExpired(jwt({ sub: 'u1' }))).toBe(false);
-  });
-
-  it('역할은 문자열일 때만 돌려준다', () => {
-    expect(getUserRole(jwt({ role: 'ADMIN' }))).toBe('ADMIN');
-    expect(getUserRole(jwt({ role: 5 }))).toBeNull();
-    expect(getUserRole(jwt({}))).toBeNull();
-    expect(getUserRole(null)).toBeNull();
+describe('buildLoginUrl', () => {
+  it('돌아올 경로를 인코딩해서 로그인 시작 주소에 싣는다', () => {
+    expect(buildLoginUrl('/@alice/my-post?x=1&y=2')).toBe('/api/v1/bff/login?return=%2F%40alice%2Fmy-post%3Fx%3D1%26y%3D2');
   });
 });
 
-describe('initAuth', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
+describe('loadSession', () => {
+  it('서버가 로그인 상태라고 알려 주면 사용자와 역할을 반영한다', async () => {
+    const get = vi.spyOn(axios, 'get').mockResolvedValue({ data: { data: { authenticated: true, user, role: 'USER' } } });
+
+    await useAuthStore.getState().loadSession();
+
+    expect(get).toHaveBeenCalledWith('/api/v1/bff/session', { headers: { [CSRF_HEADER]: CSRF_VALUE } });
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user, role: 'USER', isAdmin: false });
+  });
+
+  it('관리자 역할이면 isAdmin 이 true 다', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({ data: { data: { authenticated: true, user, role: 'ADMIN' } } });
+
+    await useAuthStore.getState().loadSession();
+
+    expect(useAuthStore.getState().isAdmin).toBe(true);
+  });
+
+  it('비로그인이거나 서버에 닿지 못해도 오류 없이 비로그인 상태가 된다', async () => {
+    useAuthStore.setState({ user, isAuthenticated: true });
+    vi.spyOn(axios, 'get').mockResolvedValueOnce({ data: { data: { authenticated: false, user: null } } });
+    await useAuthStore.getState().loadSession();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+
+    useAuthStore.setState({ user, isAuthenticated: true });
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(axios, 'get').mockRejectedValueOnce(new Error('Network Error'));
+    await useAuthStore.getState().loadSession();
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, user: null });
+  });
+});
+
+describe('signOut', () => {
+  it('서버에 로그아웃을 요청하고(CSRF 헤더 포함) 화면 상태를 비운다', async () => {
+    useAuthStore.setState({ user, isAuthenticated: true });
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({ data: {} });
+
+    await useAuthStore.getState().signOut();
+
+    expect(post).toHaveBeenCalledWith('/api/v1/bff/logout', null, { headers: { [CSRF_HEADER]: CSRF_VALUE } });
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, user: null });
+  });
+
+  it('서버 요청이 실패해도 화면은 로그아웃 상태가 된다', async () => {
+    useAuthStore.setState({ user, isAuthenticated: true });
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(axios, 'post').mockRejectedValue(new Error('Network Error'));
+
+    await useAuthStore.getState().signOut();
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+});
+
+describe('토큰을 브라우저에 두지 않는다', () => {
+  it('로그인 상태가 되어도 localStorage 에 토큰이나 계정 정보를 쓰지 않는다', async () => {
     localStorage.clear();
+    vi.spyOn(axios, 'get').mockResolvedValue({ data: { data: { authenticated: true, user, role: 'USER' } } });
+
+    await useAuthStore.getState().loadSession();
+
+    expect(localStorage.length).toBe(0);
   });
+});
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-    useAuthStore.getState().logout();
-  });
+describe('purgeLegacyLoginStorage', () => {
+  it('이전 로그인 방식이 남긴 토큰과 저장 계정을 지우고, 포털과 공유하는 키와 다른 값은 건드리지 않는다', () => {
+    localStorage.setItem('doro_blog_token', 'old-access');
+    localStorage.setItem('doro_blog_refresh_token', 'old-refresh');
+    localStorage.setItem('doro_blog_user', '{}');
+    localStorage.setItem('doro_saved_accounts', '[]');
+    localStorage.setItem('doro_auth_accounts', '[{"email":"portal@doro.test"}]');
+    localStorage.setItem('theme', 'dark');
 
-  it('유효한 토큰이면 서버를 호출하지 않고 만료 전에 자동 갱신을 예약한다', async () => {
-    const token = jwt({ role: 'USER', exp: nowSec() + 900 });
-    useAuthStore.setState({ token, refreshToken: 'r', isAuthenticated: true });
-    const refresh = vi.spyOn(useAuthStore.getState(), 'refreshSession').mockResolvedValue({ kind: 'unavailable' });
-    useAuthStore.setState({ refreshSession: refresh });
+    purgeLegacyLoginStorage();
 
-    initAuth();
-    expect(refresh).not.toHaveBeenCalled();
-
-    // 수명 900초(>10분) → 만료 5분 전, 즉 600초 뒤에 갱신한다
-    await vi.advanceTimersByTimeAsync(599_000);
-    expect(refresh).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it('액세스 토큰이 만료되었고 리프레시 토큰이 있으면 즉시 조용히 갱신한다', async () => {
-    useAuthStore.setState({ token: null, refreshToken: 'r', isAuthenticated: true });
-    const refresh = vi.fn().mockResolvedValue({ kind: 'unavailable' });
-    useAuthStore.setState({ refreshSession: refresh });
-
-    initAuth();
-    await vi.advanceTimersByTimeAsync(0);
-
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it('토큰이 아무것도 없으면 아무것도 하지 않는다', async () => {
-    useAuthStore.setState({ token: null, refreshToken: null, isAuthenticated: false });
-    const refresh = vi.fn();
-    useAuthStore.setState({ refreshSession: refresh });
-
-    initAuth();
-    await vi.advanceTimersByTimeAsync(10_000);
-
-    expect(refresh).not.toHaveBeenCalled();
+    expect(localStorage.getItem('doro_blog_token')).toBeNull();
+    expect(localStorage.getItem('doro_blog_refresh_token')).toBeNull();
+    expect(localStorage.getItem('doro_blog_user')).toBeNull();
+    expect(localStorage.getItem('doro_saved_accounts')).toBeNull();
+    expect(localStorage.getItem('doro_auth_accounts')).not.toBeNull();
+    expect(localStorage.getItem('theme')).toBe('dark');
+    localStorage.clear();
   });
 });
