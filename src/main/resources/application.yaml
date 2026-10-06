@@ -40,6 +40,10 @@ spring:
 doro:
   iam:
     jwks-uri: http://${IAM_HOST:localhost}:${IAM_PORT:28080}/.well-known/jwks.json
+    # 블로그 BFF 가 받은 OAuth 토큰(cid=블로그 클라이언트)만 받아 준다. 다른 클라이언트의 토큰은 거부한다.
+    oauth-client-ids: ${BLOG_OAUTH_CLIENT_ID:doro-blog}
+    # 다른 곳에서 로그아웃하면 이 블로그의 세션도 바로 끝난다(IAM 에 닿지 못하면 통과 = fail-open)
+    revocation-check: ${DORO_IAM_REVOCATION_CHECK:ENFORCE}
   guard:
     grpc-host: ${GUARD_GRPC_HOST:localhost}
     grpc-port: ${GUARD_GRPC_PORT:9090}
@@ -77,3 +81,15 @@ logging:
     root: INFO
     com.doro.blog: ${LOG_LEVEL_APP:INFO}
     com.hunnit_beasts.doro.sdk: ${LOG_LEVEL_SDK:INFO}
+
+# 블로그 BFF 로그인 (Doro OAuth). 로그인 화면은 Doro 가 담당하고, 블로그는 비밀번호를 다루지 않는다.
+blog:
+  auth:
+    client-id: ${BLOG_OAUTH_CLIENT_ID:doro-blog}
+    authorize-url: ${BLOG_OAUTH_AUTHORIZE_URL:http://localhost:28080/oauth2/authorize}
+    token-url: ${BLOG_OAUTH_TOKEN_URL:http://${IAM_HOST:localhost}:${IAM_PORT:28080}/oauth2/token}
+    revoke-url: ${BLOG_OAUTH_REVOKE_URL:http://${IAM_HOST:localhost}:${IAM_PORT:28080}/oauth2/revoke}
+    redirect-uri: ${BLOG_OAUTH_REDIRECT_URI:http://localhost:5173/api/v1/bff/callback}
+    cookie-secure: ${BLOG_COOKIE_SECURE:true}
+    # DB 에 저장하는 토큰을 암호화하는 키(base64 32바이트). 기본값 없음: openssl rand -base64 32
+    session-encryption-key: ${BLOG_SESSION_KEY}
