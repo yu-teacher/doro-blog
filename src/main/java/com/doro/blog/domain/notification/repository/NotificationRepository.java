@@ -34,4 +34,14 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     boolean existsByRecipientIdAndSenderIdAndTypeAndTargetPostIdIsNullAndCreatedAtAfter(
             UUID recipientId, UUID senderId, NotificationType type, Instant after);
+
+    /** 탈퇴 익명화: 본인에게 온 알림함을 비운다. */
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.recipient.id = :recipientId")
+    int deleteAllByRecipientId(@Param("recipientId") UUID recipientId);
+
+    /** 사용자명이 바뀌어도 다른 사람 알림의 글 링크가 깨지지 않게 비정규화된 사용자명을 함께 바꾼다. */
+    @Modifying
+    @Query("UPDATE Notification n SET n.targetUsername = :newUsername WHERE n.targetUsername = :oldUsername")
+    int renameTargetUsername(@Param("oldUsername") String oldUsername, @Param("newUsername") String newUsername);
 }

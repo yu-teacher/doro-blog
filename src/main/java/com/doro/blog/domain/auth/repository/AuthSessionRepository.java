@@ -21,4 +21,9 @@ public interface AuthSessionRepository extends JpaRepository<AuthSession, UUID> 
     @Modifying
     @Query("DELETE FROM AuthSession s WHERE s.expiresAt <= :now")
     int deleteExpired(@Param("now") Instant now);
+
+    /** 탈퇴 익명화: 사용자의 모든 BFF 세션(암호화된 토큰 포함)을 삭제한다. */
+    @Modifying
+    @Query("DELETE FROM AuthSession s WHERE s.userId = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
 }

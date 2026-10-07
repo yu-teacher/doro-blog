@@ -67,6 +67,10 @@ public class BlogUser {
     @Builder.Default
     private int followingCount = 0;
 
+    /** Doro 계정이 영구 탈퇴해 이 프로필의 개인정보를 익명화한 시각. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -93,6 +97,33 @@ public class BlogUser {
 
 
 
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    /**
+     * Doro 계정 탈퇴에 따라 프로필의 개인정보를 지운다. 글·댓글은 남기되 작성자는 자리표시자로 보이게 된다.
+     * 사용자명·이메일은 UNIQUE/NOT NULL 이므로 사용자마다 다른 값을 호출 측이 만들어 넘긴다.
+     */
+    public void anonymize(String placeholderUsername, String placeholderEmail, String placeholderNickname,
+                          String placeholderBlogTitle, Instant now) {
+        this.username = placeholderUsername;
+        this.email = placeholderEmail;
+        this.nickname = placeholderNickname;
+        this.blogTitle = placeholderBlogTitle;
+        this.bio = null;
+        this.profileImageUrl = null;
+        this.githubUrl = null;
+        this.twitterUrl = null;
+        this.websiteUrl = null;
+        this.publicEmail = null;
+        this.linkedinUrl = null;
+        this.aboutMarkdown = null;
+        this.followerCount = 0;
+        this.followingCount = 0;
+        this.deletedAt = now;
+    }
 
     public void updateUsername(String username) {
         if (username != null && !username.isBlank()) {

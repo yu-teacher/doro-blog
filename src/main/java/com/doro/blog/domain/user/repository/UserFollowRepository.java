@@ -35,4 +35,17 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, UUID> {
     Page<UserFollow> findByFollowerIdOrderByCreatedAtDesc(UUID followerId, Pageable pageable);
 
     List<UserFollow> findByFollowerIdAndFollowingIdIn(UUID followerId, Collection<UUID> followingIds);
+
+    /** 이 사용자를 팔로우하던 사용자들. */
+    @Query("select f.followerId from UserFollow f where f.followingId = :userId")
+    List<UUID> findFollowerIds(@Param("userId") UUID userId);
+
+    /** 이 사용자가 팔로우하던 사용자들. */
+    @Query("select f.followingId from UserFollow f where f.followerId = :userId")
+    List<UUID> findFollowingIds(@Param("userId") UUID userId);
+
+    /** 탈퇴 익명화: 이 사용자가 맺은 팔로우 관계를 양방향 모두 지운다. */
+    @Modifying
+    @Query("delete from UserFollow f where f.followerId = :userId or f.followingId = :userId")
+    int deleteAllInvolving(@Param("userId") UUID userId);
 }
