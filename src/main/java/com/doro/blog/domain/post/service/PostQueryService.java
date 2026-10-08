@@ -132,8 +132,9 @@ public class PostQueryService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
+        // 볼 수 없는 글은 존재 여부도 알리지 않는다(슬러그 조회와 같은 규칙: 403 이 아니라 없는 글과 같은 404)
         if (!postAccess.canView(post, doroUser)) {
-            throw new BlogException(ErrorCode.ACCESS_DENIED, "비공개 또는 임시저장된 글에 접근할 수 없습니다.");
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
         }
 
         boolean likedByMe = doroUser.isAuthenticated() && likeRepository.existsByPostIdAndUserId(post.getId(), doroUser.userId());

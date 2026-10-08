@@ -45,6 +45,10 @@ public class CommentService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
+        // 볼 수 없는 글은 없는 글과 똑같이 404, 볼 수 있지만 출간되지 않은 글(작성자 본인)에만 이유를 알려 주는 403
+        if (!postAccess.canView(post, doroUser)) {
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
+        }
         if (post.getStatus() != PostStatus.PUBLISHED) {
             throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
         }
@@ -85,6 +89,9 @@ public class CommentService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
+        if (!postAccess.canView(post, doroUser)) {
+            throw new BlogException(ErrorCode.POST_NOT_FOUND);
+        }
         if (post.getStatus() != PostStatus.PUBLISHED) {
             throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
         }
