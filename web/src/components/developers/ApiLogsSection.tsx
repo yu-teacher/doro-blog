@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ApiKey, ApiKeyLog } from '../../api/types';
 import { formatDateTime } from '../../utils/date';
+import { listState } from '../../utils/listState';
+import { LoadErrorNotice } from './LoadErrorNotice';
 import { Activity, CheckCircle2, Loader2, RefreshCw, XCircle } from 'lucide-react';
 
 interface ApiLogsSectionProps {
@@ -8,13 +10,16 @@ interface ApiLogsSectionProps {
   keys: ApiKey[];
   logs: ApiKeyLog[];
   loadingLogs: boolean;
+  /** 로그 조회가 실패했을 때의 메시지(성공했으면 null) */
+  logsError: string | null;
   selectedKeyId: string;
   onSelectKey: (keyId: string) => void;
   onRefresh: () => void;
 }
 
 /** API 키 호출 이력(감사 로그) 표. 키별로 걸러 볼 수 있다. */
-export const ApiLogsSection: React.FC<ApiLogsSectionProps> = ({ isAuthenticated, keys, logs, loadingLogs, selectedKeyId, onSelectKey, onRefresh }) => {
+export const ApiLogsSection: React.FC<ApiLogsSectionProps> = ({ isAuthenticated, keys, logs, loadingLogs, logsError, selectedKeyId, onSelectKey, onRefresh }) => {
+  const state = listState({ loading: loadingLogs, error: logsError, count: logs.length });
   return (
     <>
     {/* Real-Time Request Audit Logs (호출 이력) */}
@@ -63,12 +68,14 @@ export const ApiLogsSection: React.FC<ApiLogsSectionProps> = ({ isAuthenticated,
       </div>
 
       {isAuthenticated ? (
-        loadingLogs ? (
+        state === 'loading' ? (
           <div className="flex justify-center items-center py-12 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin mr-2 text-blue-500" />
             호출 로그 확인 중...
           </div>
-        ) : logs.length === 0 ? (
+        ) : state === 'error' ? (
+          <LoadErrorNotice subject="호출 로그" message={logsError ?? ''} onRetry={onRefresh} />
+        ) : state === 'empty' ? (
           <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8">
             <Activity className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300">
@@ -79,6 +86,8 @@ export const ApiLogsSection: React.FC<ApiLogsSectionProps> = ({ isAuthenticated,
             </p>
           </div>
         ) : (
+          <>
+          {logsError && <LoadErrorNotice compact subject="호출 로그 새로고침" message={logsError} onRetry={onRefresh} />}
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800 text-xs">
@@ -147,6 +156,7 @@ export const ApiLogsSection: React.FC<ApiLogsSectionProps> = ({ isAuthenticated,
               </tbody>
             </table>
           </div>
+          </>
         )
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500">

@@ -2,18 +2,24 @@ import React from 'react';
 import type { ApiKey } from '../../api/types';
 import { formatDate, formatDateTime } from '../../utils/date';
 import { CheckCircle2, Key, Loader2, Plus, Trash2 } from 'lucide-react';
+import { listState } from '../../utils/listState';
+import { LoadErrorNotice } from './LoadErrorNotice';
 
 interface ApiKeySectionProps {
   isAuthenticated: boolean;
   login: () => void;
   keys: ApiKey[];
   loadingKeys: boolean;
+  /** 목록 조회가 실패했을 때의 메시지(성공했으면 null) */
+  keysError: string | null;
+  onRetry: () => void;
   onCreate: () => void;
   onRevoke: (id: string, name: string) => void;
 }
 
 /** API 키 목록과 발급/폐기 버튼. */
-export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, login, keys, loadingKeys, onCreate, onRevoke }) => {
+export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, login, keys, loadingKeys, keysError, onRetry, onCreate, onRevoke }) => {
+  const state = listState({ loading: loadingKeys, error: keysError, count: keys.length });
   return (
     <>
     {/* API Key Management Section */}
@@ -48,12 +54,14 @@ export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, l
 
       {/* Keys Table / Card */}
       {isAuthenticated ? (
-        loadingKeys ? (
+        state === 'loading' ? (
           <div className="flex justify-center items-center py-12 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin mr-2 text-emerald-500" />
             API 키 목록 불러오는 중...
           </div>
-        ) : keys.length === 0 ? (
+        ) : state === 'error' ? (
+          <LoadErrorNotice subject="API 키 목록" message={keysError ?? ''} onRetry={onRetry} />
+        ) : state === 'empty' ? (
           <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8">
             <Key className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300">
@@ -70,6 +78,8 @@ export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, l
             </button>
           </div>
         ) : (
+          <>
+          {keysError && <LoadErrorNotice compact subject="API 키 목록 새로고침" message={keysError} onRetry={onRetry} />}
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
@@ -130,6 +140,7 @@ export const ApiKeySection: React.FC<ApiKeySectionProps> = ({ isAuthenticated, l
               </tbody>
             </table>
           </div>
+          </>
         )
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">

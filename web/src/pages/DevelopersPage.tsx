@@ -23,6 +23,7 @@ export const DevelopersPage: React.FC = () => {
   // API Key State
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
+  const [keysError, setKeysError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [keyName, setKeyName] = useState('');
   const [expireDays, setExpireDays] = useState<number | null>(30);
@@ -32,6 +33,7 @@ export const DevelopersPage: React.FC = () => {
   // Logs State
   const [logs, setLogs] = useState<ApiKeyLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string>('');
 
   // Code Snippet Active Tab
@@ -43,8 +45,11 @@ export const DevelopersPage: React.FC = () => {
       setLoadingKeys(true);
       const data = await blogApi.getMyApiKeys();
       setKeys(data);
+      setKeysError(null);
     } catch (err) {
       console.error('Failed to load API keys:', err);
+      // 조회 실패를 빈 목록처럼 보여 주지 않는다(데이터가 사라진 것으로 오해하게 된다).
+      setKeysError(getErrorMessage(err, '일시적인 오류'));
     } finally {
       setLoadingKeys(false);
     }
@@ -57,8 +62,10 @@ export const DevelopersPage: React.FC = () => {
       setLoadingLogs(true);
       const pageRes = await blogApi.getApiKeyLogs(keyId || undefined, 0, API_LOGS_PAGE_SIZE);
       setLogs(pageRes.content);
+      setLogsError(null);
     } catch (err) {
       console.error('Failed to load API logs:', err);
+      setLogsError(getErrorMessage(err, '일시적인 오류'));
     } finally {
       setLoadingLogs(false);
     }
@@ -151,6 +158,8 @@ export const DevelopersPage: React.FC = () => {
         login={login}
         keys={keys}
         loadingKeys={loadingKeys}
+        keysError={keysError}
+        onRetry={fetchKeys}
         onCreate={() => setShowCreateModal(true)}
         onRevoke={handleRevokeKey}
       />
@@ -162,6 +171,7 @@ export const DevelopersPage: React.FC = () => {
         keys={keys}
         logs={logs}
         loadingLogs={loadingLogs}
+        logsError={logsError}
         selectedKeyId={selectedKeyId}
         onSelectKey={(keyId) => {
           setSelectedKeyId(keyId);
