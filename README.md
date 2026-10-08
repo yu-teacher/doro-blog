@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml/badge.svg)](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml)
 
-> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (JWT verified locally via JWKS, authorization through a Zanzibar-style ReBAC engine), so this service contains **no role-check `if` statements**. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **408 automated tests** (174 backend + 234 frontend).
+> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **417 automated tests** (221 backend + 196 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
-직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인·권한 검사 코드는 이 서비스 안에 없습니다.
+직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인 화면과 비밀번호 처리, 권한 규칙은 이 서비스 안에 없습니다. 이 서비스는 OAuth 코드 교환을 맡는 BFF 세션 계층만 갖고, 권한 규칙은 Guard 스키마에 선언합니다.
 
 | | |
 |---|---|
@@ -20,7 +20,7 @@
 ## 🧠 설계에서 신경 쓴 것
 
 ### 1. 권한은 코드가 아니라 데이터로 — Doro Guard
-글·시리즈·댓글의 모든 권한 판단을 Guard에 위임합니다. 예를 들어 "댓글을 지울 수 있는 사람"은 **댓글 작성자 또는 그 댓글이 달린 글의 작성자**인데, 서비스 코드에는 분기문이 없고 스키마 한 줄로 선언합니다.
+글·시리즈·댓글의 모든 권한 판단을 Guard에 위임합니다. 예를 들어 "댓글을 지울 수 있는 사람"은 **댓글 작성자 또는 그 댓글이 달린 글의 작성자**인데, 그 규칙을 스키마 한 줄로 선언합니다. 서비스 코드는 흔한 경우(내 댓글, 내 글)를 먼저 확인하고 최종 판정은 Guard에 맡깁니다.
 
 ```text
 type blog_comment {
@@ -36,7 +36,7 @@ type blog_comment {
 ...
 guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       // 댓글 삭제 서비스
 ```
-- **DB와 Guard의 일관성**: 튜플을 쓰다 실패하면 예외를 던져 DB 트랜잭션도 롤백하고, 삭제는 커밋이 확정된 뒤에 합니다(`GuardTuples`). 권한 없는 글이나 권한만 남은 글이 생기지 않습니다.
+- **DB와 Guard의 일관성**: 튜플을 쓰다 실패하면 예외를 던져 DB 트랜잭션도 롤백하고(이미 쓴 튜플은 정리), 삭제는 커밋이 확정된 뒤에 합니다(`GuardTuples`). 그래서 권한 없는 글이 생기지 않습니다. 커밋 뒤 삭제가 실패해도 요청은 성공시키고 ERROR 로그로 남겨 추적합니다. Guard 장애는 `503`으로 응답합니다.
 - **스키마 병합 등록**: 기동할 때 Guard의 활성 스키마에서 **없는 블로그 타입만** 덧붙입니다. 다른 서비스의 규칙을 덮어쓰지 않으며, 여러 번 실행해도 결과가 같습니다.
 - **회귀 방지**: 소스를 스캔해 코드가 쓰는 모든 튜플·판정이 스키마에 선언돼 있는지 검사하는 테스트가 있습니다.
 
@@ -51,16 +51,21 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 |---|---|
 | **내용 기반 판별** | 확장자나 `Content-Type`을 믿지 않고 **매직 바이트**로 형식을 판별. 위장 파일(`.png`로 올린 SVG 등)은 거부 |
 | **SVG 허용 목록 정제** | 원본을 저장하지 않고, 허용된 요소·속성만 새 문서로 복사. `script`, `on*` 이벤트, 외부 참조 제거, DOCTYPE 금지(XXE·엔티티 폭탄 차단) |
-| **격리된 서빙** | 업로드 파일 응답에 `default-src 'none'; sandbox` CSP를 걸어 직접 열어도 스크립트가 실행되지 않음 |
+| **격리된 서빙** | 게이트웨이가 업로드 파일 응답에 `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; sandbox` CSP와 `nosniff`를 걸고 버킷 목록 조회를 막아, 직접 열어도 스크립트가 실행되지 않음 |
 
 실제 MinIO를 대상으로 하는 통합 테스트가 있고, 정제기를 일부러 약하게 만들면 실패하는 것도 확인했습니다.
 
 ### 5. API 키는 최소 권한으로
-키는 `posts`, `series`, `tags`, `uploads` 범위만 호출할 수 있고, 그 밖은 `403`입니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`{ success, code, message, status }`)입니다.
+키는 `posts`, `series`, `tags`, `uploads` 범위만 호출할 수 있고, 그 밖은 `403`입니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`success`, `code`, `message`, `status` 등)입니다.
 
 ### 6. 배포와 마이그레이션
-- **Flyway** 7개 마이그레이션, `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
-- **배포 스크립트**(`scripts/deploy.sh`): 테스트 → 빌드 → **롤백 스냅샷(이전 jar·이미지)** → DB 백업 → 전송 → 재기동 → 헬스체크. 헬스체크가 실패하면 중단하고 복구 방법을 안내하며, 되돌릴 지점은 배포 전에 항상 남깁니다.
+- **Flyway** 9개 마이그레이션(V1~V9), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
+- **배포 스크립트**(`scripts/deploy.sh`, 로컬에서 실행): 테스트 → 빌드 → **롤백 스냅샷(이전 jar·이미지)** → DB 백업 → 전송 → 재기동 → 헬스체크. 헬스체크가 실패하면 중단하고 복구 방법을 안내하며, 되돌릴 지점은 배포 전에 항상 남깁니다.
+- **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크, 실패하면 **직전 릴리스로 자동 복구**합니다.
+
+### 7. 로그인과 회원 탈퇴
+- **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
+- **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·BFF 세션·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
 
 ---
 
@@ -81,7 +86,7 @@ flowchart LR
 **프런트엔드** React 19 · Vite · TypeScript · zustand · vitest — 화면 로직은 훅(`usePaginatedList`, `useDraftAutosave` 등)과 순수 함수로 분리해 단위 테스트합니다.
 
 ## 🧪 테스트
-백엔드 **174개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **234개**, ESLint·타입 검사 통과.
+백엔드 **221개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **196개**, ESLint·타입 검사 통과.
 `main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행
