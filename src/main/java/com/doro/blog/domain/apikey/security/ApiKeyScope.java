@@ -1,6 +1,8 @@
 package com.doro.blog.domain.apikey.security;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * API 키로 호출할 수 있는 경로 범위. API 키는 글 자동 발행용이므로 글/시리즈/태그/업로드 API 에만 쓸 수 있다.
@@ -16,7 +18,17 @@ public final class ApiKeyScope {
             "/api/v1/uploads"
     );
 
+    /**
+     * API 키로 보낼 수 있는 HTTP 메서드. 조회·작성·수정(CRU)만 허용하고 삭제는 JWT 로그인으로만 할 수 있다.
+     * 자동화용 키가 유출돼도 글·시리즈를 지울 수 없게 하려는 것이다.
+     */
+    private static final Set<String> ALLOWED_METHODS = Set.of("GET", "HEAD", "POST", "PUT", "PATCH");
+
     private ApiKeyScope() {
+    }
+
+    public static boolean allowsMethod(String method) {
+        return method != null && ALLOWED_METHODS.contains(method.toUpperCase(Locale.ROOT));
     }
 
     public static boolean allows(String requestUri) {

@@ -56,12 +56,12 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 실제 MinIO를 대상으로 하는 통합 테스트가 있고, 정제기를 일부러 약하게 만들면 실패하는 것도 확인했습니다.
 
 ### 5. API 키는 최소 권한으로
-키는 `posts`, `series`, `tags`, `uploads` 범위만 호출할 수 있고, 그 밖은 `403`입니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`success`, `code`, `message`, `status` 등)입니다.
+키는 `posts`, `series`, `tags`, `uploads` 범위에서 **조회·작성·수정(GET/POST/PUT/PATCH)만** 할 수 있습니다. 삭제와 그 밖의 범위는 `403`이라, 키가 유출돼도 글을 지울 수 없습니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`success`, `code`, `message`, `status` 등)입니다.
 
 ### 6. 배포와 마이그레이션
 - **Flyway** 9개 마이그레이션(V1~V9), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
 - **배포 스크립트**(`scripts/deploy.sh`, 로컬에서 실행): 테스트 → 빌드 → **롤백 스냅샷(이전 jar·이미지)** → DB 백업 → 전송 → 재기동 → 헬스체크. 헬스체크가 실패하면 중단하고 복구 방법을 안내하며, 되돌릴 지점은 배포 전에 항상 남깁니다.
-- **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크, 실패하면 **직전 릴리스로 자동 복구**합니다.
+- **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크 → 게이트웨이 reload(재생성된 컨테이너 IP 재해석), 실패하면 **직전 릴리스로 자동 복구**합니다.
 
 ### 7. 로그인과 회원 탈퇴
 - **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.

@@ -92,6 +92,17 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // 키는 조회·작성·수정만 한다. 삭제는 로그인(JWT)으로만 가능하다 — 유출된 키로 글·시리즈를 지울 수 없게 한다.
+        if (!ApiKeyScope.allowsMethod(method)) {
+            log.warn("API Key used with a disallowed method: keyId={}, ip={}, method={}, uri={}", apiKey.getId(), clientIp, method, uri);
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(objectMapper.writeValueAsString(
+                    ApiResponse.error(HttpStatus.FORBIDDEN, "AUTH-403-03", "API 키로는 삭제할 수 없습니다. 삭제는 로그인 후 이용해 주세요.")));
+            return;
+        }
+
         // Inject DoroUser into DoroUserContext so @CurrentDoroUser and @DoroGuard resolve seamlessly!
         DoroUser doroUser = new DoroUser(
                 owner.getId(),
