@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml/badge.svg)](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml)
 
-> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **417 automated tests** (221 backend + 196 frontend).
+> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **421 automated tests** (225 backend + 196 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
 직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인 화면과 비밀번호 처리, 권한 규칙은 이 서비스 안에 없습니다. 이 서비스는 OAuth 코드 교환을 맡는 BFF 세션 계층만 갖고, 권한 규칙은 Guard 스키마에 선언합니다.
@@ -65,7 +65,7 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 
 ### 7. 로그인과 회원 탈퇴
 - **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
-- **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·BFF 세션·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
+- **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 이 내부 API는 게이트웨이를 거치지 않는 내부 네트워크 전용이고, **호출자 서비스 토큰**(헤더 `X-Doro-Service-Token`)으로 한 번 더 지킵니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·BFF 세션·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
 
 ---
 
@@ -86,7 +86,7 @@ flowchart LR
 **프런트엔드** React 19 · Vite · TypeScript · zustand · vitest — 화면 로직은 훅(`usePaginatedList`, `useDraftAutosave` 등)과 순수 함수로 분리해 단위 테스트합니다.
 
 ## 🧪 테스트
-백엔드 **221개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **196개**, ESLint·타입 검사 통과.
+백엔드 **225개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **196개**, ESLint·타입 검사 통과.
 `main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행
