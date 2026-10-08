@@ -101,6 +101,26 @@ wait_healthy() {
   curl -fsS -o /dev/null "http://127.0.0.1:3002/api/v1/posts?page=0&size=1"
 }
 
+# 컨테이너가 다시 만들어지면 IP 가 바뀐다. 게이트웨이(nginx)는 compose 밖에 있고 업스트림 이름을 시작·reload 때만 해석해 IP 를 기억하므로,
+# 그대로 두면 옛 IP 로 접속해 502 가 난다(배포·재시작 직후 화면이 비어 보이는 원인). 그래서 배포 직후 설정을 검증하고 무중단 reload 한 뒤
+# 게이트웨이 경유 응답까지 확인한다. 게이트웨이 컨테이너가 없으면 경고만 남기고 건너뛴다.
+reload_gateway() {
+  local gw="${GATEWAY_CONTAINER:-doro-gateway}" i code=""
+  if ! docker inspect "$gw" >/dev/null 2>&1; then
+    log "경고: $gw 컨테이너가 없어 게이트웨이 reload 를 건너뛴다"
+    return 0
+  fi
+  docker exec "$gw" nginx -t >/dev/null 2>&1 || { log "ERROR: 게이트웨이 설정 검증(nginx -t) 실패 — reload 하지 않는다"; return 1; }
+  docker exec "$gw" nginx -s reload >/dev/null 2>&1 || { log "ERROR: 게이트웨이 reload 실패"; return 1; }
+  for i in $(seq 1 "${GATEWAY_CHECK_TRIES:-15}"); do
+    code="$(curl -sk -o /dev/null -w '%{http_code}' -m 5 "${GATEWAY_CHECK_URL:-https://127.0.0.1/api/v1/posts?page=0&size=1}" || true)"
+    if [ "$code" = 200 ]; then log "게이트웨이 reload 후 경유 응답 확인(200)"; return 0; fi
+    sleep "${GATEWAY_CHECK_SLEEP:-2}"
+  done
+  log "ERROR: 게이트웨이 reload 후 경유 응답이 200 이 아니다(마지막: ${code:-없음})"
+  return 1
+}
+
 log "== 반영 (compose 파일은 보내지 않는다) =="
 cp -f "$BLOG_SRC/Dockerfile" "$REMOTE_DIR/Dockerfile"
 cp -f "$BLOG_SRC/web/nginx.conf" "$BLOG_SRC/web/Dockerfile" "$REMOTE_DIR/web/"
@@ -108,6 +128,8 @@ apply_release "$BLOG_SRC/$JAR_REL" "$BLOG_SRC/web/dist"
 
 log "== 헬스체크 (최대 ${HEALTH_TIMEOUT_SEC}s) =="
 if wait_healthy; then
+  # 앱은 정상이다. 게이트웨이 reload 가 실패하면 502 가 남으므로 배포를 실패로 표시한다(롤백은 하지 않는다).
+  reload_gateway || die "앱은 정상이지만 게이트웨이가 새 컨테이너를 가리키지 못한다. 수동 확인 필요: docker exec doro-gateway nginx -s reload"
   prune_old_releases || log "경고: 오래된 산출물 정리에 실패했다(배포는 성공)"
   log "완료. 롤백 지점: $SNAP, 이미지 태그 doro-blog-rollback:{backend,web}-$TS"
   exit 0
@@ -117,7 +139,7 @@ log "ERROR: 헬스체크 실패. 직전 릴리스로 자동 복구한다."
 docker logs --tail 40 doro-blog-backend || true
 if [ -d "$SNAP/libs" ] && [ -d "$SNAP/dist" ]; then
   apply_release "$SNAP/libs/doro-blog-0.0.1-SNAPSHOT.jar" "$SNAP/dist"
-  if wait_healthy; then log "복구 완료: 직전 릴리스가 서비스 중이다."; else log "ERROR: 복구 후에도 헬스체크 실패. 수동 확인 필요 ($SNAP)."; fi
+  if wait_healthy; then reload_gateway || log "ERROR: 복구는 됐지만 게이트웨이 reload 실패. 수동 확인 필요."; log "복구 완료: 직전 릴리스가 서비스 중이다."; else log "ERROR: 복구 후에도 헬스체크 실패. 수동 확인 필요 ($SNAP)."; fi
 else
   log "ERROR: 스냅샷이 없어 자동 복구할 수 없다. 수동 확인 필요."
 fi
