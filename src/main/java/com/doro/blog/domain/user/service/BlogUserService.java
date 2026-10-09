@@ -38,10 +38,10 @@ public class BlogUserService {
         return userRepository.findById(doroUser.userId()).orElseGet(() -> {
             log.info("JIT Provisioning new BlogUser for IAM userId={}", doroUser.userId());
 
-            String baseUsername = UsernamePolicy.baseFromEmail(doroUser.email(), doroUser.userIndex());
+            String baseUsername = UsernamePolicy.generated(doroUser.userId());
 
             // 같은 사용자의 첫 요청이 동시에 여러 개여도 한 번만 만들고 나머지는 만들어진 행을 읽는다.
-            // 이메일 앞부분이 같은 서로 다른 사용자가 동시에 같은 사용자명을 가져가려 하면 한쪽의 insert 가 충돌(반환 0)하므로,
+            // 사용자명은 ID 로 만들어 사실상 겹치지 않지만, 겹쳐서 insert 가 충돌(반환 0)하면
             // 만들어졌는지 확인하고 아니면 다음 후보(이름1, 이름2, …)로 다시 시도한다.
             for (int attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt++) {
                 String candidate = attempt == 0 ? baseUsername : baseUsername + attempt;

@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 /** 조회수 쿠키: 중복 조회 방지는 하되, 없는 글에는 쿠키를 만들지 않고, 값이 무한히 늘지 않으며, 작성자 본인의 조회는 세지 않는다. */
 @SpringBootTest
@@ -40,7 +41,7 @@ class ViewCookieHttpTest {
     }
 
     private static String usernameOf(DoroUser u) {
-        return u.email().split("@")[0].toLowerCase();
+        return UsernamePolicy.generated(u.userId());
     }
 
     private PostSummaryResponse published(DoroUser author) {

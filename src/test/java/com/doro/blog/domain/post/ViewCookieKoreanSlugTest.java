@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 /** 한글 슬러그 글을 실제 서버(Tomcat)로 조회해도 조회수 쿠키 때문에 실패하지 않는다. (쿠키 값에는 ASCII 만 쓸 수 있다) */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -38,7 +39,7 @@ class ViewCookieKoreanSlugTest {
         PostSummaryResponse post = commands.createPost(author, new CreatePostRequest("한글 제목입니다", null, "요약", "본문", null, PostStatus.PUBLISHED, null, null));
         assertThat(post.slug()).as("한글이 남는 슬러그").matches(".*[가-힣].*");
 
-        String username = author.email().split("@")[0].toLowerCase();
+        String username = UsernamePolicy.generated(author.userId());
         String path = "/api/v1/posts/@" + username + "/" + URLEncoder.encode(post.slug(), StandardCharsets.UTF_8).replace("+", "%20");
         HttpResponse<String> response = HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).GET().build(), HttpResponse.BodyHandlers.ofString());

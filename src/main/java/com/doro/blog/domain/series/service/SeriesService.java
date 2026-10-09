@@ -68,7 +68,7 @@ public class SeriesService {
                 .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
 
         boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
-                (doroUser.userId().equals(user.getId()) || doroUser.isAdmin());
+                doroUser.userId().equals(user.getId());
 
         List<Series> seriesList = seriesRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(user.getId());
 
@@ -114,7 +114,7 @@ public class SeriesService {
                 .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
 
         boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
-                (doroUser.userId().equals(series.getUser().getId()) || doroUser.isAdmin());
+                doroUser.userId().equals(series.getUser().getId());
 
         return buildDetail(series, canViewPrivate);
     }

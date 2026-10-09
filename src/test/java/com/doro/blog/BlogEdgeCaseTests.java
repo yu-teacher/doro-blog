@@ -31,6 +31,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 @SpringBootTest
 class BlogEdgeCaseTests {
@@ -178,7 +179,7 @@ class BlogEdgeCaseTests {
                     List.of("react", "spring_boot")
             ));
 
-            var detail = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), author);
+            var detail = postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), post.slug(), author);
             assertThat(detail.post().tags()).containsExactlyInAnyOrder("react", "spring_boot");
             assertThat(detail.post().tags()).doesNotContain("java");
         }
@@ -217,7 +218,7 @@ class BlogEdgeCaseTests {
             seriesService.deleteSeries(series.id());
 
             // 글이 여전히 존재하는지 확인
-            var postDetail = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), author);
+            var postDetail = postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), post.slug(), author);
             assertThat(postDetail.post().id()).isEqualTo(post.id());
             assertThat(postDetail.post().seriesId()).isNull();
             assertThat(postDetail.post().seriesTitle()).isNull();
@@ -239,12 +240,12 @@ class BlogEdgeCaseTests {
             ));
 
             // 작성자 본인은 열람 가능
-            var authorView = postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), author);
+            var authorView = postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), draftPost.slug(), author);
             assertThat(authorView.content()).isEqualTo("비밀 본문");
 
             // 타 사용자 stranger 열람 시도 -> 없는 글과 같은 응답(슬러그로 존재 여부를 알아내지 못하게)
             assertThatThrownBy(() ->
-                    postQueries.getPostDetail(author.email().split("@")[0], draftPost.slug(), stranger)
+                    postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), draftPost.slug(), stranger)
             ).isInstanceOf(BlogException.class)
              .hasFieldOrPropertyWithValue("errorCode", ErrorCode.POST_NOT_FOUND);
         }
@@ -268,7 +269,7 @@ class BlogEdgeCaseTests {
             boolean liked1 = likeService.toggleLike(post.id(), user1);
             assertThat(liked1).isTrue();
 
-            var view1 = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), user1);
+            var view1 = postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), post.slug(), user1);
             assertThat(view1.likedByMe()).isTrue();
             assertThat(view1.post().likeCount()).isEqualTo(1);
 
@@ -276,7 +277,7 @@ class BlogEdgeCaseTests {
             boolean liked2 = likeService.toggleLike(post.id(), user1);
             assertThat(liked2).isFalse();
 
-            var view2 = postQueries.getPostDetail(author.email().split("@")[0], post.slug(), user1);
+            var view2 = postQueries.getPostDetail(UsernamePolicy.generated(author.userId()), post.slug(), user1);
             assertThat(view2.likedByMe()).isFalse();
             assertThat(view2.post().likeCount()).isEqualTo(0);
         }
@@ -412,7 +413,7 @@ class BlogEdgeCaseTests {
                     "다른 작가의 Spring 글", "other-spring-" + UUID.randomUUID(), null, "Spring 본문", null, PostStatus.PUBLISHED, null, List.of("Spring")
             ));
 
-            String author1Username = author1.email().split("@")[0];
+            String author1Username = UsernamePolicy.generated(author1.userId());
 
             // 1. author1 채널 전체 글 목록
             var allAuthor1 = postQueries.getUserPosts(author1Username, null, null, 0, 10);

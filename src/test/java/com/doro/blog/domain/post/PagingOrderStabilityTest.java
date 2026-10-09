@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 /** 게시 시각이 같은 글이 많아도(일괄 등록, 같은 밀리초의 API 키 등록) 페이지를 넘기며 읽으면 글이 중복되거나 빠지지 않는다. */
 @SpringBootTest
@@ -64,7 +65,7 @@ class PagingOrderStabilityTest {
     @DisplayName("사용자 글 목록: 게시 시각이 모두 같아도 페이지마다 겹치거나 빠지는 글이 없다")
     void userPostsPagesAreStable() {
         DoroUser author = newUser();
-        String username = author.email().split("@")[0].toLowerCase();
+        String username = UsernamePolicy.generated(author.userId());
         Set<UUID> expected = createWithSameTimestamp(author, "tie" + UUID.randomUUID().toString().substring(0, 8));
 
         assertPagesCoverExactly(expected, p -> queries.getUserPosts(username, null, null, p, PAGE_SIZE).getContent());

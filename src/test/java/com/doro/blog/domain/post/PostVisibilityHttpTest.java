@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 /** 글의 하위 자원(댓글, 연관 글, 슬러그 조회)이 글의 공개 상태를 따르는지 HTTP 수준에서 검증한다. */
 @SpringBootTest
@@ -43,7 +44,7 @@ class PostVisibilityHttpTest {
     }
 
     private String username(DoroUser user) {
-        return user.email().split("@")[0].toLowerCase();
+        return UsernamePolicy.generated(user.userId());
     }
 
     private String apiKeyOf(DoroUser user) {

@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.doro.blog.domain.user.service.UsernamePolicy;
 
 /** 시리즈 목록의 쿼리 수가 시리즈 개수와 무관하다(시리즈마다 공개 글 수를 따로 세던 N+1 방지). */
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
@@ -32,7 +33,7 @@ class SeriesListQueryCountTest {
     }
 
     private static String usernameOf(DoroUser user) {
-        return user.email().split("@")[0].toLowerCase();
+        return UsernamePolicy.generated(user.userId());
     }
 
     private void addSeries(DoroUser author, int count) {

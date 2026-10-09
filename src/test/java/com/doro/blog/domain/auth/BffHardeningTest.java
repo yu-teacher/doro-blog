@@ -66,6 +66,7 @@ class BffHardeningTest {
     @Autowired private JwksKeyProvider jwks;
     @Autowired private AuthSessionRepository sessions;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private SessionCrypto crypto;
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     @BeforeEach
@@ -122,13 +123,18 @@ class BffHardeningTest {
     @Test
     @DisplayName("IAM 장애 중 액세스 토큰이 만료돼도 세션은 지워지지 않고, IAM 이 돌아오면 다시 쓸 수 있다")
     void sessionSurvivesAnIamOutageWithAnExpiredAccessToken() throws Exception {
-        IAM.accessTtlSeconds = 1;
         UUID userId = UUID.randomUUID();
+        String email = newEmail();
         Started started = startLogin();
-        String code = IAM.issueCode(userId, newEmail(), started.challenge(), "doro-blog");
+        String code = IAM.issueCode(userId, email, started.challenge(), "doro-blog");
         String cookie = sessionCookieOf(callback(code, started.state(), loginCookie(started)));
         assertThat(cookie).as("로그인 성공").isNotNull();
-        Thread.sleep(2_500);
+        // 액세스 토큰이 만료된 상태를 시간 흐름에 기대지 않고 직접 만든다: 저장된 토큰을 이미 만료된 토큰으로 바꾼다.
+        // (1초짜리 토큰 + sleep 은 느린 환경에서 로그인 자체가 만료로 실패하는 간헐 실패를 냈다)
+        int expired = jdbc.update("update auth_sessions set access_token_enc = ?, access_expires_at = ? where session_hash = ?",
+                crypto.encrypt(IAM.expiredAccessToken(userId, email, "doro-blog")),
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(5)), BffAuthService.sha256Hex(cookie));
+        assertThat(expired).as("만료시킬 세션 행").isEqualTo(1);
         IAM.unavailable = true;
 
         // 만료된 토큰은 갱신해야 하는데 IAM 이 응답하지 않는다: 이번 요청은 익명이지만 세션은 남아야 한다

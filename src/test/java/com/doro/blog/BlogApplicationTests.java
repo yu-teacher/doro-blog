@@ -143,7 +143,7 @@ class BlogApplicationTests {
     }
 
     @Test
-    @DisplayName("4. 시리즈 비공개 글 열람 권한 제어 (타인 완전 차단 vs 본인/관리자 열람) 검증")
+    @DisplayName("4. 시리즈 비공개 글 열람 권한 제어 (타인·관리자 완전 차단 vs 본인 열람) 검증")
     void testSeriesPrivatePostAccessControl() {
         UUID authorId = UUID.randomUUID();
         DoroUser author = new DoroUser(authorId, "author_series@doro.local", UUID.randomUUID(), 6, "USER");
@@ -185,9 +185,11 @@ class BlogApplicationTests {
         assertThat(authorView.posts().stream().anyMatch(p -> p.status() == PostStatus.PRIVATE)).isTrue();
         assertThat(authorView.series().postCount()).isEqualTo(2);
 
-        // 4) 관리자(ADMIN) 조회: 발행자와 동일하게 비공개 글 포함 전체 열람 가능
+        // 4) 관리자(ADMIN) 조회: 일반 독자와 같다. 비공개 글은 Guard viewer 에 관리자가 없어 글 자체를 열 수 없으므로
+        //    시리즈 목록에서도 보여 주지 않는다(눌러도 열리지 않는 항목을 만들지 않는다)
         var adminView = seriesService.getSeriesDetail(series.id(), admin);
-        assertThat(adminView.posts()).hasSize(2);
-        assertThat(adminView.posts().stream().anyMatch(p -> p.status() == PostStatus.PRIVATE)).isTrue();
+        assertThat(adminView.posts()).hasSize(1);
+        assertThat(adminView.posts().get(0).status()).isEqualTo(PostStatus.PUBLISHED);
+        assertThat(adminView.series().postCount()).isEqualTo(1);
     }
 }
