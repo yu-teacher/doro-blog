@@ -27,3 +27,12 @@ export function withBasename(basename: string, appPath: string): string {
   }
   return `${basename}${path}`;
 }
+
+/**
+ * 서비스 워커가 앱 셸(index.html)로 대신 응답하면 안 되는 이동 주소: 백엔드 API(`${base}api/`).
+ * 로그인 시작·콜백(`/blog/api/v1/bff/login`, `.../callback`)은 브라우저 "이동"이지만 서버가 리다이렉트로 응답해야 하므로 반드시 네트워크로 가야 한다.
+ */
+export function navigateDenylist(baseUrl: string): RegExp[] {
+  const escaped = baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [new RegExp(`^${escaped}api/`)];
+}

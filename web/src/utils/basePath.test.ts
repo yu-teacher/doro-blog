@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiBase, normalizeBasePath, routerBasename, withBasename } from './basePath';
+import { apiBase, navigateDenylist, normalizeBasePath, routerBasename, withBasename } from './basePath';
 
 describe('normalizeBasePath', () => {
   it.each([
@@ -48,5 +48,22 @@ describe('withBasename', () => {
 
   it('이름이 비슷한 다른 경로에는 붙인다(/blogger 는 /blog 의 하위가 아니다)', () => {
     expect(withBasename('/blog', '/blogger')).toBe('/blog/blogger');
+  });
+});
+
+describe('navigateDenylist (서비스 워커가 앱 셸로 바꾸면 안 되는 이동)', () => {
+  const denied = (base: string, url: string): boolean => navigateDenylist(base).some((re) => re.test(url));
+
+  it('/blog/ 아래에서는 /blog/api/ 이동(로그인 시작·콜백 포함)을 거른다', () => {
+    expect(denied('/blog/', '/blog/api/v1/bff/login')).toBe(true);
+    expect(denied('/blog/', '/blog/api/v1/bff/callback?code=x')).toBe(true);
+    expect(denied('/blog/', '/blog/@doro/my-post')).toBe(false);
+    expect(denied('/blog/', '/blog/')).toBe(false);
+    expect(denied('/blog/', '/blog/apix')).toBe(false);
+  });
+
+  it('루트 기준이면 /api/ 이동을 거른다', () => {
+    expect(denied('/', '/api/v1/bff/login')).toBe(true);
+    expect(denied('/', '/@doro')).toBe(false);
   });
 });

@@ -2,8 +2,11 @@ import { defineConfig } from 'vitest/config';
 import { loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
-import { normalizeBasePath } from './src/utils/basePath';
+import { navigateDenylist, normalizeBasePath } from './src/utils/basePath';
+
+const THEME_COLOR = '#0f172a';
 
 /**
  * VITE_PUBLIC_ORIGIN 이 설정된 빌드에서만 절대 경로가 필요한 head 태그(og:image 등). canonical 은 라우트마다 달라 useDocumentMeta 가 페이지에서 넣는다를 넣는다.
@@ -34,6 +37,32 @@ export default defineConfig(({ mode }) => {
     react(),
     tailwindcss(),
     publicOriginTags(env.VITE_PUBLIC_ORIGIN, BASE),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['apple-touch-icon.png'],
+      manifest: {
+        name: 'DORO.log',
+        short_name: 'DORO.log',
+        description: '개발자를 위한 오픈 기술 블로그',
+        lang: 'ko',
+        start_url: BASE,
+        scope: BASE,
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: THEME_COLOR,
+        icons: [
+          { src: `${BASE}icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: `${BASE}icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        ],
+      },
+      workbox: {
+        // 앱 셸(정적 파일)만 캐시한다. 글·댓글·프로필 같은 API 응답과 업로드 미디어(/media/)는 캐시하지 않는다(런타임 캐시 없음).
+        // 로그인(BFF) 이동은 서버 리다이렉트가 필요해 API 경로 이동은 앱 셸로 바꾸지 않는다.
+        navigateFallback: `${BASE}index.html`,
+        navigateFallbackDenylist: navigateDenylist(BASE),
+        runtimeCaching: [],
+      },
+    }),
   ],
   resolve: {
     alias: {
