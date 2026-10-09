@@ -17,12 +17,12 @@ const detail = {
 let root: Root | undefined;
 let host: HTMLElement | undefined;
 
-async function render() {
+async function render(path = '/owner/series/serial') {
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
   await act(async () => {
-    root!.render(createElement(MemoryRouter, { initialEntries: ['/owner/series/serial'] },
+    root!.render(createElement(MemoryRouter, { initialEntries: [path] },
       createElement(Routes, null, createElement(Route, { path: '/:username/series/:slug', element: createElement(SeriesDetailPage) }))));
   });
   // 데이터 요청이 끝나고 화면이 바뀔 때까지 기다린다
@@ -68,5 +68,20 @@ describe('SeriesDetailPage 관리 모드', () => {
     useAuthStore.setState({ isAuthenticated: false, user: null });
     await render();
     expect(manageButton()).toBeUndefined();
+  });
+
+  it('시리즈를 만든 직후(?manage=1)에는 주인에게 바로 관리 화면이 열린다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'owner', username: 'owner' } as unknown as UserProfile });
+    await render('/owner/series/serial?manage=1');
+
+    expect(host!.querySelector('[aria-label="시리즈 글 관리"]')).not.toBeNull();
+  });
+
+  it('?manage=1 이어도 주인이 아니면 관리 화면은 열리지 않는다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'visitor', username: 'visitor' } as unknown as UserProfile });
+    await render('/owner/series/serial?manage=1');
+
+    expect(host!.querySelector('[aria-label="시리즈 글 관리"]')).toBeNull();
+    expect(host!.textContent).toContain('첫 글');
   });
 });

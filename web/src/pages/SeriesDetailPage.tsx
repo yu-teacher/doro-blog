@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
@@ -13,7 +13,9 @@ export const SeriesDetailPage: React.FC = () => {
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
 
   const currentUser = useAuthStore((state) => state.user);
-  const [managing, setManaging] = useState(false);
+  const [searchParams] = useSearchParams();
+  // 시리즈를 만든 직후에는 ?manage=1 로 들어와 바로 관리 화면이 열린다(주인에게만 보인다)
+  const [managing, setManaging] = useState(searchParams.get('manage') === '1');
 
   const { data: seriesDetail, setData: setSeriesDetail, loading, error, reload } = useAsyncResource(
     (signal) => blogApi.getSeriesBySlug(cleanUsername ?? '', slug ?? '', signal),

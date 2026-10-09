@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import type { PostSummary } from '../api/types';
 import { ChannelProfileHeader } from '../components/channel/ChannelProfileHeader';
 import { ChannelTabs, type ChannelTab } from '../components/channel/ChannelTabs';
 import { PostsTab } from '../components/channel/PostsTab';
 import { SeriesTab } from '../components/channel/SeriesTab';
+import { CreateSeriesModal } from '../components/series/CreateSeriesModal';
 import { AboutTab } from '../components/channel/AboutTab';
 import { LikedPostsTab } from '../components/channel/LikedPostsTab';
 import { FollowListModal } from '../components/FollowListModal';
@@ -26,6 +27,7 @@ const LIKED_POSTS_PAGE_SIZE = 30;
 export const ChannelPage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user: currentUser, isAuthenticated } = useAuthStore();
 
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username || '';
@@ -54,6 +56,7 @@ export const ChannelPage: React.FC = () => {
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [createSeriesOpen, setCreateSeriesOpen] = useState(false);
 
   const isMyChannel = isAuthenticated && currentUser?.username === cleanUsername;
 
@@ -222,7 +225,28 @@ export const ChannelPage: React.FC = () => {
         />
       )}
 
-      {currentTab === 'series' && <SeriesTab cleanUsername={cleanUsername} seriesList={seriesList} loading={seriesRes.loading} />}
+      {currentTab === 'series' && (
+        <SeriesTab
+          cleanUsername={cleanUsername}
+          seriesList={seriesList}
+          loading={seriesRes.loading}
+          isMyChannel={isMyChannel}
+          onCreateSeries={() => setCreateSeriesOpen(true)}
+        />
+      )}
+
+      {createSeriesOpen && (
+        <CreateSeriesModal
+          onClose={() => setCreateSeriesOpen(false)}
+          onCreated={(created) => {
+            seriesRes.setData((prev) => [created, ...(prev ?? [])]);
+            setCreateSeriesOpen(false);
+            notify.info('시리즈를 만들었습니다. 글을 추가해 보세요.');
+            // 만든 직후 바로 글을 추가·정렬할 수 있게 관리 화면으로 보낸다
+            navigate(`/@${cleanUsername}/series/${encodeURIComponent(created.slug)}?manage=1`);
+          }}
+        />
+      )}
 
       {currentTab === 'about' && (
         <AboutTab

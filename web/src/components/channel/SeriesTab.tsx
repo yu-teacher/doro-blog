@@ -2,17 +2,31 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Series } from '../../api/types';
 import { formatDate } from '../../utils/date';
-import {  } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface SeriesTabProps {
   cleanUsername: string;
   seriesList: Series[];
   loading: boolean;
+  /** 내 채널이면 새 시리즈를 만들 수 있다 */
+  isMyChannel?: boolean;
+  onCreateSeries?: () => void;
 }
 
 /** 채널의 시리즈 목록 탭. */
-export const SeriesTab: React.FC<SeriesTabProps> = ({ cleanUsername, seriesList, loading }) => (
+export const SeriesTab: React.FC<SeriesTabProps> = ({ cleanUsername, seriesList, loading, isMyChannel = false, onCreateSeries }) => (
   <>
+    {isMyChannel && onCreateSeries && (
+      <div className="mb-5 flex justify-end">
+        <button
+          type="button"
+          onClick={onCreateSeries}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          <Plus className="w-4 h-4" aria-hidden="true" /> 새 시리즈
+        </button>
+      </div>
+    )}
     <div>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-pulse">
@@ -46,6 +60,9 @@ export const SeriesTab: React.FC<SeriesTabProps> = ({ cleanUsername, seriesList,
       ) : (
         <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
           <p className="text-slate-400 dark:text-slate-500">등록된 시리즈가 없습니다.</p>
+          {isMyChannel && onCreateSeries && (
+            <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">위의 “새 시리즈”로 첫 시리즈를 만들어 보세요.</p>
+          )}
         </div>
       )}
     </div>
