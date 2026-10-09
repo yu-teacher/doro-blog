@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { LoginErrorNotice } from './components/LoginErrorNotice';
 import { FeedPage } from './pages/FeedPage';
+import { ROUTER_BASENAME } from './config';
 
 // 첫 화면(피드)은 즉시 로드하고 나머지 라우트는 필요할 때 내려받는다.
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
@@ -55,7 +56,7 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <AppContent />
     </BrowserRouter>
   );

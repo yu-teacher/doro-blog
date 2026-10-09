@@ -3,30 +3,37 @@ import { loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import { normalizeBasePath } from './src/utils/basePath';
 
 /**
  * VITE_PUBLIC_ORIGIN 이 설정된 빌드에서만 절대 경로가 필요한 head 태그(og:image 등). canonical 은 라우트마다 달라 useDocumentMeta 가 페이지에서 넣는다를 넣는다.
  * 설정이 없으면 태그를 생략해 도메인을 코드에 박지 않는다.
  */
-function publicOriginTags(origin: string | undefined): Plugin {
+function publicOriginTags(origin: string | undefined, basePath: string): Plugin {
   const base = origin?.trim().replace(/\/+$/, '');
   return {
     name: 'public-origin-tags',
     transformIndexHtml() {
       if (!base) return [];
       return [
-        { tag: 'meta', attrs: { property: 'og:image', content: `${base}/doro-logo.png` }, injectTo: 'head' },
-        { tag: 'meta', attrs: { name: 'twitter:image', content: `${base}/doro-logo.png` }, injectTo: 'head' },
+        { tag: 'meta', attrs: { property: 'og:image', content: `${base}${basePath}doro-logo.png` }, injectTo: 'head' },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: `${base}${basePath}doro-logo.png` }, injectTo: 'head' },
       ];
     },
   };
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, __dirname, 'VITE_');
+  // 게이트웨이의 공개 하위 경로(예: /blog/). 비우면 루트('/')다. 서버 배포 스크립트가 서버 .env 의 BLOG_WEB_BASE_PATH 를 VITE_BASE_PATH 로 넘긴다.
+  const BASE = normalizeBasePath(process.env.VITE_BASE_PATH ?? env.VITE_BASE_PATH);
+  const BASE_WITHOUT_SLASH = BASE.replace(/\/+$/, '');
+  return {
+  base: BASE,
   plugins: [
     react(),
     tailwindcss(),
-    publicOriginTags(loadEnv(mode, __dirname, 'VITE_').VITE_PUBLIC_ORIGIN),
+    publicOriginTags(env.VITE_PUBLIC_ORIGIN, BASE),
   ],
   resolve: {
     alias: {
@@ -54,9 +61,11 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 3002,
     proxy: {
-      '/api': {
+      // base 가 하위 경로(/blog)면 브라우저가 /blog/api/... 를 부른다. 게이트웨이가 접두사를 떼는 것과 같이 /api/... 로 바꿔 백엔드로 보낸다.
+      [`${BASE_WITHOUT_SLASH}/api`]: {
         target: 'http://localhost:8082',
         changeOrigin: true,
+        rewrite: (p: string) => p.slice(BASE_WITHOUT_SLASH.length),
       },
       '/iam': {
         target: 'http://localhost:28080',
@@ -70,4 +79,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}));
+  };
+});

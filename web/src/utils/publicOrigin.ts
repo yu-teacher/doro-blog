@@ -1,3 +1,6 @@
+import { ROUTER_BASENAME } from '../config';
+import { withBasename } from './basePath';
+
 /** 설정된 공개 origin(끝 슬래시 제거). 설정되어 있지 않으면 null. */
 export function getPublicOrigin(): string | null {
   const raw = import.meta.env.VITE_PUBLIC_ORIGIN?.trim();
@@ -8,5 +11,5 @@ export function getPublicOrigin(): string | null {
 export function toAbsoluteUrl(path: string): string | null {
   const origin = getPublicOrigin();
   if (!origin) return null;
-  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${origin}${withBasename(ROUTER_BASENAME, path)}`;
 }

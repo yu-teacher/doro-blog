@@ -12,6 +12,7 @@ import {
   Moon,
   Terminal,
 } from 'lucide-react';
+import { assetUrl } from '../config';
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, isAdmin, login, signOut } = useAuthStore();
@@ -27,7 +28,7 @@ export const Header: React.FC = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 font-black text-2xl tracking-tighter text-gray-900 dark:text-white group">
             <img
-              src="/doro-logo.png"
+              src={assetUrl('doro-logo.png')}
               alt="DORO"
               className="w-8 h-8 sm:w-9 sm:h-9 object-contain group-hover:scale-110 transition-transform drop-shadow-sm shrink-0"
             />

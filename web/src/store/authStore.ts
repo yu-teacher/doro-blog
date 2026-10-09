@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { CSRF_HEADER, CSRF_VALUE } from '../api/csrf';
 import type { UserProfile } from '../api/types';
+import { BFF_BASE } from '../config';
 
 /**
  * 로그인 상태. 로그인과 토큰 관리는 서버(BFF)가 맡는다: 브라우저는 HttpOnly 세션 쿠키만 가지고 있어서
@@ -26,7 +27,6 @@ interface SessionResponse {
   data?: { authenticated?: boolean; user?: UserProfile | null; role?: string | null };
 }
 
-const BFF_BASE = '/api/v1/bff';
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
 const SIGNED_OUT = { user: null, role: null, isAuthenticated: false, isAdmin: false } as const;
 

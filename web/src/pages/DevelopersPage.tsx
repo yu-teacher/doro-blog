@@ -14,6 +14,7 @@ import { ApiKeySection } from '../components/developers/ApiKeySection';
 import { CodeDocumentation } from '../components/developers/CodeDocumentation';
 import { ApiLogsSection } from '../components/developers/ApiLogsSection';
 import { CreateKeyModal } from '../components/developers/CreateKeyModal';
+import { API_BASE } from '../config';
 
 const API_LOGS_PAGE_SIZE = 20;
 
@@ -126,7 +127,7 @@ export const DevelopersPage: React.FC = () => {
     }
   };
 
-  const apiEndpoint = `${window.location.origin}/api/v1/posts`;
+  const apiEndpoint = `${window.location.origin}${API_BASE}/posts`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-12">
