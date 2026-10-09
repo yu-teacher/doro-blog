@@ -39,4 +39,18 @@ class ReturnPathTest {
     void tooLongFallsBackToRoot() {
         assertThat(BffAuthService.safeReturnPath("/" + "a".repeat(600))).isEqualTo("/");
     }
+
+    @ParameterizedTest(name = "하위 경로 마운트에서 차단: {0}")
+    @ValueSource(strings = {"//evil.example", "https://evil.example", "/\\evil.example", "evil.example", "/ok\nSet-Cookie: a=b"})
+    @DisplayName("허용되지 않는 값은 지정한 기본 위치(공개 하위 경로의 첫 화면)로 바꾼다")
+    void unsafeTargetsFallBackToGivenFallback(String path) {
+        assertThat(BffAuthService.safeReturnPath(path, "/blog/")).isEqualTo("/blog/");
+    }
+
+    @Test
+    @DisplayName("안전한 경로는 기본 위치와 상관없이 그대로 쓴다")
+    void safePathsIgnoreFallback() {
+        assertThat(BffAuthService.safeReturnPath("/blog/@alice/my-post", "/blog/")).isEqualTo("/blog/@alice/my-post");
+        assertThat(BffAuthService.safeReturnPath(null, "/blog/")).isEqualTo("/blog/");
+    }
 }

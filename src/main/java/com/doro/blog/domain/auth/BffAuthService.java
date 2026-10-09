@@ -84,7 +84,7 @@ public class BffAuthService {
         // 이 로그인을 시작한 브라우저에만 알려 주는 값. 콜백이 같은 브라우저에서 오는지 확인하는 데 쓴다.
         String browserNonce = randomToken();
         Instant now = Instant.now();
-        LoginAttempt attempt = new LoginAttempt(sha256Hex(state), crypto.encrypt(verifier), safeReturnPath(returnPath),
+        LoginAttempt attempt = new LoginAttempt(sha256Hex(state), crypto.encrypt(verifier), safeReturnPath(returnPath, props.webPath("/")),
                 sha256Hex(browserNonce), now, now.plus(props.getLoginAttemptTtl()));
         tx().executeWithoutResult(status -> attempts.save(attempt));
         return new StartedLogin(oauth.buildAuthorizeUrl(state, codeChallenge(verifier)), browserNonce);
@@ -290,15 +290,23 @@ public class BffAuthService {
 
     // ------------------------------------------------------------------ 보조
 
-    /** 로그인 후 돌아갈 곳. 사이트 안의 경로만 허용한다 (오픈 리다이렉트 방지). */
+    /** 로그인 후 돌아갈 곳. 사이트 안의 경로만 허용한다 (오픈 리다이렉트 방지). 허용되지 않으면 "/" 로 보낸다. */
     static String safeReturnPath(String path) {
+        return safeReturnPath(path, "/");
+    }
+
+    /**
+     * 위와 같되, 허용되지 않는 값은 fallback(웹이 하위 경로에 마운트되면 그 경로의 첫 화면)으로 보낸다.
+     * fallback 은 설정에서 온 신뢰할 수 있는 값이다.
+     */
+    static String safeReturnPath(String path, String fallback) {
         if (path == null || path.isBlank() || path.length() > MAX_RETURN_PATH_LENGTH
                 || !path.startsWith("/") || path.startsWith("//") || path.contains("\\") || path.contains("://")) {
-            return "/";
+            return fallback;
         }
         for (int i = 0; i < path.length(); i++) {
             if (Character.isISOControl(path.charAt(i))) {
-                return "/";
+                return fallback;
             }
         }
         // 콜백에서 이 값으로 302 Location 을 만든다. URI 문법에 맞지 않는 값(공백, |, ", {, 잘못된 %XX 등)이 통과하면 그 단계에서
@@ -306,7 +314,7 @@ public class BffAuthService {
         try {
             new URI(path);
         } catch (URISyntaxException e) {
-            return "/";
+            return fallback;
         }
         return path;
     }

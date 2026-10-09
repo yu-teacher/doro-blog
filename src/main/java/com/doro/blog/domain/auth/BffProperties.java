@@ -26,6 +26,12 @@ public class BffProperties {
     private String scope = "openid profile email";
     private String cookieName = "doro_blog_session";
 
+    /**
+     * 웹이 마운트된 공개 하위 경로(예: /blog). 루트에 마운트하면 빈 문자열. 로그인 시도 쿠키의 Path 와 로그인 실패 시 이동 위치,
+     * 복귀 경로가 없을 때의 기본 위치가 이 값을 따른다. 게이트웨이가 이 접두사를 떼고 백엔드로 전달하므로(백엔드 경로는 그대로 /api/v1/...)
+     * 브라우저가 보는 공개 경로와 백엔드 경로가 다르다는 점에 주의한다.
+     */
+    private String webBasePath = "";
     /** 로그인을 시작한 브라우저를 콜백에서 다시 알아보기 위한 짧은 수명의 쿠키 이름. */
     private String loginCookieName = "doro_blog_login";
     /** HTTPS 에서만 쿠키를 보낸다. 로컬 HTTP 개발에서만 false. */
@@ -40,6 +46,16 @@ public class BffProperties {
     private String csrfHeader = "X-Blog-Csrf";
     private Duration httpConnectTimeout = Duration.ofSeconds(3);
     private Duration httpReadTimeout = Duration.ofSeconds(5);
+
+    /** 앱 내부 경로(/ , /@user 등)를 브라우저가 이동할 실제 공개 경로로 바꾼다. 루트 마운트면 그대로다. */
+    public String webPath(String appPath) {
+        return (webBasePath == null ? "" : webBasePath.replaceAll("/+$", "")) + appPath;
+    }
+
+    /** 로그인 시도 쿠키의 Path. 브라우저가 콜백을 부르는 공개 경로(웹 기준 경로 + /api/v1/bff)와 같아야 쿠키가 따라온다. */
+    public String loginCookiePath() {
+        return webPath("/api/v1/bff");
+    }
 
     /** redirect_uri 의 origin(scheme://host[:port]). Origin 헤더 검증에 쓴다. */
     public String publicOrigin() {

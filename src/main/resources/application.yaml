@@ -98,6 +98,9 @@ blog:
     revoke-url: ${BLOG_OAUTH_REVOKE_URL:http://${IAM_HOST:localhost}:${IAM_PORT:28080}/oauth2/revoke}
     redirect-uri: ${BLOG_OAUTH_REDIRECT_URI:http://localhost:5173/api/v1/bff/callback}
     cookie-secure: ${BLOG_COOKIE_SECURE:true}
+    # 웹이 마운트된 공개 하위 경로(예: /blog). 루트면 비운다. 로그인 시도 쿠키 Path 와 로그인 실패/기본 복귀 위치가 따른다.
+    # 바꿀 때는 redirect-uri(BLOG_OAUTH_REDIRECT_URI)와 IAM 에 등록한 복귀 주소도 같은 경로로 맞춘다.
+    web-base-path: ${BLOG_WEB_BASE_PATH:}
     # DB 에 저장하는 토큰을 암호화하는 키(base64 32바이트). 기본값 없음: openssl rand -base64 32
     session-encryption-key: ${BLOG_SESSION_KEY}
 

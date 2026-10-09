@@ -64,7 +64,7 @@ public class BffController {
         if (error != null) {
             // 사용자가 취소했거나 Doro 가 거부했다. 사유를 화면에 그대로 싣지 않는다.
             log.info("BFF login ended with an authorization error from IAM: {}", error);
-            return redirect("/?" + LOGIN_ERROR_PARAM + "=cancelled", clearedLoginCookie());
+            return redirect(props.webPath("/") + "?" + LOGIN_ERROR_PARAM + "=cancelled", clearedLoginCookie());
         }
         try {
             BffAuthService.LoginResult result = authService.completeLogin(code, state, sessionCookie(request), cookieValue(request, props.getLoginCookieName()));
@@ -72,7 +72,7 @@ public class BffController {
         } catch (BffAuthService.LoginFailedException e) {
             log.warn("BFF login failed: {}", e.getMessage());
             // 이미 로그인한 사용자의 세션 쿠키는 건드리지 않는다. 가짜 콜백 링크 하나로 남을 로그아웃시킬 수 없게 한다.
-            return redirect("/?" + LOGIN_ERROR_PARAM + "=failed", clearedLoginCookie());
+            return redirect(props.webPath("/") + "?" + LOGIN_ERROR_PARAM + "=failed", clearedLoginCookie());
         }
     }
 
@@ -118,7 +118,7 @@ public class BffController {
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite("Lax")
-                .path("/api/v1/bff")
+                .path(props.loginCookiePath())
                 .maxAge(props.getLoginAttemptTtl())
                 .build();
     }
@@ -128,7 +128,7 @@ public class BffController {
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite("Lax")
-                .path("/api/v1/bff")
+                .path(props.loginCookiePath())
                 .maxAge(0)
                 .build();
     }
