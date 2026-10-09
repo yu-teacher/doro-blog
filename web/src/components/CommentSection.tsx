@@ -7,6 +7,7 @@ import { trackEvent } from '../utils/analytics';
 import { getErrorMessage } from '../utils/errors';
 import { CommentItem } from './comments/CommentItem';
 import { COMMENT_MAX_LENGTH, countComments } from './comments/commentUtils';
+import { notify } from '../utils/notify';
 
 interface CommentSectionProps {
   postId: string;
@@ -38,7 +39,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     if (!rootContent.trim() || submitting) return;
 
     if (!isAuthenticated) {
-      alert('댓글을 작성하려면 먼저 로그인해 주세요.');
+      notify.info('댓글을 작성하려면 먼저 로그인해 주세요.');
       return;
     }
 
@@ -52,7 +53,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setRootContent('');
       onCommentUpdated();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '댓글 등록에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '댓글 등록에 실패했습니다.'));
     } finally {
       setSubmitting(false);
     }
@@ -62,7 +63,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     if (!replyContent.trim() || submitting) return;
 
     if (!isAuthenticated) {
-      alert('답글을 작성하려면 먼저 로그인해 주세요.');
+      notify.info('답글을 작성하려면 먼저 로그인해 주세요.');
       return;
     }
 
@@ -77,7 +78,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setReplyingToId(null);
       onCommentUpdated();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '답글 등록에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '답글 등록에 실패했습니다.'));
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +91,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       await blogApi.deleteComment(commentId);
       onCommentUpdated();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '댓글 삭제 권한이 없거나 실패했습니다.'));
+      notify.error(getErrorMessage(err, '댓글 삭제 권한이 없거나 실패했습니다.'));
     }
   };
 

@@ -16,6 +16,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
+import { notify } from '../utils/notify';
 
 /** 사용자 채널 경로(/@name)로 해석하면 안 되는 시스템 경로 */
 const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
@@ -110,7 +111,7 @@ export const ChannelPage: React.FC = () => {
 
   const handleToggleFollow = async () => {
     if (!isAuthenticated) {
-      alert('로그인이 필요합니다.');
+      notify.info('로그인이 필요합니다.');
       return;
     }
     if (!profile) return;

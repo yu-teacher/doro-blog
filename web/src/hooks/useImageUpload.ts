@@ -3,6 +3,7 @@ import type { ChangeEvent, ClipboardEvent, Dispatch, DragEvent, RefObject, SetSt
 import { blogApi } from '../api/blogApi';
 import { getErrorMessage } from '../utils/errors';
 import { altText, replacePlaceholder, uploadPlaceholder } from '../utils/uploadPlaceholder';
+import { notify } from '../utils/notify';
 
 const IMAGE_ONLY_MESSAGE = '이미지 파일(PNG, JPG, GIF, WebP, SVG)만 업로드할 수 있습니다.';
 const POST_IMAGE_FOLDER = 'posts';
@@ -36,7 +37,7 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
 
   const uploadAndInsertImage = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert(IMAGE_ONLY_MESSAGE);
+      notify.info(IMAGE_ONLY_MESSAGE);
       return;
     }
 
@@ -52,7 +53,7 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
       setContent((prev) => replacePlaceholder(prev, placeholder, `![${altText(res.originalFilename)}](${res.url})\n`));
     } catch (err: unknown) {
       console.error('Failed to upload image:', err);
-      alert(getErrorMessage(err, '이미지 업로드에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '이미지 업로드에 실패했습니다.'));
       setContent((prev) => replacePlaceholder(prev, placeholder, ''));
     } finally {
       URL.revokeObjectURL(blobUrl);
@@ -90,7 +91,7 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
 
   const uploadThumbnail = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert(IMAGE_ONLY_MESSAGE);
+      notify.info(IMAGE_ONLY_MESSAGE);
       return;
     }
     try {
@@ -100,7 +101,7 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
       setThumbnailAutoDetected(false);
     } catch (err: unknown) {
       console.error('Failed to upload thumbnail:', err);
-      alert(getErrorMessage(err, '썸네일 업로드에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '썸네일 업로드에 실패했습니다.'));
     } finally {
       setUploadingThumbnail(false);
     }

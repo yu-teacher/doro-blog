@@ -5,6 +5,7 @@ import { blogApi } from '../api/blogApi';
 import type { Comment, UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { CommentSection } from './CommentSection';
+import { clearToasts, toastMessages } from '../test/toasts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -102,14 +103,14 @@ describe('CommentSection', () => {
 
   it('등록 실패 시 서버 메시지를 알려주고 입력은 유지한다', async () => {
     vi.spyOn(blogApi, 'createComment').mockRejectedValue(new Error('댓글은 최대 2000자까지 작성 가능합니다.'));
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    clearToasts();
     render([]);
     const box = host!.querySelector('textarea') as HTMLTextAreaElement;
     typeInto(box, '내용');
     await act(async () => { (host!.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
     await flush();
 
-    expect(alertSpy).toHaveBeenCalledWith('댓글은 최대 2000자까지 작성 가능합니다.');
+    expect(toastMessages()).toContain('댓글은 최대 2000자까지 작성 가능합니다.');
     expect(box.value).toBe('내용');
   });
 });

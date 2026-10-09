@@ -6,6 +6,7 @@ import { blogApi } from '../api/blogApi';
 import type { PageResponse, PostStatus, PostSummary, UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { EditorPage } from './EditorPage';
+import { clearToasts, toastMessages } from '../test/toasts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -24,7 +25,7 @@ async function openEditorFor(status: PostStatus, seriesId: string | null = null)
   } as never);
   const update = vi.spyOn(blogApi, 'updatePost').mockResolvedValue({ id: 'p1', slug: 's' } as never);
   vi.spyOn(blogApi, 'createPost').mockResolvedValue({ id: 'new', slug: 'n' } as never);
-  vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+  clearToasts();
 
   host = document.createElement('div');
   document.body.appendChild(host);
@@ -100,8 +101,7 @@ describe('에디터의 글 상태와 시리즈', () => {
   it('출간은 성공했는데 로컬 백업을 지우다 저장소 오류가 나도 "출간 실패"로 보이지 않는다 (재시도하면 글이 중복된다)', async () => {
     const update = await openEditorFor('DRAFT');
     update.mockClear();
-    const alertSpy = vi.mocked(window.alert);
-    alertSpy.mockClear();
+    clearToasts();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new DOMException('blocked', 'SecurityError');
@@ -112,6 +112,6 @@ describe('에디터의 글 상태와 시리즈', () => {
     await click(confirm[confirm.length - 1]);
 
     expect(update).toHaveBeenCalledTimes(1);
-    expect(alertSpy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('실패'))).toEqual([]);
+    expect(toastMessages().filter((m) => m.includes('실패'))).toEqual([]);
   });
 });

@@ -15,6 +15,7 @@ import { CodeDocumentation } from '../components/developers/CodeDocumentation';
 import { ApiLogsSection } from '../components/developers/ApiLogsSection';
 import { CreateKeyModal } from '../components/developers/CreateKeyModal';
 import { API_BASE } from '../config';
+import { notify } from '../utils/notify';
 
 const API_LOGS_PAGE_SIZE = 20;
 
@@ -107,7 +108,7 @@ export const DevelopersPage: React.FC = () => {
     } catch (err: unknown) {
       console.error('Failed to create API key:', err);
       const msg = getErrorMessage(err, 'API 키 발급 중 오류가 발생했습니다.');
-      alert(msg);
+      notify.error(msg);
     } finally {
       setIssuing(false);
     }
@@ -123,7 +124,7 @@ export const DevelopersPage: React.FC = () => {
       fetchKeys();
     } catch (err) {
       console.error('Failed to revoke key:', err);
-      alert('API 키 폐기 중 오류가 발생했습니다.');
+      notify.error('API 키 폐기 중 오류가 발생했습니다.');
     }
   };
 

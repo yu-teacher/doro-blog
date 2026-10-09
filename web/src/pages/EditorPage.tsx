@@ -24,6 +24,7 @@ import { EditorPreview } from '../components/editor/EditorPreview';
 import { DraftRestoreBanner } from '../components/editor/DraftRestoreBanner';
 import { EditorActionBar } from '../components/editor/EditorActionBar';
 import { PublishModal } from '../components/editor/PublishModal';
+import { notify } from '../utils/notify';
 
 const LOCAL_AUTOSAVE_DELAY_MS = 2_000;
 const SERVER_AUTOSAVE_DELAY_MS = 5_000;
@@ -174,7 +175,7 @@ export const EditorPage: React.FC = () => {
       loadedSeriesIdRef.current = draft.seriesId || '';
       setStatus('PUBLISHED');
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '임시 저장 글을 불러오지 못했습니다.'));
+      notify.error(getErrorMessage(err, '임시 저장 글을 불러오지 못했습니다.'));
     } finally {
       setLoadingPostContent(false);
     }
@@ -192,7 +193,7 @@ export const EditorPage: React.FC = () => {
         setLoadedPostStatus(null);
       }
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '임시 저장 글 삭제에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '임시 저장 글 삭제에 실패했습니다.'));
     }
   };
 
@@ -211,7 +212,7 @@ export const EditorPage: React.FC = () => {
       setSessionExpired(true);
       return;
     }
-    alert('로그인이 필요한 서비스입니다.');
+    notify.info('로그인이 필요한 서비스입니다.');
     navigate('/');
   }, [isAuthenticated, navigate]);
   const login = useAuthStore((state) => state.login);
@@ -244,7 +245,7 @@ export const EditorPage: React.FC = () => {
       .catch((err: unknown) => {
         if (cancelled) return;
         console.error('Failed to load post for editing', err);
-        alert(getErrorMessage(err, '게시글을 불러올 수 없습니다.'));
+        notify.error(getErrorMessage(err, '게시글을 불러올 수 없습니다.'));
         navigate('/');
       })
       .finally(() => {
@@ -268,11 +269,11 @@ export const EditorPage: React.FC = () => {
 
   const handleOpenPublishModal = () => {
     if (!title.trim()) {
-      alert('제목을 입력해주세요.');
+      notify.info('제목을 입력해주세요.');
       return;
     }
     if (!content.trim()) {
-      alert('내용을 입력해주세요.');
+      notify.info('내용을 입력해주세요.');
       return;
     }
 
@@ -304,7 +305,7 @@ export const EditorPage: React.FC = () => {
       setNewSeriesTitle('');
       setShowNewSeriesInput(false);
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '시리즈 생성에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '시리즈 생성에 실패했습니다.'));
     }
   };
 
@@ -312,7 +313,7 @@ export const EditorPage: React.FC = () => {
     // 이미 출간·비공개인 글은 임시저장(DRAFT)으로 되돌리지 않는다(자동 저장과 같은 규칙, 버튼도 막혀 있다)
     if (serverAutosaveBlocked) return;
     if (!title.trim() && !content.trim()) {
-      alert('제목 또는 본문 내용을 입력해주세요.');
+      notify.info('제목 또는 본문 내용을 입력해주세요.');
       return;
     }
     setSaving(true);
@@ -331,11 +332,11 @@ export const EditorPage: React.FC = () => {
       }
       // 서버에 저장했으니 로컬 백업은 정리한다(남겨 두면 다음에 새 글을 열 때 이미 저장한 내용의 복원 안내가 뜬다)
       removeLocalDraft(localDraftStorageKey(draftKey, id));
-      alert('임시 저장되었습니다.');
+      notify.info('임시 저장되었습니다.');
       navigate('/me/posts?tab=draft');
     } catch (err: unknown) {
       autosave.resume();
-      alert(getErrorMessage(err, '임시 저장에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '임시 저장에 실패했습니다.'));
     } finally {
       setSaving(false);
     }
@@ -381,7 +382,7 @@ export const EditorPage: React.FC = () => {
       navigate(`/@${user?.username}/${encodeURIComponent(finalSlug)}`);
     } catch (err: unknown) {
       autosave.resume();
-      alert(getErrorMessage(err, '글 출간에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '글 출간에 실패했습니다.'));
     } finally {
       setSaving(false);
     }

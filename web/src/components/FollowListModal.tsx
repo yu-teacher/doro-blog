@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { listState } from '../utils/listState';
 import { X, UserPlus, UserCheck, UserMinus, Loader2, User } from 'lucide-react';
+import { notify } from '../utils/notify';
 
 const FOLLOW_LIST_SIZE = 50;
 
@@ -54,7 +55,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
 
   const handleToggleFollow = async (targetUser: FollowUser) => {
     if (!isAuthenticated) {
-      alert('로그인이 필요합니다.');
+      notify.info('로그인이 필요합니다.');
       return;
     }
     setActionLoadingId(targetUser.id);

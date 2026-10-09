@@ -20,6 +20,7 @@ import { ErrorState } from '../components/ErrorState';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { stripMarkdown } from '../utils/markdown';
+import { notify } from '../utils/notify';
 
 const SITE_NAME = 'DORO.log';
 
@@ -109,7 +110,7 @@ export const PostDetailPage: React.FC = () => {
 
   const handleToggleAuthorFollow = async () => {
     if (!user) {
-      alert('로그인이 필요합니다.');
+      notify.info('로그인이 필요합니다.');
       return;
     }
     if (!detail?.post) return;
@@ -159,7 +160,7 @@ export const PostDetailPage: React.FC = () => {
         });
       }
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.'));
+      notify.error(getErrorMessage(err, '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.'));
     } finally {
       likingRef.current = false;
     }
@@ -180,10 +181,10 @@ export const PostDetailPage: React.FC = () => {
 
     try {
       await blogApi.deletePost(detail.post.id);
-      alert('게시글이 삭제되었습니다.');
+      notify.info('게시글이 삭제되었습니다.');
       navigate(`/@${cleanUsername}`);
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '삭제 권한이 없거나 실패했습니다.'));
+      notify.error(getErrorMessage(err, '삭제 권한이 없거나 실패했습니다.'));
     }
   };
 

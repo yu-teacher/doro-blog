@@ -19,6 +19,7 @@ import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ErrorState, LoadMoreError } from '../components/ErrorState';
 import { getErrorMessage } from '../utils/errors';
 import { formatDate } from '../utils/date';
+import { notify } from '../utils/notify';
 
 const MY_POSTS_PAGE_SIZE = 10;
 
@@ -55,7 +56,7 @@ export const MyPostsPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      alert('로그인이 필요한 페이지입니다.');
+      notify.info('로그인이 필요한 페이지입니다.');
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
@@ -71,7 +72,7 @@ export const MyPostsPage: React.FC = () => {
       await blogApi.deletePost(id);
       setPosts((prev) => prev.filter((p) => p.id !== id));
     } catch (err: unknown) {
-      alert(getErrorMessage(err, '삭제에 실패했습니다.'));
+      notify.error(getErrorMessage(err, '삭제에 실패했습니다.'));
     }
   };
 

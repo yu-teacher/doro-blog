@@ -6,6 +6,7 @@ import { blogApi } from '../api/blogApi';
 import type { PageResponse, PostSummary, UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { EditorPage } from './EditorPage';
+import { clearToasts, toastMessages } from '../test/toasts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -151,7 +152,6 @@ describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
 
   it('임시 저장 버튼은 DRAFT 로 저장한다', async () => {
     const createPost = vi.spyOn(blogApi, 'createPost').mockResolvedValue({ id: 'd1' } as never);
-    vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     await render();
     typeInto(host!.querySelector('input[type="text"]') as HTMLInputElement, '초안 제목');
     typeInto(textarea(), '초안 본문');
@@ -163,7 +163,7 @@ describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
     expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ title: '초안 제목', status: 'DRAFT' }));
   });
   it('글을 쓰는 중에 세션이 끝나도 화면을 떠나지 않고 쓰던 내용을 그대로 두며, 다시 로그인하라고 알려 준다', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    clearToasts();
     await render('/write');
     typeInto(textarea(), '쓰던 중인 본문');
     await flush();
@@ -173,16 +173,16 @@ describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
 
     expect(textarea(), '편집기가 그대로 남아 있어야 한다').not.toBeNull();
     expect(textarea().value).toBe('쓰던 중인 본문');
-    expect(alertSpy).not.toHaveBeenCalled();
+    expect(toastMessages()).toEqual([]);
     expect(host!.textContent).toContain('로그인이 만료');
   });
 
   it('처음부터 로그인하지 않고 글쓰기 화면을 열면 안내하고 첫 화면으로 보낸다', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    clearToasts();
     useAuthStore.setState({ isAuthenticated: false, user: null });
     await render('/write');
     await flush();
 
-    expect(alertSpy).toHaveBeenCalledWith('로그인이 필요한 서비스입니다.');
+    expect(toastMessages()).toContain('로그인이 필요한 서비스입니다.');
   });
 });
