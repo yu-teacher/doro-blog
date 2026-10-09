@@ -62,6 +62,14 @@ docker run "${COMMON[@]}" -e npm_config_cache=/cache/npm -e VITE_BASE_PATH="$BAS
 [ -f "$BLOG_SRC/$JAR_REL" ] || die "$JAR_REL 이 만들어지지 않았다"
 [ -d "$BLOG_SRC/web/dist" ] || die "web/dist 가 만들어지지 않았다"
 
+# 서비스 워커가 미리 캐시하는 주소가 게이트웨이에서 이동 없이 나가는지 컨테이너를 바꾸기 전에 점검한다(Doro 저장소의 공용 스크립트).
+SW_CHECK="$DORO_SRC/scripts/check-sw-precache.sh"
+sw_check() {  # <pre|post>
+  if [ ! -x "$SW_CHECK" ]; then log "경고: $SW_CHECK 가 없어 서비스 워커 미리 캐시 점검을 건너뛴다"; return 0; fi
+  "$SW_CHECK" "$BLOG_SRC/web/dist" "${BASE_PATH:-}/" "$1"
+}
+sw_check pre || die "서비스 워커 미리 캐시 주소가 게이트웨이에서 올바르게 나가지 않는다. 배포하지 않는다"
+
 log "== 롤백 스냅샷 + DB 백업 =="
 mkdir -p "$SNAP"
 cp -a "$REMOTE_DIR/build/libs" "$SNAP/libs" 2>/dev/null || true
@@ -134,6 +142,7 @@ log "== 헬스체크 (최대 ${HEALTH_TIMEOUT_SEC}s) =="
 if wait_healthy; then
   # 앱은 정상이다. 게이트웨이 reload 가 실패하면 502 가 남으므로 배포를 실패로 표시한다(롤백은 하지 않는다).
   reload_gateway || die "앱은 정상이지만 게이트웨이가 새 컨테이너를 가리키지 못한다. 수동 확인 필요: docker exec doro-gateway nginx -s reload"
+  sw_check post || die "배포는 됐지만 서비스 워커 미리 캐시 주소가 올바르지 않다. 설치된 앱에 잘못된 화면이 저장될 수 있어 수동 확인 필요"
   prune_old_releases || log "경고: 오래된 산출물 정리에 실패했다(배포는 성공)"
   log "완료. 롤백 지점: $SNAP, 이미지 태그 doro-blog-rollback:{backend,web}-$TS"
   exit 0
