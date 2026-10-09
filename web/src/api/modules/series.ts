@@ -56,6 +56,18 @@ export const seriesApi = {
     await apiClient.delete(`/series/${seriesId}`);
   },
 
+  /** 시리즈에 속하지 않은 내 글을 시리즈의 마지막 회차로 추가한다. 편집자 시점의 상세를 돌려준다. */
+  async addSeriesPost(seriesId: string, postId: string): Promise<SeriesDetail> {
+    const res = await apiClient.post<ApiResponse<SeriesDetail>>(`/series/${seriesId}/posts`, { postId });
+    return res.data.data;
+  },
+
+  /** 글을 시리즈에서 뺀다(글은 지워지지 않는다). 남은 글의 회차는 서버가 1..n 으로 다시 매긴다. */
+  async removeSeriesPost(seriesId: string, postId: string): Promise<SeriesDetail> {
+    const res = await apiClient.delete<ApiResponse<SeriesDetail>>(`/series/${seriesId}/posts/${postId}`);
+    return res.data.data;
+  },
+
   async reorderSeries(seriesId: string, postIds: string[]): Promise<SeriesDetail> {
     const res = await apiClient.put<ApiResponse<SeriesDetail>>(`/series/${seriesId}/sort`, { postIds });
     return res.data.data;

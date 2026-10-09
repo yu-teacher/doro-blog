@@ -3,6 +3,7 @@ package com.doro.blog.domain.series.dto;
 import com.doro.blog.domain.series.entity.Series;
 import com.doro.blog.domain.user.dto.BlogUserDtos;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -43,6 +44,11 @@ public class SeriesDtos {
             @Pattern(regexp = BlogUserDtos.IMAGE_URL_OR_EMPTY, flags = Pattern.Flag.CASE_INSENSITIVE,
                     message = "썸네일 주소는 http(s) 또는 /media 경로만 허용됩니다.")
             String thumbnailUrl
+    ) {}
+
+    public record AddSeriesPostRequest(
+            @NotNull(message = "추가할 포스트 ID 는 필수입니다.")
+            UUID postId
     ) {}
 
     public record ReorderPostsRequest(

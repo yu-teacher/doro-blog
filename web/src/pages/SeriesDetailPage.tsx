@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
-import { BookOpen, Calendar, ArrowLeft, Lock } from 'lucide-react';
+import { BookOpen, Calendar, ArrowLeft, Lock, Settings2 } from 'lucide-react';
+import { SeriesPostManager } from '../components/series/SeriesPostManager';
+import { useAuthStore } from '../store/authStore';
 import { formatDate } from '../utils/date';
 
 export const SeriesDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
 
-  const { data: seriesDetail, loading, error, reload } = useAsyncResource(
+  const currentUser = useAuthStore((state) => state.user);
+  const [managing, setManaging] = useState(false);
+
+  const { data: seriesDetail, setData: setSeriesDetail, loading, error, reload } = useAsyncResource(
     (signal) => blogApi.getSeriesBySlug(cleanUsername ?? '', slug ?? '', signal),
     [cleanUsername, slug],
     { enabled: Boolean(cleanUsername && slug) }
@@ -53,6 +58,7 @@ export const SeriesDetailPage: React.FC = () => {
   }
 
   const { series, posts } = seriesDetail;
+  const isOwner = currentUser !== null && currentUser.id === series.userId;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -78,9 +84,23 @@ export const SeriesDetailPage: React.FC = () => {
           <span>·</span>
           <span>마지막 업데이트 {formatDate(series.updatedAt)}</span>
         </div>
+
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => setManaging((v) => !v)}
+            aria-pressed={managing}
+            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <Settings2 className="w-4 h-4" aria-hidden="true" /> {managing ? '관리 끝내기' : '시리즈 관리'}
+          </button>
+        )}
       </div>
 
-      {/* Series Posts List */}
+      {isOwner && managing ? (
+        <SeriesPostManager detail={seriesDetail} username={cleanUsername ?? ''} onChange={setSeriesDetail} />
+      ) : (
+
       <div className="space-y-4">
         {posts.length === 0 ? (
           <p className="text-center text-slate-400 dark:text-slate-500 py-12">시리즈에 아직 등록된 포스트가 없습니다.</p>
@@ -129,7 +149,7 @@ export const SeriesDetailPage: React.FC = () => {
           ))
         )}
       </div>
+      )}
     </div>
-
   );
 };

@@ -87,4 +87,23 @@ public class SeriesController {
     ) {
         return ApiResponse.success(seriesService.reorderPosts(seriesId, request.postIds()));
     }
+    @Operation(summary = "시리즈에 기존 글 추가 (ReBAC 인가)", description = "시리즈에 속하지 않은 본인의 글을 마지막 회차로 추가. 편집자 시점 상세를 반환")
+    @DoroGuard(namespace = "blog_series", object = "#seriesId", relation = "editor")
+    @PostMapping("/{seriesId}/posts")
+    public ApiResponse<SeriesDetailResponse> addPost(
+            @PathVariable("seriesId") UUID seriesId,
+            @Valid @RequestBody AddSeriesPostRequest request
+    ) {
+        return ApiResponse.success(seriesService.addPost(seriesId, request.postId()));
+    }
+
+    @Operation(summary = "시리즈에서 글 빼기 (ReBAC 인가)", description = "글은 지우지 않고 시리즈에서만 뺀다. 남은 글의 회차를 1..n 으로 다시 매긴다")
+    @DoroGuard(namespace = "blog_series", object = "#seriesId", relation = "editor")
+    @DeleteMapping("/{seriesId}/posts/{postId}")
+    public ApiResponse<SeriesDetailResponse> removePost(
+            @PathVariable("seriesId") UUID seriesId,
+            @PathVariable("postId") UUID postId
+    ) {
+        return ApiResponse.success(seriesService.removePost(seriesId, postId));
+    }
 }

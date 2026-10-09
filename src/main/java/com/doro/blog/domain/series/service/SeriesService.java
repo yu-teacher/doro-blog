@@ -141,8 +141,8 @@ public class SeriesService {
                 ))
                 .toList();
 
-        int displayPostCount = canViewPrivate ? series.getPostCount() : (int) postRepository.countBySeriesIdAndStatus(seriesId, PostStatus.PUBLISHED);
-        SeriesResponse seriesRes = SeriesResponse.from(series, displayPostCount);
+        // 목록을 이미 읽었으므로 그 개수를 쓴다(같은 트랜잭션에서 글 수를 바꾼 직후에도 정확하다. series.postCount 는 DB 갱신 전 값일 수 있다)
+        SeriesResponse seriesRes = SeriesResponse.from(series, posts.size());
 
         return new SeriesDetailResponse(seriesRes, postItems);
     }
@@ -186,6 +186,56 @@ public class SeriesService {
         guardTuples.deleteAfterCommit("blog_series", seriesId.toString(), "owner", "user", series.getUser().getId().toString());
 
         seriesRepository.delete(series);
+    }
+
+    /** 시리즈 편집자 시점의 상세(임시저장·비공개 글 포함)를 돌려준다. 글을 추가·제거·정렬한 직후 화면에 그대로 쓴다. */
+    private SeriesDetailResponse editorView(Series series) {
+        return buildDetail(series, true);
+    }
+
+    /**
+     * 이미 있는 글을 시리즈의 마지막 회차로 추가한다. 시리즈 주인의 글만, 시리즈에 속하지 않은 글만 추가할 수 있다
+     * (다른 시리즈에 있는 글은 먼저 빼야 한다). 이미 이 시리즈에 있으면 아무것도 바꾸지 않는다.
+     */
+    @Transactional
+    public SeriesDetailResponse addPost(UUID seriesId, UUID postId) {
+        Series series = seriesRepository.findByIdForUpdate(seriesId)
+                .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        if (!post.getUser().getId().equals(series.getUser().getId())) {
+            throw new BlogException(ErrorCode.ACCESS_DENIED, "본인의 글만 시리즈에 추가할 수 있습니다.");
+        }
+        if (post.getSeries() != null) {
+            if (post.getSeries().getId().equals(seriesId)) {
+                return editorView(series);
+            }
+            throw new BlogException(ErrorCode.INVALID_INPUT, "이미 다른 시리즈에 속한 글입니다. 먼저 그 시리즈에서 빼 주세요.");
+        }
+        post.assignSeries(series, postRepository.nextSeriesOrder(seriesId));
+        seriesRepository.adjustPostCount(seriesId, 1);
+        return editorView(series);
+    }
+
+    /** 글을 시리즈에서 뺀다(글은 지워지지 않는다). 남은 글의 회차는 1..n 으로 다시 이어 붙인다. */
+    @Transactional
+    public SeriesDetailResponse removePost(UUID seriesId, UUID postId) {
+        Series series = seriesRepository.findByIdForUpdate(seriesId)
+                .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        if (post.getSeries() == null || !post.getSeries().getId().equals(seriesId)) {
+            throw new BlogException(ErrorCode.INVALID_INPUT, "이 시리즈에 속한 글이 아닙니다.");
+        }
+        post.removeSeries();
+        seriesRepository.adjustPostCount(seriesId, -1);
+
+        // 남은 글을 1..n 으로 다시 매긴다. 번호 유니크 제약은 커밋 시점에 검사하므로 중간에 겹쳐도 된다.
+        int order = 1;
+        for (Post remaining : postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId)) {
+            remaining.updateSeriesOrder(order++);
+        }
+        return editorView(series);
     }
 
     @Transactional
