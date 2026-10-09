@@ -99,7 +99,7 @@ public class ApiKeyService {
         if (!doroUser.isAuthenticated()) {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
-        return apiKeyRepository.findAllByUserIdOrderByCreatedAtDesc(doroUser.userId())
+        return apiKeyRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(doroUser.userId())
                 .stream()
                 .map(ApiKeyResponse::from)
                 .toList();
@@ -171,7 +171,7 @@ public class ApiKeyService {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
         Pageable pageable = PageRequest.of(page, size);
-        return apiKeyLogRepository.findAllByUserIdOrderByCreatedAtDesc(doroUser.userId(), pageable)
+        return apiKeyLogRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(doroUser.userId(), pageable)
                 .map(ApiKeyLogResponse::from);
     }
 

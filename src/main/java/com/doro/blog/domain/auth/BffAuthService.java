@@ -78,15 +78,20 @@ public class BffAuthService {
     // ------------------------------------------------------------------ 로그인 시작
 
     /** 인가 요청 주소를 만든다. state 와 PKCE verifier 는 서버에 보관하고, 브라우저에는 state 와 challenge 만 간다. */
-    public String startLogin(String returnPath) {
+    public StartedLogin startLogin(String returnPath) {
         String state = randomToken();
         String verifier = randomToken();
+        // 이 로그인을 시작한 브라우저에만 알려 주는 값. 콜백이 같은 브라우저에서 오는지 확인하는 데 쓴다.
+        String browserNonce = randomToken();
         Instant now = Instant.now();
         LoginAttempt attempt = new LoginAttempt(sha256Hex(state), crypto.encrypt(verifier), safeReturnPath(returnPath),
-                now, now.plus(props.getLoginAttemptTtl()));
+                sha256Hex(browserNonce), now, now.plus(props.getLoginAttemptTtl()));
         tx().executeWithoutResult(status -> attempts.save(attempt));
-        return oauth.buildAuthorizeUrl(state, codeChallenge(verifier));
+        return new StartedLogin(oauth.buildAuthorizeUrl(state, codeChallenge(verifier)), browserNonce);
     }
+
+    /** @param browserNonce 로그인을 시작한 브라우저에 쿠키로 심을 값(원문은 서버에 저장하지 않는다) */
+    public record StartedLogin(String authorizeUrl, String browserNonce) {}
 
     // ------------------------------------------------------------------ 콜백
 
@@ -94,8 +99,9 @@ public class BffAuthService {
      * 인가 코드를 토큰으로 교환하고 세션을 만든다.
      *
      * @param previousCookie 이미 가진 세션 쿠키(있으면 새 로그인 때 폐기해 세션 고정을 막는다)
+     * @param browserNonce   콜백을 연 브라우저가 가진 '로그인 진행 중' 쿠키 값. 로그인을 시작한 브라우저와 같은지 대조한다
      */
-    public LoginResult completeLogin(String code, String state, String previousCookie) {
+    public LoginResult completeLogin(String code, String state, String previousCookie, String browserNonce) {
         if (isBlank(code) || isBlank(state)) {
             throw new LoginFailedException("code/state 누락");
         }
@@ -108,6 +114,13 @@ public class BffAuthService {
         });
         if (attempt == null || attempt.isExpired(Instant.now())) {
             throw new LoginFailedException("알 수 없거나 만료되었거나 이미 사용된 state");
+        }
+        // 로그인 CSRF 방지: 공격자가 자기 계정으로 시작해 인증한 로그인의 콜백 주소를 피해자가 열게 해도, 피해자 브라우저에는
+        // 그 로그인을 시작할 때 심은 쿠키가 없으므로 여기서 거부된다(코드 교환도 하지 않는다).
+        if (isBlank(browserNonce) || attempt.getBrowserHash() == null
+                || !MessageDigest.isEqual(sha256Hex(browserNonce).getBytes(StandardCharsets.UTF_8),
+                        attempt.getBrowserHash().getBytes(StandardCharsets.UTF_8))) {
+            throw new LoginFailedException("로그인을 시작한 브라우저가 아님");
         }
 
         DoroOAuthClient.TokenSet tokens;
@@ -156,11 +169,14 @@ public class BffAuthService {
             return Optional.empty();
         }
 
+        boolean refreshSkippedBecauseIamIsDown = false;
         if (needsRefresh(session, now)) {
-            session = refreshUnderLock(hash);
-            if (session == null) {
+            RefreshOutcome outcome = refreshUnderLock(hash);
+            if (outcome.session() == null) {
                 return Optional.empty();
             }
+            session = outcome.session();
+            refreshSkippedBecauseIamIsDown = outcome.iamUnavailable();
         }
 
         String accessToken;
@@ -175,6 +191,12 @@ public class BffAuthService {
         DoroUser user = verifyAccessToken(accessToken);
         if (user == null || !user.isAuthenticated() || !props.getClientId().equals(user.clientId())
                 || !user.userId().equals(session.getUserId())) {
+            // 갱신해야 하는데 IAM 이 응답하지 않아 만료된 토큰이 그대로 남은 경우: 세션이 폐기된 게 아니다.
+            // 지우면 IAM 이 잠깐 죽은 사이 모든 사용자가 영구히 로그아웃되므로, 이번 요청만 익명으로 두고 세션은 남긴다.
+            if (refreshSkippedBecauseIamIsDown && !session.getAccessExpiresAt().isAfter(now)) {
+                log.warn("BFF session kept while IAM is unavailable (access token expired, refresh skipped)");
+                return Optional.empty();
+            }
             // IAM 세션이 폐기됐거나(다른 곳에서 로그아웃) 토큰이 맞지 않는다: 이 세션은 더 쓸 수 없다.
             deleteSession(hash);
             return Optional.empty();
@@ -188,16 +210,16 @@ public class BffAuthService {
     }
 
     /** 같은 세션의 동시 갱신 중 하나만 IAM 을 호출한다. 나머지는 기다렸다가 갱신된 토큰을 읽는다. */
-    private AuthSession refreshUnderLock(String hash) {
+    private RefreshOutcome refreshUnderLock(String hash) {
         ReentrantLock lock = refreshLocks[Math.floorMod(hash.hashCode(), LOCK_STRIPES)];
         lock.lock();
         try {
             AuthSession current = sessions.findBySessionHash(hash).orElse(null);
             if (current == null) {
-                return null;
+                return new RefreshOutcome(null, false);
             }
             if (!needsRefresh(current, Instant.now())) {
-                return current; // 기다리는 동안 다른 요청이 이미 갱신했다
+                return new RefreshOutcome(current, false); // 기다리는 동안 다른 요청이 이미 갱신했다
             }
             DoroOAuthClient.TokenSet tokens;
             try {
@@ -205,30 +227,34 @@ public class BffAuthService {
             } catch (DoroOAuthClient.RejectedException e) {
                 log.info("BFF session refresh rejected by IAM; ending the session: {}", e.getMessage());
                 deleteSession(hash);
-                return null;
+                return new RefreshOutcome(null, false);
             } catch (DoroOAuthClient.UnavailableException e) {
                 log.warn("BFF session refresh skipped (IAM unavailable): {}", e.getMessage());
-                return current; // 세션은 유지한다. 만료된 액세스 토큰은 아래 검증에서 걸러져 이번 요청만 익명이 된다.
+                // 세션은 유지한다. 만료된 액세스 토큰은 아래 검증에서 걸러져 이번 요청만 익명이 된다.
+                return new RefreshOutcome(current, true);
             } catch (IllegalStateException e) {
                 log.error("BFF refresh token could not be decrypted; dropping the session", e);
                 deleteSession(hash);
-                return null;
+                return new RefreshOutcome(null, false);
             }
             current.replaceTokens(crypto.encrypt(tokens.accessToken()), tokens.accessExpiresAt(), crypto.encrypt(tokens.refreshToken()));
             AuthSession updated = current;
             tx().executeWithoutResult(status -> sessions.save(updated));
-            return updated;
+            return new RefreshOutcome(updated, false);
         } finally {
             lock.unlock();
         }
     }
 
+    /** 갱신 결과. session 이 null 이면 세션이 없어졌거나 폐기된 것, iamUnavailable 이면 IAM 이 응답하지 않아 갱신을 건너뛴 것이다. */
+    private record RefreshOutcome(AuthSession session, boolean iamUnavailable) {}
+
     private void touchIfStale(AuthSession session, Instant now) {
         if (session.getLastUsedAt().plus(TOUCH_INTERVAL).isAfter(now)) {
             return;
         }
-        session.touch(now);
-        tx().executeWithoutResult(status -> sessions.save(session));
+        // 엔티티를 통째로 저장하지 않는다: 그사이 다른 요청이 회전시킨 토큰을 옛 값으로 덮어쓸 수 있다
+        tx().executeWithoutResult(status -> sessions.touchLastUsed(session.getSessionHash(), now));
     }
 
     private DoroUser verifyAccessToken(String accessToken) {

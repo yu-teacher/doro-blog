@@ -93,7 +93,14 @@ public class BlogSchemaInitializer implements ApplicationRunner {
             }
 
             JsonNode root = objectMapper.readTree(response.getBody());
-            String activeDsl = root.path("data").asText("");
+            // 등록은 전체 교체다. 응답이 200 이어도 data 가 문자열이 아니면(없음·null·객체 등 응답 규격이 달라졌거나 프록시가 만든 응답)
+            // 활성 스키마를 읽지 못한 것이다. 빈 스키마로 착각해 블로그 타입만 등록하면 플랫폼의 다른 타입이 지워지므로 등록하지 않고 다시 시도한다.
+            JsonNode data = root.path("data");
+            if (!data.isTextual()) {
+                log.warn("Guard returned an unexpected schema response shape (data is not text); not registering the blog schema to avoid replacing the platform schema.");
+                return false;
+            }
+            String activeDsl = data.asText();
 
             // blog-schema.doro 읽기
             Resource blogSchemaRes = resourceLoader.getResource("classpath:blog-schema.doro");

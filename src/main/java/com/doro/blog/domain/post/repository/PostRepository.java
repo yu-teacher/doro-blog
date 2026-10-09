@@ -55,27 +55,27 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     boolean existsByUserIdAndSlugAndIdNot(UUID userId, String slug, UUID id);
 
-    Page<Post> findAllByStatusOrderByPublishedAtDesc(PostStatus status, Pageable pageable);
+    Page<Post> findAllByStatusOrderByPublishedAtDescIdDesc(PostStatus status, Pageable pageable);
 
     /** 좋아요 수가 같은 글(대부분 0)에서도 페이지 경계가 흔들리지 않도록 발행일, id 로 순서를 끝까지 정한다. */
     Page<Post> findAllByStatusOrderByLikeCountDescPublishedAtDescIdDesc(PostStatus status, Pageable pageable);
 
-    Page<Post> findAllByUserIdAndStatusOrderByPublishedAtDesc(UUID userId, PostStatus status, Pageable pageable);
+    Page<Post> findAllByUserIdAndStatusOrderByPublishedAtDescIdDesc(UUID userId, PostStatus status, Pageable pageable);
 
-    Page<Post> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, PostStatus status, Pageable pageable);
+    Page<Post> findAllByUserIdAndStatusOrderByCreatedAtDescIdDesc(UUID userId, PostStatus status, Pageable pageable);
 
-    Page<Post> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<Post> findAllByUserIdOrderByCreatedAtDescIdDesc(UUID userId, Pageable pageable);
 
     @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.status = 'PUBLISHED' " +
            "AND (LOWER(p.title) LIKE :pattern ESCAPE '!' OR LOWER(p.summary) LIKE :pattern ESCAPE '!' OR LOWER(p.content) LIKE :pattern ESCAPE '!') " +
-           "ORDER BY p.publishedAt DESC")
+           "ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> searchUserPostsByKeyword(
             @Param("userId") UUID userId,
             @Param("pattern") String pattern,
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) ORDER BY p.publishedAt DESC")
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> findUserPostsByTag(
             @Param("userId") UUID userId,
             @Param("tag") String tag,
@@ -84,7 +84,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE p.user.id = :userId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) = LOWER(:tag) " +
            "AND (LOWER(p.title) LIKE :pattern ESCAPE '!' OR LOWER(p.summary) LIKE :pattern ESCAPE '!' OR LOWER(p.content) LIKE :pattern ESCAPE '!') " +
-           "ORDER BY p.publishedAt DESC")
+           "ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> searchUserPostsByKeywordAndTag(
             @Param("userId") UUID userId,
             @Param("pattern") String pattern,
@@ -98,19 +98,23 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     long countBySeriesIdAndStatus(UUID seriesId, PostStatus status);
 
-    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE LOWER(pt.tag.name) = LOWER(:tagName) AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC")
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE LOWER(pt.tag.name) = LOWER(:tagName) AND p.status = 'PUBLISHED' ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> findAllByTagName(@Param("tagName") String tagName, Pageable pageable);
 
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
            "WHERE LOWER(pt.tag.name) IN :tagNames AND p.status = 'PUBLISHED' " +
            "GROUP BY p.id " +
            "HAVING COUNT(DISTINCT LOWER(pt.tag.name)) = :tagCount " +
-           "ORDER BY p.publishedAt DESC")
+           "ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> findAllByAllTagNames(
             @Param("tagNames") List<String> tagNames,
             @Param("tagCount") long tagCount,
             Pageable pageable
     );
+
+    /** 시리즈별 공개(PUBLISHED) 글 수를 한 번에 센다. 시리즈 목록에서 시리즈마다 따로 세던 N+1 을 없애는 데 쓴다. */
+    @Query("SELECT p.series.id, COUNT(p) FROM Post p WHERE p.series.id IN :seriesIds AND p.status = 'PUBLISHED' GROUP BY p.series.id")
+    List<Object[]> countPublishedBySeriesIds(@Param("seriesIds") java.util.Collection<UUID> seriesIds);
 
     /** 태그로 거른 글을 인기순(좋아요 → 최신 → id)으로. 태그 필터가 있어도 sort=popular 가 적용되게 한다. */
     @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE LOWER(pt.tag.name) = LOWER(:tagName) AND p.status = 'PUBLISHED' " +
@@ -128,19 +132,19 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC, p.id DESC")
     Page<Post> findTrendingPosts(
             @Param("since") java.time.Instant since,
             Pageable pageable
     );
 
-    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND (LOWER(p.title) LIKE :pattern ESCAPE '!' OR LOWER(p.summary) LIKE :pattern ESCAPE '!' OR LOWER(p.content) LIKE :pattern ESCAPE '!') ORDER BY p.publishedAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND (LOWER(p.title) LIKE :pattern ESCAPE '!' OR LOWER(p.summary) LIKE :pattern ESCAPE '!' OR LOWER(p.content) LIKE :pattern ESCAPE '!') ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> searchPublishedPosts(
             @Param("pattern") String pattern,
             Pageable pageable
     );
 
-    @Query("SELECT pl.post FROM PostLike pl WHERE pl.user.id = :userId AND pl.post.status = 'PUBLISHED' ORDER BY pl.createdAt DESC")
+    @Query("SELECT pl.post FROM PostLike pl WHERE pl.user.id = :userId AND pl.post.status = 'PUBLISHED' ORDER BY pl.createdAt DESC, pl.post.id DESC")
     Page<Post> findLikedPostsByUserId(
             @Param("userId") UUID userId,
             Pageable pageable
@@ -164,12 +168,12 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.user.id IN (" +
            "  SELECT uf.followingId FROM com.doro.blog.domain.user.entity.UserFollow uf WHERE uf.followerId = :userId" +
-           ") ORDER BY p.publishedAt DESC")
+           ") ORDER BY p.publishedAt DESC, p.id DESC")
     Page<Post> findFollowingPosts(@Param("userId") UUID userId, Pageable pageable);
 
     @Query("SELECT DISTINCT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
            "WHERE p.id != :postId AND p.status = 'PUBLISHED' AND LOWER(pt.tag.name) IN :tagNames " +
-           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC, p.id DESC")
     List<Post> findRelatedPostsByTags(
             @Param("postId") UUID postId,
             @Param("tagNames") List<String> tagNames,
@@ -177,7 +181,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     );
 
     @Query("SELECT p FROM Post p WHERE p.user.id = :authorId AND p.status = 'PUBLISHED' AND p.id NOT IN :excludeIds " +
-           "ORDER BY p.publishedAt DESC")
+           "ORDER BY p.publishedAt DESC, p.id DESC")
     List<Post> findOtherPostsByAuthor(
             @Param("authorId") UUID authorId,
             @Param("excludeIds") List<UUID> excludeIds,
@@ -185,7 +189,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     );
 
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.id NOT IN :excludeIds " +
-           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
+           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC, p.id DESC")
     List<Post> findTrendingPostsExcluding(
             @Param("excludeIds") List<UUID> excludeIds,
             Pageable pageable

@@ -18,6 +18,14 @@ public interface AuthSessionRepository extends JpaRepository<AuthSession, UUID> 
     @Query("DELETE FROM AuthSession s WHERE s.sessionHash = :hash")
     int deleteBySessionHash(@Param("hash") String hash);
 
+    /**
+     * 마지막 사용 시각만 바꾼다. 요청 처리 초반에 읽어 둔 세션 엔티티를 통째로 저장하면, 그사이 다른 요청이 갱신해 둔 토큰을
+     * 옛 값으로 되돌려 쓰고(이미 폐기된 리프레시 토큰이 돌아와 세션이 끊긴다) 말기 때문에 이 한 컬럼만 갱신한다.
+     */
+    @Modifying
+    @Query("UPDATE AuthSession s SET s.lastUsedAt = :now WHERE s.sessionHash = :hash")
+    int touchLastUsed(@Param("hash") String hash, @Param("now") Instant now);
+
     @Modifying
     @Query("DELETE FROM AuthSession s WHERE s.expiresAt <= :now")
     int deleteExpired(@Param("now") Instant now);

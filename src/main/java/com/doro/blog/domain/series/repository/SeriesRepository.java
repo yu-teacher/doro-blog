@@ -25,7 +25,7 @@ public interface SeriesRepository extends JpaRepository<Series, UUID> {
     @Query("select s from Series s where s.id = :id")
     Optional<Series> findByIdForUpdate(@Param("id") UUID id);
 
-    List<Series> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<Series> findAllByUserIdOrderByCreatedAtDescIdDesc(UUID userId);
     Optional<Series> findByUserIdAndSlug(UUID userId, String slug);
     boolean existsByUserIdAndSlug(UUID userId, String slug);
 

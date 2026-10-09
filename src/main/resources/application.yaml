@@ -88,6 +88,9 @@ logging:
 
 # 블로그 BFF 로그인 (Doro OAuth). 로그인 화면은 Doro 가 담당하고, 블로그는 비밀번호를 다루지 않는다.
 blog:
+  api-key:
+    # API 키 사용 기록(요청마다 한 행)을 이 기간만 보관한다. 지난 기록은 주기적으로 지운다.
+    log-retention-days: ${BLOG_API_KEY_LOG_RETENTION_DAYS:90}
   auth:
     client-id: ${BLOG_OAUTH_CLIENT_ID:doro-blog}
     authorize-url: ${BLOG_OAUTH_AUTHORIZE_URL:http://localhost:28080/oauth2/authorize}

@@ -25,6 +25,9 @@ public class BffProperties {
     private String redirectUri = "http://localhost:5173/api/v1/bff/callback";
     private String scope = "openid profile email";
     private String cookieName = "doro_blog_session";
+
+    /** 로그인을 시작한 브라우저를 콜백에서 다시 알아보기 위한 짧은 수명의 쿠키 이름. */
+    private String loginCookieName = "doro_blog_login";
     /** HTTPS 에서만 쿠키를 보낸다. 로컬 HTTP 개발에서만 false. */
     private boolean cookieSecure = true;
     /** 로그인 후 세션의 절대 수명 */

@@ -123,8 +123,19 @@ public class PostCommandService {
 
         // 시리즈 변경 처리
         if (request.seriesId() != null && (post.getSeries() == null || !post.getSeries().getId().equals(request.seriesId()))) {
-            Series newSeries = seriesRepository.findByIdForUpdate(request.seriesId())
-                    .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+            // 옮기는 두 시리즈의 행을 항상 id 순으로 잠근다. 글 두 개를 서로 반대 방향으로 동시에 옮기면 한쪽은 A→B, 다른 쪽은 B→A 순으로
+            // 잠가 서로를 기다리다 교착이 나기 때문이다(태그 갱신을 id 순으로 하는 것과 같은 이유).
+            UUID oldSeriesId = post.getSeries() != null ? post.getSeries().getId() : null;
+            Series newSeries = null;
+            List<UUID> lockOrder = java.util.stream.Stream.of(oldSeriesId, request.seriesId())
+                    .filter(Objects::nonNull).distinct().sorted().toList();
+            for (UUID id : lockOrder) {
+                Series locked = seriesRepository.findByIdForUpdate(id)
+                        .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+                if (id.equals(request.seriesId())) {
+                    newSeries = locked;
+                }
+            }
             requireSeriesOwner(newSeries, post.getUser().getId());
             if (post.getSeries() != null) {
                 seriesRepository.adjustPostCount(post.getSeries().getId(), -1);

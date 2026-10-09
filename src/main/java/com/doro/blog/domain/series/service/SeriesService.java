@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Map;
@@ -69,12 +70,19 @@ public class SeriesService {
         boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
                 (doroUser.userId().equals(user.getId()) || doroUser.isAdmin());
 
-        return seriesRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId())
-                .stream()
-                .map(series -> {
-                    int count = canViewPrivate ? series.getPostCount() : (int) postRepository.countBySeriesIdAndStatus(series.getId(), PostStatus.PUBLISHED);
-                    return SeriesResponse.from(series, count);
-                })
+        List<Series> seriesList = seriesRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(user.getId());
+
+        // 공개 글 수는 시리즈마다 따로 세지 않고 한 번의 그룹 쿼리로 가져온다 (시리즈가 많아져도 쿼리 수가 늘지 않게)
+        Map<UUID, Integer> publishedCounts = new HashMap<>();
+        if (!canViewPrivate && !seriesList.isEmpty()) {
+            for (Object[] row : postRepository.countPublishedBySeriesIds(seriesList.stream().map(Series::getId).toList())) {
+                publishedCounts.put((UUID) row[0], ((Number) row[1]).intValue());
+            }
+        }
+
+        return seriesList.stream()
+                .map(series -> SeriesResponse.from(series,
+                        canViewPrivate ? series.getPostCount() : publishedCounts.getOrDefault(series.getId(), 0)))
                 .toList();
     }
 

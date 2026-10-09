@@ -12,9 +12,14 @@ import java.util.UUID;
 
 public interface ApiKeyLogRepository extends JpaRepository<ApiKeyLog, UUID> {
 
-    Page<ApiKeyLog> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<ApiKeyLog> findAllByUserIdOrderByCreatedAtDescIdDesc(UUID userId, Pageable pageable);
 
     Page<ApiKeyLog> findAllByApiKeyIdOrderByCreatedAtDesc(UUID apiKeyId, Pageable pageable);
+
+    /** 보존 기간이 지난 호출 기록을 지운다. */
+    @Modifying
+    @Query("DELETE FROM ApiKeyLog l WHERE l.createdAt < :cutoff")
+    int deleteOlderThan(@Param("cutoff") java.time.Instant cutoff);
 
     /** 탈퇴 익명화: IP·User-Agent 가 담긴 호출 기록을 삭제한다. */
     @Modifying

@@ -46,8 +46,10 @@ public class BffController {
     @Operation(summary = "로그인 시작", description = "Doro 로그인 화면으로 이동한다. return 은 로그인 후 돌아올 사이트 내 경로.")
     @GetMapping("/login")
     public ResponseEntity<Void> login(@RequestParam(name = "return", required = false) String returnPath) {
-        String location = authService.startLogin(returnPath);
-        return ResponseEntity.status(HttpStatus.FOUND).header(HttpHeaders.LOCATION, location)
+        BffAuthService.StartedLogin started = authService.startLogin(returnPath);
+        // 이 브라우저를 로그인 시도에 묶는다: 콜백이 같은 브라우저에서 와야 끝낼 수 있다(남이 시작한 로그인을 이 사람에게 끝내게 하는 공격 방지)
+        return ResponseEntity.status(HttpStatus.FOUND).header(HttpHeaders.LOCATION, started.authorizeUrl())
+                .header(HttpHeaders.SET_COOKIE, loginCookie(started.browserNonce()).toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store").build();
     }
 
@@ -62,14 +64,15 @@ public class BffController {
         if (error != null) {
             // 사용자가 취소했거나 Doro 가 거부했다. 사유를 화면에 그대로 싣지 않는다.
             log.info("BFF login ended with an authorization error from IAM: {}", error);
-            return redirect("/?" + LOGIN_ERROR_PARAM + "=cancelled", null);
+            return redirect("/?" + LOGIN_ERROR_PARAM + "=cancelled", clearedLoginCookie());
         }
         try {
-            BffAuthService.LoginResult result = authService.completeLogin(code, state, sessionCookie(request));
-            return redirect(result.returnPath(), sessionCookie(result.sessionCookieValue()));
+            BffAuthService.LoginResult result = authService.completeLogin(code, state, sessionCookie(request), cookieValue(request, props.getLoginCookieName()));
+            return redirect(result.returnPath(), sessionCookie(result.sessionCookieValue()), clearedLoginCookie());
         } catch (BffAuthService.LoginFailedException e) {
             log.warn("BFF login failed: {}", e.getMessage());
-            return redirect("/?" + LOGIN_ERROR_PARAM + "=failed", clearedCookie());
+            // 이미 로그인한 사용자의 세션 쿠키는 건드리지 않는다. 가짜 콜백 링크 하나로 남을 로그아웃시킬 수 없게 한다.
+            return redirect("/?" + LOGIN_ERROR_PARAM + "=failed", clearedLoginCookie());
         }
     }
 
@@ -109,6 +112,27 @@ public class BffController {
                 .build();
     }
 
+    /** 로그인을 시작한 브라우저를 표시하는 쿠키. 콜백이 올 때까지(로그인 시도 수명)만 살아 있고, 로그인 API 경로에서만 전송된다. */
+    private ResponseCookie loginCookie(String value) {
+        return ResponseCookie.from(props.getLoginCookieName(), value)
+                .httpOnly(true)
+                .secure(props.isCookieSecure())
+                .sameSite("Lax")
+                .path("/api/v1/bff")
+                .maxAge(props.getLoginAttemptTtl())
+                .build();
+    }
+
+    private ResponseCookie clearedLoginCookie() {
+        return ResponseCookie.from(props.getLoginCookieName(), "")
+                .httpOnly(true)
+                .secure(props.isCookieSecure())
+                .sameSite("Lax")
+                .path("/api/v1/bff")
+                .maxAge(0)
+                .build();
+    }
+
     private ResponseCookie clearedCookie() {
         return ResponseCookie.from(props.getCookieName(), "")
                 .httpOnly(true)
@@ -120,22 +144,26 @@ public class BffController {
     }
 
     private String sessionCookie(HttpServletRequest request) {
+        return cookieValue(request, props.getCookieName());
+    }
+
+    private static String cookieValue(HttpServletRequest request, String name) {
         if (request.getCookies() == null) {
             return null;
         }
         for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
-            if (props.getCookieName().equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+            if (name.equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
                 return cookie.getValue();
             }
         }
         return null;
     }
 
-    private ResponseEntity<Void> redirect(String path, ResponseCookie cookie) {
+    private ResponseEntity<Void> redirect(String path, ResponseCookie... cookies) {
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, URI.create(path).toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store");
-        if (cookie != null) {
+        for (ResponseCookie cookie : cookies) {
             builder.header(HttpHeaders.SET_COOKIE, cookie.toString());
         }
         return builder.build();

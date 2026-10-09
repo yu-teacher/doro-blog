@@ -40,6 +40,8 @@ class BffLoginFlowTest {
     private static final String SITE = "https://blog.test";
     private static final String COOKIE = "doro_blog_session";
     private static final String CSRF = "X-Blog-Csrf";
+    private static final String LOGIN_COOKIE = "doro_blog_login";
+    private static final java.util.Map<String, String> LOGIN_COOKIES = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final FakeIam IAM = startIam();
 
@@ -92,11 +94,28 @@ class BffLoginFlowTest {
         MockHttpServletResponse response = mockMvc.perform(request).andExpect(status().isFound()).andReturn().getResponse();
         String location = response.getHeader("Location");
         var params = UriComponentsBuilder.fromUriString(location).build().getQueryParams();
-        return new StartedLogin(params.getFirst("state"), params.getFirst("code_challenge"), location);
+        String state = params.getFirst("state");
+        // 로그인을 시작한 브라우저가 받는 '로그인 진행 중' 쿠키. 콜백은 이 쿠키와 함께 와야 한다
+        for (String header : response.getHeaders("Set-Cookie")) {
+            if (header.startsWith(LOGIN_COOKIE + "=")) {
+                LOGIN_COOKIES.put(state, header.substring((LOGIN_COOKIE + "=").length(), header.indexOf(';')));
+            }
+        }
+        return new StartedLogin(state, params.getFirst("code_challenge"), location);
+    }
+
+    /** 로그인을 시작할 때 받은 쿠키를 콜백에 함께 보내는 요청(시작한 브라우저가 콜백을 여는 정상 흐름). */
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder callbackRequest(String code, String state) {
+        var request = get("/api/v1/bff/callback").param("code", code).param("state", state);
+        String loginCookie = LOGIN_COOKIES.get(state);
+        if (loginCookie != null) {
+            request.cookie(new Cookie(LOGIN_COOKIE, loginCookie));
+        }
+        return request;
     }
 
     private MockHttpServletResponse callback(String code, String state) throws Exception {
-        return mockMvc.perform(get("/api/v1/bff/callback").param("code", code).param("state", state)).andReturn().getResponse();
+        return mockMvc.perform(callbackRequest(code, state)).andReturn().getResponse();
     }
 
     private String cookieValueOf(MockHttpServletResponse response) {
@@ -189,7 +208,7 @@ class BffLoginFlowTest {
                 .isEqualTo("/?login_error=failed");
         MockHttpServletResponse denied = mockMvc.perform(get("/api/v1/bff/callback").param("error", "access_denied")).andReturn().getResponse();
         assertThat(denied.getHeader("Location")).isEqualTo("/?login_error=cancelled");
-        assertThat(denied.getHeader("Set-Cookie")).isNull();
+        assertThat(denied.getHeader("Set-Cookie")).startsWith(LOGIN_COOKIE + "=;");
     }
 
     @Test
@@ -202,8 +221,10 @@ class BffLoginFlowTest {
         MockHttpServletResponse response = callback(foreignCode, started.state());
 
         assertThat(response.getHeader("Location")).isEqualTo("/?login_error=failed");
-        // 실패하면 쿠키를 발급하지 않고, 이전에 남아 있을 수 있는 쿠키를 지운다(값이 비고 Max-Age=0)
-        assertThat(response.getHeader("Set-Cookie")).startsWith("doro_blog_session=;").contains("Max-Age=0");
+        // 실패하면 세션 쿠키를 발급하지 않는다. 쓰고 남은 '로그인 진행 중' 쿠키는 지우되(값이 비고 Max-Age=0),
+        // 이미 로그인한 사용자의 세션 쿠키는 건드리지 않는다(가짜 콜백 링크로 남을 로그아웃시키지 못하게)
+        assertThat(response.getHeader("Set-Cookie")).startsWith(LOGIN_COOKIE + "=;").contains("Max-Age=0");
+        assertThat(response.getHeaders("Set-Cookie")).noneMatch(h -> h.startsWith(COOKIE + "="));
     }
 
     @Test
@@ -398,7 +419,7 @@ class BffLoginFlowTest {
         StartedLogin started = startLogin(null);
         String code = IAM.issueCode(userId, newEmail(), started.challenge(), "doro-blog");
 
-        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/bff/callback").param("code", code).param("state", started.state())
+        MockHttpServletResponse response = mockMvc.perform(callbackRequest(code, started.state())
                 .cookie(session(first))).andReturn().getResponse();
 
         assertThat(cookieValueOf(response)).isNotEqualTo(first);

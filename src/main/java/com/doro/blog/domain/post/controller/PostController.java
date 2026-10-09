@@ -19,6 +19,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.doro.blog.domain.post.service.ViewCookie;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import java.time.Duration;
 import java.util.UUID;
 
 @Tag(name = "3. Post (게시글 및 출간)", description = "마크다운 아티클 작성, 출간, 피드 및 상세 조회 API")
@@ -77,48 +81,30 @@ public class PostController {
             jakarta.servlet.http.HttpServletResponse response
     ) {
         String cleanUsername = Handles.stripAt(username);
-        boolean shouldCount = checkAndSetViewCookie(cleanUsername + "/" + slug.toLowerCase().trim(), request, response);
-        return ApiResponse.success(postQueries.getPostDetail(username, slug, doroUser, shouldCount));
+        String viewKey = cleanUsername + "/" + slug.toLowerCase().trim();
+        String cookieValue = viewCookieValue(request);
+        boolean shouldCount = !ViewCookie.hasViewed(cookieValue, viewKey);
+
+        PostDetailResponse detail = postQueries.getPostDetail(username, slug, doroUser, shouldCount);
+
+        // 쿠키는 글을 실제로 보여 준 뒤에만 발급한다. 없는 글·볼 수 없는 글 요청에는 만들지 않는다(임의의 주소로 쿠키를 부풀릴 수 없게).
+        if (shouldCount && response != null) {
+            response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(ViewCookie.NAME, ViewCookie.withViewed(cookieValue, viewKey))
+                    .path("/").maxAge(Duration.ofHours(24)).httpOnly(true).sameSite("Lax").build().toString());
+        }
+        return ApiResponse.success(detail);
     }
 
-    private boolean checkAndSetViewCookie(
-            String targetKey,
-            jakarta.servlet.http.HttpServletRequest request,
-            jakarta.servlet.http.HttpServletResponse response
-    ) {
-        if (request == null || response == null) {
-            return true;
+    private static String viewCookieValue(jakarta.servlet.http.HttpServletRequest request) {
+        if (request == null || request.getCookies() == null) {
+            return null;
         }
-
-        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
-        jakarta.servlet.http.Cookie viewCookie = null;
-        if (cookies != null) {
-            for (jakarta.servlet.http.Cookie cookie : cookies) {
-                if ("post_view".equals(cookie.getName())) {
-                    viewCookie = cookie;
-                    break;
-                }
+        for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+            if (ViewCookie.NAME.equals(cookie.getName())) {
+                return cookie.getValue();
             }
         }
-
-        String target = "[" + targetKey + "]";
-        if (viewCookie != null) {
-            if (!viewCookie.getValue().contains(target)) {
-                viewCookie.setValue(viewCookie.getValue() + "_" + target);
-                viewCookie.setPath("/");
-                viewCookie.setMaxAge(60 * 60 * 24); // 24시간
-                response.addCookie(viewCookie);
-                return true;
-            }
-            return false;
-        } else {
-            jakarta.servlet.http.Cookie newCookie = new jakarta.servlet.http.Cookie("post_view", target);
-            newCookie.setPath("/");
-            newCookie.setMaxAge(60 * 60 * 24); // 24시간
-            newCookie.setHttpOnly(true);
-            response.addCookie(newCookie);
-            return true;
-        }
+        return null;
     }
 
     @Operation(summary = "게시글 ID 단건 상세 조회 (마크다운 원문 포함)", description = "수정 등을 위한 포스트 ID 단건 조회")

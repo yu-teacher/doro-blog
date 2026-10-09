@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml/badge.svg)](https://github.com/yu-teacher/doro-blog/actions/workflows/ci.yml)
 
-> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **421 automated tests** (225 backend + 196 frontend).
+> **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **532 automated tests** (282 backend + 250 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
 직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인 화면과 비밀번호 처리, 권한 규칙은 이 서비스 안에 없습니다. 이 서비스는 OAuth 코드 교환을 맡는 BFF 세션 계층만 갖고, 권한 규칙은 Guard 스키마에 선언합니다.
@@ -59,12 +59,12 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 키는 `posts`, `series`, `tags`, `uploads` 범위에서 **조회·작성·수정(GET/POST/PUT/PATCH)만** 할 수 있습니다. 삭제와 그 밖의 범위는 `403`이라, 키가 유출돼도 글을 지울 수 없습니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`success`, `code`, `message`, `status` 등)입니다.
 
 ### 6. 배포와 마이그레이션
-- **Flyway** 10개 마이그레이션(V1~V10), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
+- **Flyway** 11개 마이그레이션(V1~V11), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
 - **배포 스크립트**(`scripts/deploy.sh`, 로컬에서 실행): 테스트 → 빌드 → **롤백 스냅샷(이전 jar·이미지)** → DB 백업 → 전송 → 재기동 → 헬스체크. 헬스체크가 실패하면 중단하고 복구 방법을 안내하며, 되돌릴 지점은 배포 전에 항상 남깁니다.
 - **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크 → 게이트웨이 reload(재생성된 컨테이너 IP 재해석), 실패하면 **직전 릴리스로 자동 복구**합니다.
 
 ### 7. 로그인과 회원 탈퇴
-- **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
+- **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 로그인 콜백은 **로그인을 시작한 그 브라우저**에서만 끝낼 수 있게 묶어(남이 시작한 로그인을 피해자에게 끝내게 하는 로그인 CSRF 방지), Doro가 잠시 응답하지 않아도 사용자의 세션은 지우지 않습니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
 - **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 이 내부 API는 게이트웨이를 거치지 않는 내부 네트워크 전용이고, **호출자 서비스 토큰**(헤더 `X-Doro-Service-Token`)으로 한 번 더 지킵니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·BFF 세션·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
 
 ---
@@ -86,7 +86,7 @@ flowchart LR
 **프런트엔드** React 19 · Vite · TypeScript · zustand · vitest — 화면 로직은 훅(`usePaginatedList`, `useDraftAutosave` 등)과 순수 함수로 분리해 단위 테스트합니다.
 
 ## 🧪 테스트
-백엔드 **260개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **208개**, ESLint·타입 검사 통과.
+백엔드 **282개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **250개**, ESLint·타입 검사 통과.
 `main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행

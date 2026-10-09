@@ -69,7 +69,7 @@ public class PostQueryService {
         } else if ("popular".equalsIgnoreCase(sort)) {
             posts = postRepository.findAllByStatusOrderByLikeCountDescPublishedAtDescIdDesc(PostStatus.PUBLISHED, pageable);
         } else {
-            posts = postRepository.findAllByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable);
+            posts = postRepository.findAllByStatusOrderByPublishedAtDescIdDesc(PostStatus.PUBLISHED, pageable);
         }
 
         return summaryMapper.toSummaries(posts);
@@ -96,7 +96,7 @@ public class PostQueryService {
         } else if (normalizedTag != null) {
             posts = postRepository.findUserPostsByTag(user.getId(), normalizedTag, pageable);
         } else {
-            posts = postRepository.findAllByUserIdAndStatusOrderByPublishedAtDesc(user.getId(), PostStatus.PUBLISHED, pageable);
+            posts = postRepository.findAllByUserIdAndStatusOrderByPublishedAtDescIdDesc(user.getId(), PostStatus.PUBLISHED, pageable);
         }
 
         return summaryMapper.toSummaries(posts);
@@ -126,7 +126,9 @@ public class PostQueryService {
             throw new BlogException(ErrorCode.POST_NOT_FOUND);
         }
 
-        if (countView) {
+        // 작성자 본인의 조회(수정 중 미리보기 포함)는 조회수에 넣지 않는다
+        boolean isAuthor = doroUser != null && doroUser.isAuthenticated() && doroUser.userId().equals(post.getUser().getId());
+        if (countView && !isAuthor) {
             counterService.incrementView(post);
         }
 
@@ -171,8 +173,8 @@ public class PostQueryService {
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> posts = (status != null)
-                ? postRepository.findAllByUserIdAndStatusOrderByCreatedAtDesc(doroUser.userId(), status, pageable)
-                : postRepository.findAllByUserIdOrderByCreatedAtDesc(doroUser.userId(), pageable);
+                ? postRepository.findAllByUserIdAndStatusOrderByCreatedAtDescIdDesc(doroUser.userId(), status, pageable)
+                : postRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(doroUser.userId(), pageable);
 
         return summaryMapper.toSummaries(posts);
     }
