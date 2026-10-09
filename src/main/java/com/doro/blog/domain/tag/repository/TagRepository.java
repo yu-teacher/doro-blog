@@ -14,6 +14,9 @@ public interface TagRepository extends JpaRepository<Tag, UUID> {
     Optional<Tag> findByName(String name);
     List<Tag> findTop30ByOrderByPostCountDesc();
 
+    /** 글이 있는 태그만, 글 수가 많은 순. (공개된 글만 센 값이다) */
+    List<Tag> findTop30ByPostCountGreaterThanOrderByPostCountDesc(int minExclusive);
+
     /** 글 수를 DB 에서 원자적으로 증감한다 (0 아래로는 내려가지 않는다). */
     @Modifying
     @Query("update Tag t set t.postCount = case when t.postCount + :delta < 0 then 0 else t.postCount + :delta end where t.id = :id")

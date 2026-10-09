@@ -1,5 +1,6 @@
 package com.doro.blog.domain.upload.service;
 
+import com.doro.blog.domain.comment.repository.CommentRepository;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.series.repository.SeriesRepository;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
@@ -26,6 +27,7 @@ public class MediaCleanup {
     private final PostRepository postRepository;
     private final SeriesRepository seriesRepository;
     private final BlogUserRepository userRepository;
+    private final CommentRepository commentRepository;
 
     /** 삭제되는 글(deletedPostId)을 제외하고 아무도 쓰지 않는 파일만 커밋 후 지운다. */
     public void deleteUnreferencedAfterCommit(UUID deletedPostId, Set<String> candidateKeys) {
@@ -48,9 +50,13 @@ public class MediaCleanup {
     }
 
     private boolean isReferenced(UUID deletedPostId, String key) {
+        // 같은 파일을 소개글·시리즈 설명·다른 글의 댓글이 쓰고 있으면 지우지 않는다 (지우면 그쪽 이미지가 깨진다)
         return postRepository.existsOtherPostReferencing(deletedPostId, key)
                 || seriesRepository.existsByThumbnailUrlContaining(key)
-                || userRepository.existsByProfileImageUrlContaining(key);
+                || seriesRepository.existsByDescriptionContaining(key)
+                || userRepository.existsByProfileImageUrlContaining(key)
+                || userRepository.existsByAboutMarkdownContaining(key)
+                || commentRepository.existsByContentContainingAndPostIdNot(key, deletedPostId);
     }
 
     private void deleteQuietly(String key) {

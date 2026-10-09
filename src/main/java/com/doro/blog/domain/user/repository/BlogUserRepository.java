@@ -12,16 +12,18 @@ import java.util.UUID;
 public interface BlogUserRepository extends JpaRepository<BlogUser, UUID> {
 
     boolean existsByProfileImageUrlContaining(String key);
+    boolean existsByAboutMarkdownContaining(String key);
     Optional<BlogUser> findByUsername(String username);
     boolean existsByUsername(String username);
 
     /**
-     * 같은 사용자의 첫 요청이 동시에 들어와도 PK 충돌로 실패하지 않도록, 이미 있으면 아무것도 하지 않는다.
+     * 같은 사용자의 첫 요청이 동시에 들어와도, 다른 사용자가 같은 사용자명을 동시에 가져가려 해도 unique 위반으로 실패하지 않도록
+     * 충돌하면 아무것도 하지 않는다(반환값 0). 호출하는 쪽이 findById 로 만들어졌는지 확인하고, 사용자명이 충돌했다면 다른 후보로 다시 시도한다.
      * 나머지 컬럼은 DB 기본값을 쓴다.
      */
     @Modifying
     @Query(value = "insert into blog_users (id, username, email, nickname, blog_title) "
-            + "values (:id, :username, :email, :nickname, :blogTitle) on conflict (id) do nothing",
+            + "values (:id, :username, :email, :nickname, :blogTitle) on conflict do nothing",
             nativeQuery = true)
     int insertIfAbsent(@Param("id") UUID id, @Param("username") String username, @Param("email") String email,
                        @Param("nickname") String nickname, @Param("blogTitle") String blogTitle);

@@ -69,8 +69,17 @@ public class PostDtos {
             UUID seriesId,
 
             @Size(max = MAX_TAGS, message = "태그는 최대 20개까지 붙일 수 있습니다.")
-            List<@Size(max = MAX_TAG_LENGTH, message = "태그는 최대 50자입니다.") String> tags
-    ) {}
+            List<@Size(max = MAX_TAG_LENGTH, message = "태그는 최대 50자입니다.") String> tags,
+
+            /** true 면 글을 시리즈에서 뺀다. seriesId 를 보내지 않은 것만으로는 시리즈가 바뀌지 않는다(다른 필드의 생략=유지와 같은 규칙). */
+            Boolean removeFromSeries
+    ) {
+        /** removeFromSeries 를 쓰지 않는 호출(기존 클라이언트, 테스트)용. */
+        public UpdatePostRequest(String title, String slug, String summary, String content, String thumbnailUrl,
+                                 PostStatus status, UUID seriesId, List<String> tags) {
+            this(title, slug, summary, content, thumbnailUrl, status, seriesId, tags, null);
+        }
+    }
 
     public record PostSummaryResponse(
             UUID id,

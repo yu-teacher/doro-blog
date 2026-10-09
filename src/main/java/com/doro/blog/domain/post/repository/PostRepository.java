@@ -112,6 +112,22 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             Pageable pageable
     );
 
+    /** 태그로 거른 글을 인기순(좋아요 → 최신 → id)으로. 태그 필터가 있어도 sort=popular 가 적용되게 한다. */
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id WHERE LOWER(pt.tag.name) = LOWER(:tagName) AND p.status = 'PUBLISHED' " +
+           "ORDER BY p.likeCount DESC, p.publishedAt DESC, p.id DESC")
+    Page<Post> findAllByTagNamePopular(@Param("tagName") String tagName, Pageable pageable);
+
+    @Query("SELECT p FROM Post p JOIN PostTag pt ON pt.post.id = p.id " +
+           "WHERE LOWER(pt.tag.name) IN :tagNames AND p.status = 'PUBLISHED' " +
+           "GROUP BY p.id " +
+           "HAVING COUNT(DISTINCT LOWER(pt.tag.name)) = :tagCount " +
+           "ORDER BY p.likeCount DESC, p.publishedAt DESC, p.id DESC")
+    Page<Post> findAllByAllTagNamesPopular(
+            @Param("tagNames") List<String> tagNames,
+            @Param("tagCount") long tagCount,
+            Pageable pageable
+    );
+
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' AND p.publishedAt >= :since ORDER BY p.likeCount DESC, p.viewCount DESC, p.publishedAt DESC")
     Page<Post> findTrendingPosts(
             @Param("since") java.time.Instant since,

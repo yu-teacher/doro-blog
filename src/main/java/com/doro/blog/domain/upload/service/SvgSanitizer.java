@@ -175,6 +175,10 @@ public final class SvgSanitizer {
         if (lower.contains("javascript:") || lower.contains("vbscript:") || lower.contains("data:") || lower.contains("<")) {
             return false;
         }
+        // 정상적인 SVG 속성 값에는 역슬래시가 필요 없다. CSS 이스케이프(u\72l(...) = url(...))로 외부 주소 검사를 피하는 수법을 막는다.
+        if (value.indexOf('\\') >= 0) {
+            return false;
+        }
         if ("style".equals(name)) {
             return isSafeCss(value);
         }

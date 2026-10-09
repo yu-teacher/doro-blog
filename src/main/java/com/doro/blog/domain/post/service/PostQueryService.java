@@ -8,6 +8,7 @@ import com.doro.blog.domain.like.repository.PostLikeRepository;
 import com.doro.blog.domain.post.dto.PostDtos.*;
 import com.doro.blog.domain.post.entity.Post;
 import com.doro.blog.domain.post.entity.PostStatus;
+import com.doro.blog.domain.tag.service.TagNames;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.tag.service.TagService;
 import com.doro.blog.domain.user.entity.BlogUser;
@@ -44,16 +45,27 @@ public class PostQueryService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> posts;
 
-        List<String> cleanTags = (tags != null) ? tags.stream()
-                .filter(t -> t != null && !t.isBlank())
-                .map(t -> t.trim().toLowerCase())
+        // 저장할 때와 같은 규칙으로 정규화한다(Node.js → nodejs). 그래야 입력한 그대로로도 같은 태그가 찾아진다
+        List<String> requestedTags = (tags != null) ? tags.stream().filter(t -> t != null && !t.isBlank()).toList() : List.of();
+        List<String> cleanTags = requestedTags.stream()
+                .map(TagNames::normalize)
+                .filter(t -> !t.isEmpty())
                 .distinct()
-                .toList() : List.of();
+                .toList();
+        boolean popular = "popular".equalsIgnoreCase(sort);
 
+        if (!requestedTags.isEmpty() && cleanTags.isEmpty()) {
+            // 태그를 지정했는데 쓸 수 있는 글자가 하나도 없으면 전체 글을 보여 주지 않고 빈 결과를 준다
+            return Page.empty(pageable);
+        }
         if (cleanTags.size() == 1) {
-            posts = postRepository.findAllByTagName(cleanTags.get(0), pageable);
+            posts = popular
+                    ? postRepository.findAllByTagNamePopular(cleanTags.get(0), pageable)
+                    : postRepository.findAllByTagName(cleanTags.get(0), pageable);
         } else if (cleanTags.size() > 1) {
-            posts = postRepository.findAllByAllTagNames(cleanTags, cleanTags.size(), pageable);
+            posts = popular
+                    ? postRepository.findAllByAllTagNamesPopular(cleanTags, cleanTags.size(), pageable)
+                    : postRepository.findAllByAllTagNames(cleanTags, cleanTags.size(), pageable);
         } else if ("popular".equalsIgnoreCase(sort)) {
             posts = postRepository.findAllByStatusOrderByLikeCountDescPublishedAtDescIdDesc(PostStatus.PUBLISHED, pageable);
         } else {
@@ -71,7 +83,10 @@ public class PostQueryService {
 
         Pageable pageable = PageRequest.of(page, size);
         String keyword = (query != null && !query.trim().isEmpty()) ? LikeEscape.containsPattern(query.trim()) : null;
-        String normalizedTag = (tag != null && !tag.trim().isEmpty()) ? tag.trim().toLowerCase() : null;
+        String normalizedTag = (tag != null && !tag.trim().isEmpty()) ? TagNames.normalize(tag) : null;
+        if (normalizedTag != null && normalizedTag.isEmpty()) {
+            return Page.empty(pageable);
+        }
 
         Page<Post> posts;
         if (keyword != null && normalizedTag != null) {

@@ -108,6 +108,11 @@ public class SeriesService {
         boolean canViewPrivate = doroUser != null && doroUser.isAuthenticated() &&
                 (doroUser.userId().equals(series.getUser().getId()) || doroUser.isAdmin());
 
+        return buildDetail(series, canViewPrivate);
+    }
+
+    private SeriesDetailResponse buildDetail(Series series, boolean canViewPrivate) {
+        UUID seriesId = series.getId();
         List<Post> posts;
         if (canViewPrivate) {
             posts = postRepository.findAllBySeriesIdOrderBySeriesOrderAsc(seriesId);
@@ -193,6 +198,8 @@ public class SeriesService {
             byId.get(postId).updateSeriesOrder(order++);
         }
 
-        return getSeriesDetail(seriesId);
+        // 정렬은 시리즈를 편집할 수 있는 사람만 호출하므로, 응답도 임시저장·비공개 글을 포함한 편집자 시점으로 돌려준다
+        // (공개 시점으로 돌려주면 작성자 화면에서 비공개 글이 사라지고 글 수가 줄어 보인다)
+        return buildDetail(series, true);
     }
 }

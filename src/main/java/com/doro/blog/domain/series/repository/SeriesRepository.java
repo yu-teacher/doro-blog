@@ -15,6 +15,7 @@ import org.springframework.data.repository.query.Param;
 public interface SeriesRepository extends JpaRepository<Series, UUID> {
 
     boolean existsByThumbnailUrlContaining(String key);
+    boolean existsByDescriptionContaining(String key);
 
     /**
      * 시리즈 행을 잠그고 읽는다. 회차 번호(max+1)를 계산하기 전에 호출해, 같은 시리즈에 동시에 글이 들어와도

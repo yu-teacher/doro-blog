@@ -18,6 +18,7 @@ import com.doro.blog.infra.guard.GuardTuples;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -78,7 +79,7 @@ public class PostCommandService {
         Post saved = postRepository.save(post);
 
         // 태그 동기화
-        tagService.syncPostTags(saved, request.tags());
+        tagService.syncPostTags(saved, request.tags(), false);
 
         // Zanzibar ReBAC 관계 튜플 등록: blog_post:<id>#author@user:<userId>
         guardTuples.write("blog_post", saved.getId().toString(), "author", "user", user.getId().toString());
@@ -105,10 +106,20 @@ public class PostCommandService {
             slug = requested;
         }
 
-        // 본문과 요약이 모두 생략된 부분 수정이면 기존 요약을 그대로 둔다 (null 은 Post.update 에서 무시됨)
-        String summary = (request.summary() == null && request.content() == null)
-                ? null
-                : PostContent.generateSummary(request.summary(), request.content());
+        boolean wasPublished = post.getStatus() == PostStatus.PUBLISHED;
+        PostStatus effectiveStatus = request.status() != null ? request.status() : post.getStatus();
+        String effectiveContent = request.content() != null ? request.content() : post.getContent();
+
+        // 요약: 보낸 값이 있으면 그 값을 쓴다. 안 보냈는데 본문을 고쳤다면, 지금 요약이 이전 본문에서 자동으로 만든 것일 때만 새 본문으로 다시 만든다.
+        // (작성자가 직접 쓴 요약을 본문 수정이 덮어쓰지 않게 한다. null 은 Post.update 에서 "그대로 둠")
+        String summary;
+        if (request.summary() != null) {
+            summary = PostContent.generateSummary(request.summary(), effectiveContent);
+        } else if (request.content() != null && hasGeneratedSummary(post)) {
+            summary = PostContent.generateSummary(null, request.content());
+        } else {
+            summary = null;
+        }
 
         // 시리즈 변경 처리
         if (request.seriesId() != null && (post.getSeries() == null || !post.getSeries().getId().equals(request.seriesId()))) {
@@ -120,23 +131,38 @@ public class PostCommandService {
             }
             post.assignSeries(newSeries, postRepository.nextSeriesOrder(newSeries.getId()));
             seriesRepository.adjustPostCount(newSeries.getId(), 1);
-        } else if (request.seriesId() == null && post.getSeries() != null) {
+        } else if (request.seriesId() == null && Boolean.TRUE.equals(request.removeFromSeries()) && post.getSeries() != null) {
+            // seriesId 를 생략한 것만으로는 시리즈에서 빼지 않는다. 빼려면 removeFromSeries 로 분명히 요청한다.
             seriesRepository.adjustPostCount(post.getSeries().getId(), -1);
             post.removeSeries();
         }
 
-        if (request.status() == PostStatus.PUBLISHED) {
-            String newContent = request.content() != null ? request.content() : post.getContent();
-            if (newContent == null || newContent.isBlank()) {
-                throw new BlogException(ErrorCode.INVALID_INPUT, "출간 시 본문 내용은 필수입니다.");
-            }
+        // 출간 상태가 되는 글(이미 출간된 글을 포함)은 본문이 비어 있으면 안 된다
+        if (effectiveStatus == PostStatus.PUBLISHED && (effectiveContent == null || effectiveContent.isBlank())) {
+            throw new BlogException(ErrorCode.INVALID_INPUT, "출간 시 본문 내용은 필수입니다.");
         }
 
-        String resolvedThumbnail = PostContent.resolveThumbnail(request.thumbnailUrl(), request.content());
-        post.update(request.title(), slug, summary, request.content(), resolvedThumbnail, request.status());
+        // 썸네일: 직접 보낸 값이 있으면 그 값(빈 값이면 본문 첫 이미지). 안 보냈는데 본문을 고쳤다면, 지금 썸네일이 이전 본문에서
+        // 자동으로 뽑은 것(또는 없음)일 때만 새 본문에서 다시 뽑는다. 직접 지정한 썸네일은 본문 이미지로 덮어쓰지 않는다.
+        boolean thumbnailChanges = false;
+        String newThumbnail = null;
+        if (request.thumbnailUrl() != null) {
+            newThumbnail = PostContent.resolveThumbnail(request.thumbnailUrl(), effectiveContent);
+            thumbnailChanges = true;
+        } else if (request.content() != null && hasDerivedThumbnail(post)) {
+            newThumbnail = PostContent.resolveThumbnail(null, request.content());
+            thumbnailChanges = true;
+        }
+        post.update(request.title(), slug, summary, request.content(), null, request.status());
+        if (thumbnailChanges) {
+            post.changeThumbnail(newThumbnail);
+        }
 
+        // 태그별 글 수는 공개된 글만 센다: 태그를 바꿨든 공개 여부만 바뀌었든 맞춘다
         if (request.tags() != null) {
-            tagService.syncPostTags(post, request.tags());
+            tagService.syncPostTags(post, request.tags(), wasPublished);
+        } else {
+            tagService.adjustForStatusChange(post, wasPublished);
         }
 
         List<String> tags = tagService.getPostTagNames(post.getId());
@@ -156,12 +182,23 @@ public class PostCommandService {
         mediaCleanup.deleteUnreferencedAfterCommit(postId, MediaReferences.keysIn(post.getContent(), post.getThumbnailUrl()));
 
         // 태그별 글 수에서 이 글을 뺀다 (안 빼면 인기 태그 집계가 삭제된 글만큼 영구히 부풀어 오른다)
-        tagService.releasePostTags(postId);
+        tagService.releasePostTags(postId, post.getStatus() == PostStatus.PUBLISHED);
 
         // Zanzibar ReBAC 관계 튜플 삭제
         guardTuples.deleteAfterCommit("blog_post", postId.toString(), "author", "user", post.getUser().getId().toString());
 
         postRepository.delete(post);
+    }
+
+    /** 지금 요약이 이 글의 본문에서 자동으로 만든 것인가(= 작성자가 직접 쓴 요약이 아닌가). */
+    private static boolean hasGeneratedSummary(Post post) {
+        return Objects.equals(post.getSummary(), PostContent.generateSummary(null, post.getContent()));
+    }
+
+    /** 지금 썸네일이 없거나, 이 글의 본문 첫 이미지에서 자동으로 뽑은 것인가(= 작성자가 직접 지정한 썸네일이 아닌가). */
+    private static boolean hasDerivedThumbnail(Post post) {
+        return post.getThumbnailUrl() == null
+                || Objects.equals(post.getThumbnailUrl(), PostContent.resolveThumbnail(null, post.getContent()));
     }
 
     /** 다른 사용자의 시리즈에 글을 붙이지 못하게 한다. */

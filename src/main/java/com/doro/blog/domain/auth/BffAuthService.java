@@ -18,6 +18,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -272,6 +274,13 @@ public class BffAuthService {
             if (Character.isISOControl(path.charAt(i))) {
                 return "/";
             }
+        }
+        // 콜백에서 이 값으로 302 Location 을 만든다. URI 문법에 맞지 않는 값(공백, |, ", {, 잘못된 %XX 등)이 통과하면 그 단계에서
+        // 예외가 나, 세션은 이미 저장됐는데 쿠키 없이 오류가 된다. 그런 값은 첫 화면으로 보낸다.
+        try {
+            new URI(path);
+        } catch (URISyntaxException e) {
+            return "/";
         }
         return path;
     }

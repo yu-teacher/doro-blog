@@ -96,6 +96,11 @@ public class Post {
         }
     }
 
+    /** 썸네일을 직접 바꾼다. update() 는 null 을 "그대로 둠"으로 보므로, 자동으로 뽑은 썸네일을 비워야 할 때(null)는 이쪽을 쓴다. */
+    public void changeThumbnail(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
     public void assignSeries(Series series, Integer order) {
         this.series = series;
         this.seriesOrder = order;

@@ -4,11 +4,13 @@ import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.common.util.Handles;
 import com.doro.blog.domain.user.dto.BlogUserDtos.*;
+import com.doro.blog.domain.notification.repository.NotificationRepository;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.repository.UserFollowRepository;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import java.util.*;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,10 @@ public class BlogUserService {
 
     private final BlogUserRepository userRepository;
     private final UserFollowRepository followRepository;
+    private final NotificationRepository notificationRepository;
+
+    /** 사용자명 후보를 이만큼까지 바꿔 가며 시도한다(이름, 이름1, 이름2 …). */
+    private static final int MAX_USERNAME_ATTEMPTS = 200;
 
     @Transactional
     public BlogUser getOrCreateUser(DoroUser doroUser) {
@@ -34,17 +40,21 @@ public class BlogUserService {
 
             String baseUsername = UsernamePolicy.baseFromEmail(doroUser.email(), doroUser.userIndex());
 
-            String finalUsername = baseUsername;
-            int counter = 1;
-            while (userRepository.existsByUsername(finalUsername)) {
-                finalUsername = baseUsername + counter++;
+            // 같은 사용자의 첫 요청이 동시에 여러 개여도 한 번만 만들고 나머지는 만들어진 행을 읽는다.
+            // 이메일 앞부분이 같은 서로 다른 사용자가 동시에 같은 사용자명을 가져가려 하면 한쪽의 insert 가 충돌(반환 0)하므로,
+            // 만들어졌는지 확인하고 아니면 다음 후보(이름1, 이름2, …)로 다시 시도한다.
+            for (int attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt++) {
+                String candidate = attempt == 0 ? baseUsername : baseUsername + attempt;
+                if (userRepository.existsByUsername(candidate)) {
+                    continue;
+                }
+                userRepository.insertIfAbsent(doroUser.userId(), candidate, doroUser.email(), candidate, candidate + ".log");
+                Optional<BlogUser> created = userRepository.findById(doroUser.userId());
+                if (created.isPresent()) {
+                    return created.get();
+                }
             }
-
-            // 첫 요청이 동시에 여러 개 들어와도 한 번만 만들고 나머지는 만들어진 행을 읽는다.
-            userRepository.insertIfAbsent(doroUser.userId(), finalUsername, doroUser.email(),
-                    finalUsername, finalUsername + ".log");
-            return userRepository.findById(doroUser.userId())
-                    .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+            throw new BlogException(ErrorCode.DUPLICATE_RESOURCE, "사용자 이름을 정하지 못했습니다. 잠시 후 다시 시도해 주세요.");
         });
     }
 
@@ -104,7 +114,13 @@ public class BlogUserService {
             throw new BlogException(ErrorCode.SLUG_ALREADY_EXISTS, "이미 사용 중인 username입니다.");
         }
 
+        String previousUsername = user.getUsername();
         user.updateUsername(cleanUsername);
+        if (!previousUsername.equals(cleanUsername)) {
+            // 알림은 글 링크를 만들려고 사용자명을 복사해 둔다. 안 바꾸면 이미 받은 알림이 옛 이름을 가리켜 깨지고,
+            // 그 이름을 다른 사람이 가져가면 엉뚱한 프로필로 연결된다.
+            notificationRepository.renameTargetUsername(previousUsername, cleanUsername);
+        }
         return UserProfileResponse.forOwner(user);
     }
 }

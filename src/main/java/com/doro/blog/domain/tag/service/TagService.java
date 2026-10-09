@@ -1,6 +1,7 @@
 package com.doro.blog.domain.tag.service;
 
 import com.doro.blog.domain.post.entity.Post;
+import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.tag.dto.TagDtos.TagResponse;
 import com.doro.blog.domain.tag.entity.PostTag;
 import com.doro.blog.domain.tag.entity.Tag;
@@ -26,27 +27,39 @@ public class TagService {
     private final TagRepository tagRepository;
     private final PostTagRepository postTagRepository;
 
-    /** tags.name 컬럼 길이. 요청 검증을 우회한 경로(API 키 등)에서도 INSERT 가 실패하지 않게 한 번 더 자른다. */
-    private static final int MAX_TAG_LENGTH = 50;
-
-    /** 글 삭제 시 태그별 글 수에서 이 글을 뺀다. 연결 행 자체는 글 삭제와 함께 DB 가 지운다. */
+    /**
+     * 글 삭제 시 태그별 글 수에서 이 글을 뺀다. 연결 행 자체는 글 삭제와 함께 DB 가 지운다.
+     * 태그 글 수는 공개된(PUBLISHED) 글만 세므로, 지우는 글이 공개 상태였을 때만 뺀다.
+     */
     @Transactional
-    public void releasePostTags(UUID postId) {
+    public void releasePostTags(UUID postId, boolean wasCounted) {
+        if (!wasCounted) {
+            return;
+        }
         postTagRepository.findTagIdsByPostId(postId).stream()
                 .sorted()
                 .forEach(tagId -> tagRepository.adjustPostCount(tagId, -1));
     }
 
+    /**
+     * 글의 태그를 바꾼다. 태그별 글 수는 공개된 글만 센다.
+     *
+     * @param countedBefore 바꾸기 전에 이 글이 글 수에 포함돼 있었는지(= 이전 상태가 PUBLISHED). 옛 연결을 뺄 때만 쓴다.
+     *                      새 연결을 더할지는 이 글의 현재 상태(post.getStatus())로 정한다.
+     */
     @Transactional
-    public void syncPostTags(Post post, List<String> rawTagNames) {
+    public void syncPostTags(Post post, List<String> rawTagNames, boolean countedBefore) {
         // 기존 태그 연결 조회 및 카운트 감소
         List<PostTag> currentPostTags = postTagRepository.findAllByPostIdWithTag(post.getId());
         // 동시 요청끼리 같은 태그 행을 서로 다른 순서로 잠그면 교착이 나므로 항상 id 순으로 갱신한다
-        currentPostTags.stream()
-                .map(pt -> pt.getTag().getId())
-                .sorted()
-                .forEach(tagId -> tagRepository.adjustPostCount(tagId, -1));
+        if (countedBefore) {
+            currentPostTags.stream()
+                    .map(pt -> pt.getTag().getId())
+                    .sorted()
+                    .forEach(tagId -> tagRepository.adjustPostCount(tagId, -1));
+        }
         postTagRepository.deleteAllByPostId(post.getId());
+        boolean countNow = post.getStatus() == PostStatus.PUBLISHED;
 
         if (rawTagNames == null || rawTagNames.isEmpty()) {
             return;
@@ -55,8 +68,7 @@ public class TagService {
         // 중복 제거 및 정규화
         List<String> normalizedNames = rawTagNames.stream()
                 .filter(name -> name != null && !name.isBlank())
-                .map(name -> name.trim().toLowerCase().replaceAll("[^a-z0-9가-힣_-]", ""))
-                .map(name -> name.length() > MAX_TAG_LENGTH ? name.substring(0, MAX_TAG_LENGTH) : name)
+                .map(TagNames::normalize)
                 .filter(name -> !name.isEmpty())
                 .distinct()
                 .sorted()
@@ -66,7 +78,9 @@ public class TagService {
             tagRepository.insertIfAbsent(UUID.randomUUID(), name);
             Tag tag = tagRepository.findByName(name).orElseThrow();
 
-            tagRepository.adjustPostCount(tag.getId(), 1);
+            if (countNow) {
+                tagRepository.adjustPostCount(tag.getId(), 1);
+            }
 
             PostTag postTag = PostTag.builder()
                     .post(post)
@@ -74,6 +88,19 @@ public class TagService {
                     .build();
             postTagRepository.save(postTag);
         }
+    }
+
+    /** 태그는 그대로 두고 글의 공개 여부만 바뀌었을 때, 태그별 글 수를 맞춘다. */
+    @Transactional
+    public void adjustForStatusChange(Post post, boolean wasPublished) {
+        boolean isPublished = post.getStatus() == PostStatus.PUBLISHED;
+        if (wasPublished == isPublished) {
+            return;
+        }
+        int delta = isPublished ? 1 : -1;
+        postTagRepository.findTagIdsByPostId(post.getId()).stream()
+                .sorted()
+                .forEach(tagId -> tagRepository.adjustPostCount(tagId, delta));
     }
 
     @Transactional(readOnly = true)
@@ -99,7 +126,8 @@ public class TagService {
 
     @Transactional(readOnly = true)
     public List<TagResponse> getPopularTags() {
-        return tagRepository.findTop30ByOrderByPostCountDesc().stream()
+        // 글이 하나도 없는 태그(모두 지워졌거나 비공개뿐)는 목록에 올리지 않는다
+        return tagRepository.findTop30ByPostCountGreaterThanOrderByPostCountDesc(0).stream()
                 .map(TagResponse::from)
                 .toList();
     }

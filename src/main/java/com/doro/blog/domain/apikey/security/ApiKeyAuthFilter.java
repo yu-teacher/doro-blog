@@ -120,20 +120,25 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             int status = response.getStatus();
             String errorMsg = status >= 400 ? "HTTP " + status : null;
 
-            // Record request log for this API key
-            apiKeyService.recordLog(
-                    apiKey.getId(),
-                    owner,
-                    method,
-                    uri,
-                    status,
-                    clientIp,
-                    userAgent,
-                    duration,
-                    errorMsg
-            );
-
-            DoroUserContext.clear();
+            // 사용 기록 저장이 실패해도(DB 일시 장애, 소유자 행이 막 삭제됨 등) 요청 결과는 그대로 두고, 신원은 반드시 비운다.
+            // 비우지 못하면 같은 스레드가 처리하는 다음 요청에 키 소유자로 인증된 채 남을 수 있다.
+            try {
+                apiKeyService.recordLog(
+                        apiKey.getId(),
+                        owner,
+                        method,
+                        uri,
+                        status,
+                        clientIp,
+                        userAgent,
+                        duration,
+                        errorMsg
+                );
+            } catch (RuntimeException e) {
+                log.warn("Failed to record API key usage log: keyId={}, method={}, uri={}", apiKey.getId(), method, uri, e);
+            } finally {
+                DoroUserContext.clear();
+            }
         }
     }
 

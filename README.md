@@ -59,7 +59,7 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 키는 `posts`, `series`, `tags`, `uploads` 범위에서 **조회·작성·수정(GET/POST/PUT/PATCH)만** 할 수 있습니다. 삭제와 그 밖의 범위는 `403`이라, 키가 유출돼도 글을 지울 수 없습니다. 오류 응답은 모든 경로(필터 포함)에서 같은 형식(`success`, `code`, `message`, `status` 등)입니다.
 
 ### 6. 배포와 마이그레이션
-- **Flyway** 9개 마이그레이션(V1~V9), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
+- **Flyway** 10개 마이그레이션(V1~V10), `ddl-auto: validate`, 서비스 전용 DB(`service_blog`)
 - **배포 스크립트**(`scripts/deploy.sh`, 로컬에서 실행): 테스트 → 빌드 → **롤백 스냅샷(이전 jar·이미지)** → DB 백업 → 전송 → 재기동 → 헬스체크. 헬스체크가 실패하면 중단하고 복구 방법을 안내하며, 되돌릴 지점은 배포 전에 항상 남깁니다.
 - **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크 → 게이트웨이 reload(재생성된 컨테이너 IP 재해석), 실패하면 **직전 릴리스로 자동 복구**합니다.
 
@@ -86,7 +86,7 @@ flowchart LR
 **프런트엔드** React 19 · Vite · TypeScript · zustand · vitest — 화면 로직은 훅(`usePaginatedList`, `useDraftAutosave` 등)과 순수 함수로 분리해 단위 테스트합니다.
 
 ## 🧪 테스트
-백엔드 **225개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **196개**, ESLint·타입 검사 통과.
+백엔드 **260개**(단위·통합·동시성·쿼리 수·실제 MinIO) + 프런트엔드 **208개**, ESLint·타입 검사 통과.
 `main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행

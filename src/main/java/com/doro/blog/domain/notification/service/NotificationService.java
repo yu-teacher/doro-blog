@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -105,31 +106,36 @@ public class NotificationService {
         return value.substring(0, maxLength);
     }
 
-    private BlogUser getUser(DoroUser doroUser) {
+    /**
+     * 알림을 보는 사용자. 블로그에서 아무 활동도 하지 않은 신규 사용자는 아직 블로그 사용자 행이 없을 수 있다.
+     * 그 사용자는 받은 알림이 없을 뿐이므로 오류가 아니라 "없음"으로 다룬다(조회 경로에서 사용자를 만들지는 않는다).
+     */
+    private Optional<BlogUser> findUser(DoroUser doroUser) {
         if (!doroUser.isAuthenticated()) {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
-        return userRepository.findById(doroUser.userId())
-                .orElseThrow(() -> new BlogException(ErrorCode.USER_NOT_FOUND));
+        return userRepository.findById(doroUser.userId());
     }
 
     @Transactional(readOnly = true)
     public Page<NotificationResponse> getNotifications(DoroUser doroUser, Pageable pageable) {
-        BlogUser user = getUser(doroUser);
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(user.getId(), pageable)
-                .map(NotificationResponse::from);
+        return findUser(doroUser)
+                .map(user -> notificationRepository.findByRecipientIdOrderByCreatedAtDesc(user.getId(), pageable)
+                        .map(NotificationResponse::from))
+                .orElseGet(() -> Page.empty(pageable));
     }
 
     @Transactional(readOnly = true)
     public UnreadCountResponse getUnreadCount(DoroUser doroUser) {
-        BlogUser user = getUser(doroUser);
-        long count = notificationRepository.countByRecipientIdAndIsReadFalse(user.getId());
+        long count = findUser(doroUser)
+                .map(user -> notificationRepository.countByRecipientIdAndIsReadFalse(user.getId()))
+                .orElse(0L);
         return new UnreadCountResponse(count);
     }
 
     @Transactional
     public void markAsRead(UUID notificationId, DoroUser doroUser) {
-        BlogUser user = getUser(doroUser);
+        BlogUser user = findUser(doroUser).orElseThrow(() -> new BlogException(ErrorCode.NOTIFICATION_NOT_FOUND));
         Notification notification = notificationRepository.findByIdAndRecipientId(notificationId, user.getId())
                 .orElseThrow(() -> new BlogException(ErrorCode.NOTIFICATION_NOT_FOUND));
         notification.markAsRead();
@@ -137,13 +143,11 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(DoroUser doroUser) {
-        BlogUser user = getUser(doroUser);
-        notificationRepository.markAllAsRead(user.getId());
+        findUser(doroUser).ifPresent(user -> notificationRepository.markAllAsRead(user.getId()));
     }
 
     @Transactional
     public void deleteNotification(UUID notificationId, DoroUser doroUser) {
-        BlogUser user = getUser(doroUser);
-        notificationRepository.deleteByIdAndRecipientId(notificationId, user.getId());
+        findUser(doroUser).ifPresent(user -> notificationRepository.deleteByIdAndRecipientId(notificationId, user.getId()));
     }
 }

@@ -183,7 +183,8 @@ public class CommentService {
 
     @Transactional
     public void deleteComment(UUID commentId, DoroUser doroUser) {
-        Comment comment = commentRepository.findById(commentId)
+        // 행을 잠그고 읽는다: 작성자와 글쓴이가 동시에 지워도 먼저 처리된 쪽의 결과(삭제 표시·삭제됨)를 보고 판단해 댓글 수가 두 번 줄지 않는다
+        Comment comment = commentRepository.findByIdForUpdate(commentId)
                 .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
 
         // 이미 삭제 표시된 댓글(자식이 남아 있어 행만 남은 루트)은 없는 댓글로 본다: 다시 지우면 댓글 수가 또 줄어든다
@@ -211,6 +212,17 @@ public class CommentService {
             guardTuples.deleteAfterCommit("blog_comment", commentId.toString(), "author", "user", comment.getUser().getId().toString());
             guardTuples.deleteAfterCommit("blog_comment", commentId.toString(), "post", "blog_post", comment.getPost().getId().toString());
             commentRepository.delete(comment);
+
+            // 삭제 표시만 되어 있던 부모(루트)는 마지막 답글이 사라지면 더 보여 줄 게 없으므로 함께 지운다(자리만 영구히 남지 않게)
+            Comment parent = comment.getParent();
+            if (parent != null) {
+                parent.getChildren().remove(comment);
+                if (parent.isDeleted() && parent.getChildren().isEmpty()) {
+                    guardTuples.deleteAfterCommit("blog_comment", parent.getId().toString(), "author", "user", parent.getUser().getId().toString());
+                    guardTuples.deleteAfterCommit("blog_comment", parent.getId().toString(), "post", "blog_post", parent.getPost().getId().toString());
+                    commentRepository.delete(parent);
+                }
+            }
         }
     }
 }

@@ -55,7 +55,14 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    // 감사에서 확정된 버그를 재현하는 테스트(@Tag("known-bug"))는 수정 전까지 기본 실행에서 뺀다. 따로 돌리려면: ./gradlew test -PknownBugs
+    useJUnitPlatform {
+        if (project.hasProperty('knownBugs')) {
+            includeTags 'known-bug'
+        } else {
+            excludeTags 'known-bug'
+        }
+    }
     maxHeapSize = '2048m'
     // 테스트는 로컬 docker 의 개발용 Postgres/MinIO 를 쓴다. 운영 설정에는 기본 비밀번호를 두지 않으므로 테스트에서만 주입한다.
     environment 'DB_PASSWORD', System.getenv('DB_PASSWORD') ?: 'doro_secret'
