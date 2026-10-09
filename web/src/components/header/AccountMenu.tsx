@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { UserProfile } from '../../api/types';
 import { NotificationDropdown } from '../NotificationDropdown';
-import { BookOpen, Bookmark, ChevronDown, ExternalLink, LogOut, PenSquare, ShieldCheck, Terminal, User } from 'lucide-react';
+import { BookOpen, Bookmark, ChevronDown, ExternalLink, LayoutGrid, LogOut, Moon, PenSquare, ShieldCheck, Sun, Terminal, User } from 'lucide-react';
 
 const DORO_SIGNUP_URL = '/portal/signup';
 
@@ -15,10 +15,12 @@ interface AccountMenuProps {
   onClose: () => void;
   onLogin: () => void;
   onLogout: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 /** 로그인 상태에 따른 우측 메뉴: 글쓰기/알림/사용자 메뉴, 비로그인 시 로그인·회원가입 버튼. */
-export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdmin, user, isOpen, onToggle, onClose, onLogin, onLogout }) => (
+export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdmin, user, isOpen, onToggle, onClose, onLogin, onLogout, theme, onToggleTheme }) => (
   <>
     {isAuthenticated ? (
       <>
@@ -28,6 +30,16 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
         >
           <PenSquare className="w-4 h-4" />
           새 글 작성
+        </Link>
+
+        {/* 모바일: 헤더가 좁아 "새 글 작성" 글자 버튼 대신 아이콘 버튼을 둔다. 모바일에서 글쓰기를 시작할 유일한 입구다. */}
+        <Link
+          to="/write"
+          title="새 글 작성"
+          aria-label="새 글 작성"
+          className="sm:hidden p-2 rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+        >
+          <PenSquare className="w-5 h-5" />
         </Link>
 
         {/* Notifications Dropdown */}
@@ -48,7 +60,7 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
                 user?.nickname?.charAt(0).toUpperCase() || 'U'
               )}
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+            <ChevronDown className="hidden sm:block w-4 h-4 text-gray-500 dark:text-slate-400" />
           </button>
 
           {isOpen && (
@@ -87,6 +99,15 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
                 </a>
               )}
 
+              {/* 다른 DORO 서비스(파티·게임·메뉴 등)는 포털 허브에 모여 있다 */}
+              <a
+                href="/"
+                className="flex items-center gap-2.5 px-4 py-2 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <LayoutGrid className="w-4 h-4 text-gray-400 dark:text-slate-400" />
+                DORO 서비스 전체 보기
+              </a>
+
               <Link
                 to={`/@${user?.username}`}
                 className="flex items-center gap-2.5 px-4 py-2 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
@@ -118,6 +139,15 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
                 <Terminal className="w-4 h-4 text-emerald-500" />
                 개발자 센터 (API)
               </Link>
+
+              {/* 모바일: 헤더의 테마 전환 버튼 대신 여기서 바꾼다 */}
+              <button
+                onClick={onToggleTheme}
+                className="sm:hidden w-full flex items-center gap-2.5 px-4 py-2 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-gray-400" />}
+                {theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+              </button>
 
               <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
 

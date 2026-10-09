@@ -44,17 +44,24 @@ export const Header: React.FC = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-1 sm:gap-3 min-w-0">
-            <AppLauncher
-              isOpen={openMenu === 'apps'}
-              isAdmin={isAdmin}
-              onToggle={() => setOpenMenu(openMenu === 'apps' ? null : 'apps')}
-              onClose={() => setOpenMenu(null)}
-            />
+            {/*
+              서비스 바로가기(앱 런처)는 넓은 화면에서만 둔다. 모바일에서는 헤더 공간을 차지하는데, 내용(포털 홈·개발자 센터·관제 로그)이
+              사용자 메뉴에 이미 있다. 모바일에서는 그 자리에 글쓰기 아이콘을 둔다(AccountMenu).
+            */}
+            <div className="hidden sm:block">
+              <AppLauncher
+                isOpen={openMenu === 'apps'}
+                isAdmin={isAdmin}
+                onToggle={() => setOpenMenu(openMenu === 'apps' ? null : 'apps')}
+                onClose={() => setOpenMenu(null)}
+              />
+            </div>
 
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              // 로그인한 모바일에서는 헤더가 좁아 테마 전환을 사용자 메뉴로 옮긴다(비로그인은 그대로 헤더에 둔다)
+              className={`${isAuthenticated ? 'hidden sm:block ' : ''}p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors`}
               title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
               aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
             >
@@ -90,6 +97,8 @@ export const Header: React.FC = () => {
               onClose={() => setOpenMenu(null)}
               onLogin={login}
               onLogout={signOut}
+              theme={theme}
+              onToggleTheme={toggleTheme}
             />
           </div>
         </div>
