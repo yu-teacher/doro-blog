@@ -53,7 +53,11 @@ log "== 빌드: 백엔드 jar (테스트는 CI 에서 통과한 커밋만 여기
 docker run "${COMMON[@]}" -e GRADLE_USER_HOME=/cache/gradle -w "/work/$BLOG_NAME" "$JAVA_IMAGE" \
   gradle clean bootJar -x test --no-daemon --console=plain
 log "== 빌드: 웹 =="
-docker run "${COMMON[@]}" -e npm_config_cache=/cache/npm -w "/work/$BLOG_NAME/web" "$NODE_IMAGE" \
+# 게이트웨이의 공개 하위 경로(예: /blog). 서버 .env 의 BLOG_WEB_BASE_PATH 에서 읽고, 비어 있으면 루트('/')로 빌드한다(값은 비밀이 아니다).
+# 이 값은 백엔드 환경변수(BLOG_WEB_BASE_PATH)와 같아야 한다: 웹 빌드의 기준 경로와 로그인 쿠키 Path/복귀 주소가 어긋나면 로그인이 깨진다.
+BASE_PATH="$(grep -E '^BLOG_WEB_BASE_PATH=' "$REMOTE_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d "\"'" || true)"
+log "  웹 기준 경로: ${BASE_PATH:-/ (루트)}"
+docker run "${COMMON[@]}" -e npm_config_cache=/cache/npm -e VITE_BASE_PATH="$BASE_PATH" -w "/work/$BLOG_NAME/web" "$NODE_IMAGE" \
   sh -ec 'npm ci --no-audit --no-fund && npm run build'
 [ -f "$BLOG_SRC/$JAR_REL" ] || die "$JAR_REL 이 만들어지지 않았다"
 [ -d "$BLOG_SRC/web/dist" ] || die "web/dist 가 만들어지지 않았다"
