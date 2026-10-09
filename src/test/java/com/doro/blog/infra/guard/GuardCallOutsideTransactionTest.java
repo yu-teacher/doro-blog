@@ -1,6 +1,7 @@
 package com.doro.blog.infra.guard;
 
 import com.doro.blog.common.exception.BlogException;
+import com.doro.blog.common.exception.ErrorCode;
 import com.doro.blog.domain.comment.dto.CommentDtos.CommentResponse;
 import com.doro.blog.domain.comment.dto.CommentDtos.CreateCommentRequest;
 import com.doro.blog.domain.comment.dto.CommentDtos.CreateReplyRequest;
@@ -155,6 +156,27 @@ class GuardCallOutsideTransactionTest {
                 new CreatePostRequest("제목", null, null, "본문", null, PostStatus.DRAFT, UUID.randomUUID(), null)))
                 .isInstanceOf(BlogException.class);
 
+        verify(guardClient, never()).writeTupleOrThrow(anyString(), anyString(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("로그인하지 않은 요청은 글·시리즈·댓글·답글 생성 모두 UNAUTHORIZED 이고 Guard 를 부르지 않는다 (500 이 아니다)")
+    void anonymousCreatesAreUnauthorizedAndNeverCallGuard() {
+        PostSummaryResponse post = publish(newUser());
+        CommentResponse root = comments.createRootComment(post.id(), newUser(), new CreateCommentRequest("댓글"));
+        reset(guardClient);
+        DoroUser anonymous = DoroUser.anonymous();
+
+        List<org.junit.jupiter.api.function.Executable> attempts = List.of(
+                () -> postCommands.createPost(anonymous, new CreatePostRequest("제목", null, null, "본문", null, PostStatus.DRAFT, null, null)),
+                () -> seriesService.createSeries(anonymous, new CreateSeriesRequest("시리즈", null, null, null)),
+                () -> comments.createRootComment(post.id(), anonymous, new CreateCommentRequest("댓글")),
+                () -> comments.createReply(post.id(), root.id(), anonymous, new CreateReplyRequest("답글")));
+
+        for (var attempt : attempts) {
+            assertThatThrownBy(attempt::execute)
+                    .isInstanceOfSatisfying(BlogException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHORIZED));
+        }
         verify(guardClient, never()).writeTupleOrThrow(anyString(), anyString(), anyString(), anyString(), anyString(), any());
     }
 }

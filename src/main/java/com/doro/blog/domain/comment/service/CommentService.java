@@ -47,6 +47,7 @@ public class CommentService {
      * Guard 를 부르기 전에 읽기 전용 트랜잭션에서 걸러 낸다. 저장 트랜잭션 안에서 같은 검사를 한 번 더 한다(그 사이에 바뀔 수 있다).
      */
     public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
+        BlogUserService.requireAuthenticated(doroUser);
         transactions.read(() -> requireCommentablePost(postId, doroUser));
 
         UUID commentId = UUID.randomUUID();
@@ -111,6 +112,7 @@ public class CommentService {
 
     /** 답글을 만든다. 댓글과 같은 순서(검증 → Guard 튜플 → DB 저장)를 따른다. */
     public CommentResponse createReply(UUID postId, UUID parentCommentId, DoroUser doroUser, CreateReplyRequest request) {
+        BlogUserService.requireAuthenticated(doroUser);
         transactions.read(() -> requireReplyTarget(postId, parentCommentId, doroUser));
 
         UUID commentId = UUID.randomUUID();

@@ -29,11 +29,19 @@ public class BlogUserService {
     /** 사용자명 후보를 이만큼까지 바꿔 가며 시도한다(이름, 이름1, 이름2 …). */
     private static final int MAX_USERNAME_ATTEMPTS = 200;
 
-    @Transactional
-    public BlogUser getOrCreateUser(DoroUser doroUser) {
-        if (!doroUser.isAuthenticated()) {
+    /**
+     * 로그인한 사용자만 통과시킨다. 글·댓글·시리즈 생성은 Guard 에 튜플을 쓰기 전에(= 사용자 ID 를 쓰기 전에) 이 검사를 먼저 해야 한다.
+     * 익명 사용자는 ID 가 없어 그대로 쓰면 NPE(500)가 나고, 의미 없는 Guard 호출도 일어난다.
+     */
+    public static void requireAuthenticated(DoroUser doroUser) {
+        if (doroUser == null || !doroUser.isAuthenticated()) {
             throw new BlogException(ErrorCode.UNAUTHORIZED);
         }
+    }
+
+    @Transactional
+    public BlogUser getOrCreateUser(DoroUser doroUser) {
+        requireAuthenticated(doroUser);
 
         return userRepository.findById(doroUser.userId()).orElseGet(() -> {
             log.info("JIT Provisioning new BlogUser for IAM userId={}", doroUser.userId());

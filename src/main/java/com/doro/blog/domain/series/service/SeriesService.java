@@ -45,6 +45,7 @@ public class SeriesService {
      * Guard 호출을 트랜잭션 안에서 하면 Guard 가 느릴 때 DB 연결을 그만큼 쥐고 있게 된다(GuardTuples 설명 참고).
      */
     public SeriesResponse createSeries(DoroUser doroUser, CreateSeriesRequest request) {
+        BlogUserService.requireAuthenticated(doroUser);
         UUID seriesId = UUID.randomUUID();
         return guardTuples.writeThen(
                 List.of(GuardTuples.Tuple.of("blog_series", seriesId.toString(), "owner", "user", doroUser.userId().toString())),

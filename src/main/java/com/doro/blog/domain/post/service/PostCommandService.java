@@ -45,6 +45,7 @@ public class PostCommandService {
      * 입력이 잘못된 요청은 Guard 를 부르기 전에 거절한다(검증에 걸릴 요청이 Guard 쓰기·정리를 일으키지 않게).
      */
     public PostSummaryResponse createPost(DoroUser doroUser, CreatePostRequest request) {
+        BlogUserService.requireAuthenticated(doroUser);
         PostStatus status = request.status() != null ? request.status() : PostStatus.DRAFT;
         requirePublishableContent(status, request.content());
         if (request.seriesId() != null) {
