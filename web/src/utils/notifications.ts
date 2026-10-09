@@ -19,6 +19,9 @@ export function describeNotification(item: Pick<NotificationItem, 'type' | 'targ
       return { target: title, suffix: '글을 좋아합니다.' };
     case 'FOLLOW':
       return { target: null, suffix: '회원님을 팔로우하기 시작했습니다.' };
+    default:
+      // 서버가 새 알림 종류를 추가했는데 화면이 아직 모르는 경우: 깨지지 않고 일반 문구로 보여 준다
+      return { target: title || null, suffix: '새 알림이 도착했습니다.' };
   }
 }
 
@@ -26,8 +29,8 @@ export function describeNotification(item: Pick<NotificationItem, 'type' | 'targ
 export function notificationLink(item: NotificationItem): string | null {
   if (item.targetPostSlug) {
     const username = item.targetUsername || item.sender.username;
-    return `/@${username}/${item.targetPostSlug}`;
+    return `/@${encodeURIComponent(username)}/${encodeURIComponent(item.targetPostSlug)}`;
   }
-  if (item.type === 'FOLLOW') return `/@${item.sender.username}`;
+  if (item.type === 'FOLLOW') return `/@${encodeURIComponent(item.sender.username)}`;
   return null;
 }

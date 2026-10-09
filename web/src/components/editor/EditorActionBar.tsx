@@ -11,6 +11,8 @@ interface EditorActionBarProps {
   onExit: () => void;
   onOpenDrafts: () => void;
   onSaveDraft: () => void;
+  /** false 면 임시저장 버튼을 막는다(이미 출간·비공개인 글은 임시저장으로 되돌릴 수 없다). 기본 true. */
+  canSaveDraft?: boolean;
   onOpenPublish: () => void;
 }
 
@@ -23,6 +25,7 @@ export const EditorActionBar: React.FC<EditorActionBarProps> = ({
   onExit,
   onOpenDrafts,
   onSaveDraft,
+  canSaveDraft = true,
   onOpenPublish,
 }) => (
 <footer className="h-16 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between z-20">
@@ -64,8 +67,9 @@ export const EditorActionBar: React.FC<EditorActionBarProps> = ({
 
       <button
         onClick={onSaveDraft}
-        disabled={saving}
-        className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+        disabled={saving || !canSaveDraft}
+        title={canSaveDraft ? undefined : "이미 출간된 글은 임시저장으로 되돌릴 수 없습니다. 수정한 내용은 '출간하기'로 반영해 주세요."}
+        className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         임시저장
       </button>

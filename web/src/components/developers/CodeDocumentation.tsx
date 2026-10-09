@@ -101,7 +101,7 @@ export const CodeDocumentation: React.FC<CodeDocumentationProps> = ({ apiEndpoin
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
           API 키는 글·시리즈·태그·이미지 업로드 API 에서 <strong>조회(GET)·작성(POST)·수정(PUT/PATCH)</strong>만 할 수 있습니다.
-          삭제(DELETE), 키 발급/폐기, 계정 설정은 키로 할 수 없으니 로그인 후 이용해 주세요. 아래 표는 그중 글 작성(POST /api/v1/posts)의 파라미터입니다.
+          삭제(DELETE), 키 발급/폐기, 계정 설정은 키로 할 수 없으니 로그인 후 이용해 주세요. 글 수정(PUT /api/v1/posts/&#123;id&#125;)은 보낸 필드만 바뀌고 생략한 필드는 그대로 유지되며, 시리즈에서 빼려면 removeFromSeries: true 를 보냅니다. 아래 표는 글 작성(POST /api/v1/posts)의 파라미터입니다.
         </p>
 
         <div className="overflow-x-auto">

@@ -88,7 +88,7 @@ export const SeriesDetailPage: React.FC = () => {
           posts.map((post, idx) => (
             <Link
               key={post.id}
-              to={`/@${cleanUsername}/${post.slug}`}
+              to={`/@${cleanUsername}/${encodeURIComponent(post.slug)}`}
               className="flex items-start gap-5 p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-sm transition-all group"
             >
               <div className="w-10 text-xl font-bold text-slate-300 dark:text-slate-700 group-hover:text-emerald-500 flex-shrink-0 pt-1">

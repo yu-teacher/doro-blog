@@ -2,7 +2,7 @@ import React from 'react';
 import type { NotificationItem, NotificationType } from '../../api/types';
 import { formatRelative } from '../../utils/date';
 import { describeNotification } from '../../utils/notifications';
-import { CornerDownRight, Heart, MessageSquare, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CornerDownRight, Heart, MessageSquare, Trash2, UserPlus } from 'lucide-react';
 
 interface NotificationRowProps {
   item: NotificationItem;
@@ -17,11 +17,14 @@ const BADGES: Record<NotificationType, { color: string; icon: React.ReactNode }>
   FOLLOW: { color: 'bg-purple-500', icon: <UserPlus className="w-2.5 h-2.5" /> },
 };
 
+/** 화면이 아직 모르는 알림 종류(서버가 새로 추가한 것)에 쓰는 배지. */
+const FALLBACK_BADGE = { color: 'bg-slate-500', icon: <Bell className="w-2.5 h-2.5" /> };
+
 /** 알림 한 줄: 보낸 사람 아바타(종류 배지), 문장, 메시지 일부, 상대 시간, 안 읽음 점, 삭제 버튼. */
 export const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick, onDelete }) => {
   const isUnread = !item.isRead;
   const text = describeNotification(item);
-  const badge = BADGES[item.type];
+  const badge = BADGES[item.type] ?? FALLBACK_BADGE;
 
   return (
     <div

@@ -40,7 +40,7 @@ export const postsApi = {
 
   async getRelatedPosts(username: string, slug: string, limit = 4, signal?: AbortSignal): Promise<PostSummary[]> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<PostSummary[]>>(`/posts/@${cleanUsername}/${slug}/related`, {
+    const res = await apiClient.get<ApiResponse<PostSummary[]>>(`/posts/@${encodeURIComponent(cleanUsername)}/${encodeURIComponent(slug)}/related`, {
       params: { limit },
       signal,
     });
@@ -48,8 +48,9 @@ export const postsApi = {
   },
 
   async getPostDetail(username: string, slug: string, signal?: AbortSignal): Promise<PostDetail> {
-    const cleanUsername = username.startsWith('@') ? username : `@${username}`;
-    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${cleanUsername}/${slug}`, { signal });
+    // 슬러그·사용자명은 경로의 한 조각이다. / ? # % 가 들어 있어도 다른 경로나 쿼리로 해석되지 않게 인코딩한다
+    const handle = encodeURIComponent(username.startsWith('@') ? username.substring(1) : username);
+    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/@${handle}/${encodeURIComponent(slug)}`, { signal });
     return res.data.data;
   },
 
@@ -58,7 +59,7 @@ export const postsApi = {
   },
 
   async getPostById(postId: string): Promise<PostDetail> {
-    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${postId}`);
+    const res = await apiClient.get<ApiResponse<PostDetail>>(`/posts/${encodeURIComponent(postId)}`);
     return res.data.data;
   },
 
@@ -72,7 +73,7 @@ export const postsApi = {
 
   async getUserPosts(username: string, q?: string, tag?: string, page = 0, size = 20, signal?: AbortSignal): Promise<PageResponse<PostSummary>> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>(`/posts/users/@${cleanUsername}`, {
+    const res = await apiClient.get<ApiResponse<PageResponse<PostSummary>>>(`/posts/users/@${encodeURIComponent(cleanUsername)}`, {
       params: { q, tag, page, size },
       signal,
     });
@@ -127,6 +128,8 @@ export const postsApi = {
       thumbnailUrl?: string;
       status: PostStatus;
       seriesId?: string;
+      /** true 면 글을 시리즈에서 뺀다. seriesId 를 생략한 것만으로는 시리즈가 바뀌지 않는다. */
+      removeFromSeries?: boolean;
       tags?: string[];
     }
   ): Promise<PostSummary> {

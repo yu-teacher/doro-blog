@@ -16,7 +16,7 @@ export const SeriesInfoBox: React.FC<SeriesInfoBoxProps> = ({ post, seriesDetail
       <div className="mb-8 p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
         <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold mb-3 text-base">
           <BookOpen className="w-5 h-5" />
-          <Link to={`/@${post.username}/series/${seriesDetail.series.slug}`} className="hover:underline">
+          <Link to={`/@${post.username}/series/${encodeURIComponent(seriesDetail.series.slug)}`} className="hover:underline">
             {seriesDetail.series.title}
           </Link>
         </div>
@@ -31,7 +31,7 @@ export const SeriesInfoBox: React.FC<SeriesInfoBoxProps> = ({ post, seriesDetail
                 {isCurrent ? (
                   <span className="text-emerald-700 dark:text-emerald-300 font-bold">{p.title} (현재 글)</span>
                 ) : (
-                  <Link to={`/@${post.username}/${p.slug}`} className="hover:text-slate-900 dark:hover:text-slate-200 hover:underline truncate">
+                  <Link to={`/@${post.username}/${encodeURIComponent(p.slug)}`} className="hover:text-slate-900 dark:hover:text-slate-200 hover:underline truncate">
                     {p.title}
                   </Link>
                 )}

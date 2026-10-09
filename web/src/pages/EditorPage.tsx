@@ -30,7 +30,7 @@ const SERVER_AUTOSAVE_DELAY_MS = 5_000;
 const DRAFT_SUMMARY_LENGTH = 120;
 
 /** 임시 저장(DRAFT) 요청 본문. 자동 저장과 수동 임시저장이 같은 규칙을 쓰도록 한 곳에서 만든다. */
-function buildDraftPayload(snap: DraftSnapshot) {
+function buildDraftPayload(snap: DraftSnapshot, loadedSeriesId = '') {
   const draftTitle = snap.title.trim() || '제목 없는 임시 글';
   return {
     title: draftTitle,
@@ -41,6 +41,8 @@ function buildDraftPayload(snap: DraftSnapshot) {
     status: 'DRAFT' as PostStatus,
     tags: snap.tags,
     seriesId: snap.seriesId || undefined,
+    // 불러온 글이 시리즈에 속했는데 사용자가 시리즈를 해제했다면 분명히 요청한다(서버는 seriesId 를 생략한 것만으로는 시리즈를 바꾸지 않는다)
+    removeFromSeries: loadedSeriesId && !snap.seriesId ? true : undefined,
   };
 }
 
@@ -80,6 +82,8 @@ export const EditorPage: React.FC = () => {
   const [loadingPostContent, setLoadingPostContent] = useState(false);
   // 서버에서 불러온 글의 현재 상태. 자동 저장은 DRAFT 를 보내므로, 출간/비공개 글에는 걸지 않는다
   const [loadedPostStatus, setLoadedPostStatus] = useState<PostStatus | null>(null);
+  /** 불러온 글이 속한 시리즈. 사용자가 시리즈를 해제했는지 가려 서버에 removeFromSeries 로 알린다. */
+  const loadedSeriesIdRef = useRef('');
   const serverAutosaveBlocked = loadedPostStatus !== null && loadedPostStatus !== 'DRAFT';
 
   const draftKey = `doro_editor_draft_${user?.username || 'guest'}`;
@@ -103,7 +107,7 @@ export const EditorPage: React.FC = () => {
   const draftSnapshot: DraftSnapshot = { title, content, tags, summary, thumbnailUrl, slug, seriesId: selectedSeriesId };
 
   const saveDraftToServer = useCallback(async (snap: DraftSnapshot, postId: string | null) => {
-    const payload = buildDraftPayload(snap);
+    const payload = buildDraftPayload(snap, loadedSeriesIdRef.current);
     if (postId) {
       await blogApi.updatePost(postId, payload);
       return { id: postId };
@@ -166,6 +170,8 @@ export const EditorPage: React.FC = () => {
       setThumbnailUrl(draft.thumbnailUrl || '');
       setSlug(draft.slug || '');
       setSelectedSeriesId(draft.seriesId || '');
+      loadedSeriesIdRef.current = draft.seriesId || '';
+      setStatus('PUBLISHED');
     } catch (err: unknown) {
       alert(getErrorMessage(err, '임시 저장 글을 불러오지 못했습니다.'));
     } finally {
@@ -215,8 +221,10 @@ export const EditorPage: React.FC = () => {
         setSummary(data.post.summary || '');
         setThumbnailUrl(data.post.thumbnailUrl || '');
         setSlug(data.post.slug);
-        setStatus(data.post.status);
+        // 임시저장 글을 열었을 때 공개 범위의 기본값은 '공개'다(DRAFT 그대로 두면 출간해도 임시저장으로 저장된다)
+        setStatus(data.post.status === 'DRAFT' ? 'PUBLISHED' : data.post.status);
         setLoadedPostStatus(data.post.status);
+        loadedSeriesIdRef.current = data.post.seriesId || '';
         if (data.post.seriesId) setSelectedSeriesId(data.post.seriesId);
       })
       .catch((err: unknown) => {
@@ -287,6 +295,8 @@ export const EditorPage: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
+    // 이미 출간·비공개인 글은 임시저장(DRAFT)으로 되돌리지 않는다(자동 저장과 같은 규칙, 버튼도 막혀 있다)
+    if (serverAutosaveBlocked) return;
     if (!title.trim() && !content.trim()) {
       alert('제목 또는 본문 내용을 입력해주세요.');
       return;
@@ -296,7 +306,7 @@ export const EditorPage: React.FC = () => {
     await autosave.suspend();
     try {
       const activeId = currentPostIdRef.current || id;
-      const payload = buildDraftPayload(draftSnapshot);
+      const payload = buildDraftPayload(draftSnapshot, loadedSeriesIdRef.current);
 
       if (activeId) {
         await blogApi.updatePost(activeId, payload);
@@ -333,6 +343,7 @@ export const EditorPage: React.FC = () => {
         status: status,
         tags: tags,
         seriesId: selectedSeriesId || undefined,
+        removeFromSeries: loadedSeriesIdRef.current && !selectedSeriesId ? true : undefined,
       };
 
       if (activeId) {
@@ -351,7 +362,7 @@ export const EditorPage: React.FC = () => {
       localStorage.removeItem(draftKey);
 
       setShowPublishModal(false);
-      navigate(`/@${user?.username}/${finalSlug}`);
+      navigate(`/@${user?.username}/${encodeURIComponent(finalSlug)}`);
     } catch (err: unknown) {
       autosave.resume();
       alert(getErrorMessage(err, '글 출간에 실패했습니다.'));
@@ -431,6 +442,7 @@ export const EditorPage: React.FC = () => {
         onExit={() => navigate(-1)}
         onOpenDrafts={() => setShowDraftsModal(true)}
         onSaveDraft={handleSaveDraft}
+        canSaveDraft={!serverAutosaveBlocked}
         onOpenPublish={handleOpenPublishModal}
       />
 

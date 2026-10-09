@@ -190,7 +190,7 @@ export const MyPostsPage: React.FC = () => {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {post.status !== 'DRAFT' && (
                       <Link
-                        to={`/@${post.username}/${post.slug}`}
+                        to={`/@${post.username}/${encodeURIComponent(post.slug)}`}
                         className="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                         title="글 보기"
                       >

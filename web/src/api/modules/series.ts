@@ -18,13 +18,13 @@ export const seriesApi = {
 
   async getSeriesBySlug(username: string, slug: string, signal?: AbortSignal): Promise<SeriesDetail> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/users/@${cleanUsername}/${slug}`, { signal });
+    const res = await apiClient.get<ApiResponse<SeriesDetail>>(`/series/users/@${encodeURIComponent(cleanUsername)}/${encodeURIComponent(slug)}`, { signal });
     return res.data.data;
   },
 
   async getUserSeries(username: string, signal?: AbortSignal): Promise<Series[]> {
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
-    const res = await apiClient.get<ApiResponse<Series[]>>(`/series/users/@${cleanUsername}`, { signal });
+    const res = await apiClient.get<ApiResponse<Series[]>>(`/series/users/@${encodeURIComponent(cleanUsername)}`, { signal });
     return res.data.data;
   },
 

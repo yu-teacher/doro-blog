@@ -25,7 +25,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => 
     <article className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-xs hover:shadow-xl hover:border-emerald-200 dark:hover:border-slate-700 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-1">
       {/* 1. Thumbnail */}
       <Link
-        to={`/@${post.username}/${post.slug}`}
+        to={`/@${post.username}/${encodeURIComponent(post.slug)}`}
         onClick={() => {
           trackEvent('post_card_click', {
             post_id: post.id,
@@ -65,7 +65,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => 
       {/* 2. Body */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
-          <Link to={`/@${post.username}/${post.slug}`} className="block group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+          <Link to={`/@${post.username}/${encodeURIComponent(post.slug)}`} className="block group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug tracking-tight">
               {post.title}
             </h2>

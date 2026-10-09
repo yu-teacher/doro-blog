@@ -29,8 +29,9 @@ export function isCancelled(err: unknown): boolean {
 export function getErrorMessage(err: unknown, fallback: string = DEFAULT_ERROR_MESSAGE): string {
   if (isRecord(err)) {
     const body = (err as ServerErrorShape).response?.data;
-    const serverMessage = body?.error?.message ?? body?.message;
-    if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage;
+    // apiClient 인터셉터와 같은 순서: 표준 오류 본문(최상위 message)을 먼저, 이전 형식(error.message)은 그다음. 문자열이 아닌 값은 건너뛴다.
+    const serverMessage = [body?.message, body?.error?.message].find((m): m is string => typeof m === 'string' && m.trim().length > 0);
+    if (serverMessage) return serverMessage;
   }
   if (err instanceof Error && err.message.trim()) return err.message;
   if (typeof err === 'string' && err.trim()) return err;

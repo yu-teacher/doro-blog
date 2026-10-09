@@ -25,7 +25,7 @@ export const SeriesTab: React.FC<SeriesTabProps> = ({ cleanUsername, seriesList,
           {seriesList.map((series) => (
             <Link
               key={series.id}
-              to={`/@${cleanUsername}/series/${series.slug}`}
+              to={`/@${cleanUsername}/series/${encodeURIComponent(series.slug)}`}
               className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-md dark:hover:border-slate-700 transition-all group flex flex-col justify-between"
             >
               <div>
