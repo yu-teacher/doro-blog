@@ -196,7 +196,8 @@ public class CommentService {
         boolean canDelete = doroUser.isAuthenticated() && (
                 comment.getUser().getId().equals(doroUser.userId()) ||
                 comment.getPost().getUser().getId().equals(doroUser.userId()) ||
-                guardClient.check("blog_comment", commentId.toString(), "can_delete", doroUser.userId().toString())
+                // Guard 장애는 '권한 없음'이 아니라 '확인 불가(503)'로 전달한다(check 는 장애를 거부로 삼킨다)
+                guardClient.checkOrThrow("blog_comment", commentId.toString(), "can_delete", doroUser.userId().toString())
         );
 
         if (!canDelete) {

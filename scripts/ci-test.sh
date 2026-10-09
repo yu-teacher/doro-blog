@@ -57,7 +57,7 @@ run_backend() {
   GUARD_GRPC_HOST=127.0.0.1 GUARD_GRPC_PORT="$CI_GUARD_GRPC_PORT" \
   GUARD_HTTP_HOST=127.0.0.1 GUARD_HTTP_PORT="$CI_GUARD_HTTP_PORT" \
   MINIO_ENDPOINT="http://127.0.0.1:${CI_MINIO_PORT}" MINIO_SECRET_KEY="$CI_MINIO_SECRET" \
-    ./gradlew cleanTest test --console=plain
+    ./gradlew cleanTest test --console=plain ${GRADLE_TEST_ARGS:-}
 }
 
 case "$TARGET" in

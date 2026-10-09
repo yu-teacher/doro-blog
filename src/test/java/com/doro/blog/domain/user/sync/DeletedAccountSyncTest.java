@@ -10,6 +10,7 @@ import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
 import com.doro.blog.domain.post.dto.PostDtos.PostSummaryResponse;
 import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.service.PostCommandService;
+import com.doro.blog.domain.upload.service.StorageService;
 import com.doro.blog.domain.user.service.FollowService;
 import com.doro.blog.domain.user.sync.DoroIamClient.DeletedUser;
 import com.doro.blog.domain.user.sync.DoroIamClient.DeletedUsersPage;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,6 +53,7 @@ class DeletedAccountSyncTest {
     @Autowired private AuthSessionRepository authSessions;
     @Autowired private JdbcTemplate jdbc;
     @MockitoBean private DoroIamClient iam;
+    @MockitoBean private StorageService storage;
 
     @BeforeEach
     void resetState() {
@@ -129,6 +132,33 @@ class DeletedAccountSyncTest {
         assertThat(count("select count(*) from posts where user_id = ? and status = 'PUBLISHED'", victim.userId())).isEqualTo(1);
         assertThat(count("select count(*) from comments where user_id = ?", victim.userId())).isEqualTo(1);
         assertThat(oldUsername).isNotEqualTo(row.get("username"));
+    }
+
+    @Test
+    @DisplayName("탈퇴하면 임시저장·비공개 글은 지워지고(이미지 파일 포함) 공개 글은 남는다")
+    void anonymizeDeletesDraftsAndPrivatePosts() {
+        DoroUser victim = newUser("drafter");
+        DoroUser other = newUser("other");
+        String draftKey = "posts/2026/10/" + UUID.randomUUID() + ".png";
+        String sharedKey = "posts/2026/10/" + UUID.randomUUID() + ".png";
+        var published = posts.createPost(victim, new CreatePostRequest("공개 글", null, null,
+                "![a](/media/" + sharedKey + ")", null, PostStatus.PUBLISHED, null, null));
+        var draft = posts.createPost(victim, new CreatePostRequest("임시저장", null, null,
+                "![a](/media/" + draftKey + ") ![b](/media/" + sharedKey + ")", null, PostStatus.DRAFT, null, null));
+        var secret = posts.createPost(victim, new CreatePostRequest("비공개", null, null, "비밀", null, PostStatus.PRIVATE, null, null));
+        var othersDraft = posts.createPost(other, new CreatePostRequest("남의 임시저장", null, null, "남의 것", null, PostStatus.DRAFT, null, null));
+
+        assertThat(anonymizer.anonymize(victim.userId(), Instant.now())).isTrue();
+
+        assertThat(count("select count(*) from posts where id = ?", published.id())).isEqualTo(1);
+        assertThat(count("select count(*) from posts where id = ?", draft.id())).isZero();
+        assertThat(count("select count(*) from posts where id = ?", secret.id())).isZero();
+        assertThat(count("select count(*) from posts where user_id = ? and status <> 'PUBLISHED'", victim.userId())).isZero();
+        // 다른 사람의 글은 건드리지 않는다
+        assertThat(count("select count(*) from posts where id = ?", othersDraft.id())).isEqualTo(1);
+        // 임시저장에서만 쓰던 이미지는 지우고, 공개 글이 같이 쓰는 이미지는 남긴다
+        verify(storage).delete(draftKey);
+        verify(storage, never()).delete(sharedKey);
     }
 
     @Test

@@ -28,6 +28,7 @@ public class PostAccess {
         if (viewer.userId().equals(post.getUser().getId())) {
             return true;
         }
-        return guardClient.check("blog_post", post.getId().toString(), "viewer", viewer.userId().toString());
+        // Guard 장애는 '볼 수 없음'이 아니라 '확인 불가(503)'다. check 는 장애를 거부로 바꿔 삼키므로 예외를 전파하는 쪽을 쓴다.
+        return guardClient.checkOrThrow("blog_post", post.getId().toString(), "viewer", viewer.userId().toString());
     }
 }
