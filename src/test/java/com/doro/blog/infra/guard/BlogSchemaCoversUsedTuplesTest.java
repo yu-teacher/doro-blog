@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 코드가 Guard 에 쓰거나(튜플) 묻는(check, @DoroGuard) 모든 (타입, 릴레이션)이 blog-schema.doro 에 선언돼 있어야 한다.
- * Guard 의 검증 모드가 ENFORCE 가 되면 선언되지 않은 튜플은 거부되고, GuardTuples.write 는 예외를 던져 글/댓글 저장까지
+ * Guard 의 검증 모드가 ENFORCE 가 되면 선언되지 않은 튜플은 거부되고, GuardTuples.writeThen 은 예외를 던져 글/댓글 저장까지
  * 롤백되기 때문이다. (블로그 팔로우가 쓰던 blog_user#follower 가 스키마에 없던 문제를 막는 회귀 테스트)
  */
 class BlogSchemaCoversUsedTuplesTest {
@@ -27,9 +27,9 @@ class BlogSchemaCoversUsedTuplesTest {
     private static final Path SOURCES = Path.of("src/main/java");
     private static final Path SCHEMA = Path.of("src/main/resources/blog-schema.doro");
 
-    /** guardTuples.write("ns", id, "rel", ...), guardTuples.deleteAfterCommit(...), guardClient.writeTuple/deleteTuple(...) */
+    /** GuardTuples.Tuple.of("ns", id, "rel", ...), guardTuples.deleteAfterCommit(...), guardClient.writeTuple/deleteTuple(...) */
     private static final Pattern TUPLE_CALL = Pattern.compile(
-            "(?:guardTuples\\.(?:write|deleteAfterCommit)|guardClient\\.(?:writeTuple|writeTupleOrThrow|deleteTuple|deleteTupleOrThrow))"
+            "(?:guardTuples\\.deleteAfterCommit|Tuple\\.of|guardClient\\.(?:writeTuple|writeTupleOrThrow|deleteTuple|deleteTupleOrThrow))"
                     + "\\(\\s*\"([a-z_]+)\"\\s*,[^,]+,\\s*\"([a-z_]+)\"");
     /** guardClient.check("ns", id, "rel", ...) */
     private static final Pattern CHECK_CALL = Pattern.compile(

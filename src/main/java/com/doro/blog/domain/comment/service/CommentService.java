@@ -2,6 +2,7 @@ package com.doro.blog.domain.comment.service;
 
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.common.tx.Transactions;
 import com.doro.blog.domain.comment.dto.CommentDtos.*;
 import com.doro.blog.domain.comment.entity.Comment;
 import com.doro.blog.domain.comment.repository.CommentRepository;
@@ -39,9 +40,33 @@ public class CommentService {
     private final NotificationService notificationService;
     private final PostCounterService counterService;
     private final PostAccess postAccess;
+    private final Transactions transactions;
 
-    @Transactional
+    /**
+     * 댓글을 만든다. 튜플 2개를 Guard 에 먼저 쓴 뒤(트랜잭션 밖) DB 에 저장한다. 쓸 수 없는 요청(없는 글, 볼 수 없는 글 등)은
+     * Guard 를 부르기 전에 읽기 전용 트랜잭션에서 걸러 낸다. 저장 트랜잭션 안에서 같은 검사를 한 번 더 한다(그 사이에 바뀔 수 있다).
+     */
     public CommentResponse createRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request) {
+        transactions.read(() -> requireCommentablePost(postId, doroUser));
+
+        UUID commentId = UUID.randomUUID();
+        return guardTuples.writeThen(commentTuples(commentId, doroUser, postId),
+                () -> transactions.write(() -> saveRootComment(postId, doroUser, request, commentId)));
+    }
+
+    /**
+     * 댓글에 붙는 Guard 튜플:
+     * 1. blog_comment:<id>#author@user:<userId>
+     * 2. blog_comment:<id>#post@blog_post:<postId> (이를 통해 post#author가 can_delete 권한을 획득)
+     */
+    private static List<GuardTuples.Tuple> commentTuples(UUID commentId, DoroUser author, UUID postId) {
+        return List.of(
+                GuardTuples.Tuple.of("blog_comment", commentId.toString(), "author", "user", author.userId().toString()),
+                GuardTuples.Tuple.of("blog_comment", commentId.toString(), "post", "blog_post", postId.toString()));
+    }
+
+    /** 댓글을 달 수 있는 글인지 확인하고 그 글을 돌려준다. */
+    private Post requireCommentablePost(UUID postId, DoroUser doroUser) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
 
@@ -52,10 +77,16 @@ public class CommentService {
         if (post.getStatus() != PostStatus.PUBLISHED) {
             throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
         }
+        return post;
+    }
+
+    private CommentResponse saveRootComment(UUID postId, DoroUser doroUser, CreateCommentRequest request, UUID commentId) {
+        Post post = requireCommentablePost(postId, doroUser);
 
         BlogUser user = userService.getOrCreateUser(doroUser);
 
         Comment comment = Comment.builder()
+                .id(commentId)
                 .post(post)
                 .user(user)
                 .parent(null)
@@ -64,12 +95,6 @@ public class CommentService {
 
         Comment saved = commentRepository.save(comment);
         counterService.incrementComment(post);
-
-        // Zanzibar ReBAC 튜플 등록:
-        // 1. blog_comment:<id>#author@user:<userId>
-        // 2. blog_comment:<id>#post@blog_post:<postId> (이를 통해 post#author가 can_delete 권한을 획득)
-        guardTuples.write("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
-        guardTuples.write("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
 
         // 알림 발송: 글 작성자에게 댓글 알림
         notificationService.sendNotification(
@@ -84,19 +109,18 @@ public class CommentService {
         return CommentResponse.from(saved);
     }
 
-    @Transactional
+    /** 답글을 만든다. 댓글과 같은 순서(검증 → Guard 튜플 → DB 저장)를 따른다. */
     public CommentResponse createReply(UUID postId, UUID parentCommentId, DoroUser doroUser, CreateReplyRequest request) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new BlogException(ErrorCode.POST_NOT_FOUND));
+        transactions.read(() -> requireReplyTarget(postId, parentCommentId, doroUser));
 
-        if (!postAccess.canView(post, doroUser)) {
-            throw new BlogException(ErrorCode.POST_NOT_FOUND);
-        }
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new BlogException(ErrorCode.ACCESS_DENIED, "발행된 글에만 댓글을 작성할 수 있습니다.");
-        }
+        UUID commentId = UUID.randomUUID();
+        return guardTuples.writeThen(commentTuples(commentId, doroUser, postId),
+                () -> transactions.write(() -> saveReply(postId, parentCommentId, doroUser, request, commentId)));
+    }
 
-        BlogUser user = userService.getOrCreateUser(doroUser);
+    /** 답글을 달 수 있는 글과 부모 댓글인지 확인한다. */
+    private ReplyTarget requireReplyTarget(UUID postId, UUID parentCommentId, DoroUser doroUser) {
+        Post post = requireCommentablePost(postId, doroUser);
 
         Comment parent = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new BlogException(ErrorCode.COMMENT_NOT_FOUND));
@@ -113,8 +137,20 @@ public class CommentService {
         if (parent.getParent() != null) {
             throw new BlogException(ErrorCode.INVALID_COMMENT_DEPTH);
         }
+        return new ReplyTarget(post, parent);
+    }
+
+    private record ReplyTarget(Post post, Comment parent) {}
+
+    private CommentResponse saveReply(UUID postId, UUID parentCommentId, DoroUser doroUser, CreateReplyRequest request, UUID commentId) {
+        ReplyTarget target = requireReplyTarget(postId, parentCommentId, doroUser);
+        Post post = target.post();
+        Comment parent = target.parent();
+
+        BlogUser user = userService.getOrCreateUser(doroUser);
 
         Comment reply = Comment.builder()
+                .id(commentId)
                 .post(post)
                 .user(user)
                 .parent(parent)
@@ -123,9 +159,6 @@ public class CommentService {
 
         Comment saved = commentRepository.save(reply);
         counterService.incrementComment(post);
-
-        guardTuples.write("blog_comment", saved.getId().toString(), "author", "user", user.getId().toString());
-        guardTuples.write("blog_comment", saved.getId().toString(), "post", "blog_post", post.getId().toString());
 
         // 알림 발송 1: 부모 댓글 작성자에게 대댓글(REPLY) 알림
         notificationService.sendNotification(

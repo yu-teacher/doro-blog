@@ -13,6 +13,7 @@ import com.doro.blog.domain.series.repository.SeriesRepository;
 import com.doro.blog.domain.user.entity.BlogUser;
 import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.service.BlogUserService;
+import com.doro.blog.common.tx.Transactions;
 import com.doro.blog.infra.guard.GuardTuples;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import lombok.RequiredArgsConstructor;
@@ -37,15 +38,27 @@ public class SeriesService {
     private final BlogUserRepository userRepository;
     private final BlogUserService userService;
     private final GuardTuples guardTuples;
+    private final Transactions transactions;
 
-    @Transactional
+    /**
+     * 시리즈를 만든다. 소유 튜플(blog_series:<id>#owner@user:<userId>)을 Guard 에 먼저 쓴 뒤(트랜잭션 밖) DB 에 저장한다.
+     * Guard 호출을 트랜잭션 안에서 하면 Guard 가 느릴 때 DB 연결을 그만큼 쥐고 있게 된다(GuardTuples 설명 참고).
+     */
     public SeriesResponse createSeries(DoroUser doroUser, CreateSeriesRequest request) {
+        UUID seriesId = UUID.randomUUID();
+        return guardTuples.writeThen(
+                List.of(GuardTuples.Tuple.of("blog_series", seriesId.toString(), "owner", "user", doroUser.userId().toString())),
+                () -> transactions.write(() -> saveSeries(doroUser, request, seriesId)));
+    }
+
+    private SeriesResponse saveSeries(DoroUser doroUser, CreateSeriesRequest request, UUID seriesId) {
         BlogUser user = userService.getOrCreateUser(doroUser);
 
         String slug = SlugGenerator.unique(request.slug(), request.title(), "series",
                 candidate -> seriesRepository.existsByUserIdAndSlug(user.getId(), candidate));
 
         Series series = Series.builder()
+                .id(seriesId)
                 .user(user)
                 .title(request.title())
                 .slug(slug)
@@ -54,10 +67,6 @@ public class SeriesService {
                 .build();
 
         Series saved = seriesRepository.save(series);
-
-        // Zanzibar ReBAC 관계 튜플 등록: blog_series:<id>#owner@user:<userId>
-        guardTuples.write("blog_series", saved.getId().toString(), "owner", "user", user.getId().toString());
-
         return SeriesResponse.from(saved);
     }
 

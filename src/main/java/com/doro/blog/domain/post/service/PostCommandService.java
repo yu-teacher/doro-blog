@@ -2,6 +2,7 @@ package com.doro.blog.domain.post.service;
 
 import com.doro.blog.common.exception.BlogException;
 import com.doro.blog.common.exception.ErrorCode;
+import com.doro.blog.common.tx.Transactions;
 import com.doro.blog.common.util.SlugGenerator;
 import com.doro.blog.domain.upload.service.MediaCleanup;
 import com.doro.blog.domain.upload.service.MediaReferences;
@@ -34,11 +35,40 @@ public class PostCommandService {
     private final TagService tagService;
     private final GuardTuples guardTuples;
     private final MediaCleanup mediaCleanup;
+    private final Transactions transactions;
 
 
 
-    @Transactional
+    /**
+     * 글을 만든다. 작성자 튜플(blog_post:<id>#author@user:<userId>)을 Guard 에 먼저 쓴 뒤(트랜잭션 밖) DB 에 저장한다.
+     * Guard 호출을 트랜잭션 안에서 하면 Guard 가 느릴 때 DB 연결을 그만큼 쥐고 있게 된다(GuardTuples 설명 참고).
+     * 입력이 잘못된 요청은 Guard 를 부르기 전에 거절한다(검증에 걸릴 요청이 Guard 쓰기·정리를 일으키지 않게).
+     */
     public PostSummaryResponse createPost(DoroUser doroUser, CreatePostRequest request) {
+        PostStatus status = request.status() != null ? request.status() : PostStatus.DRAFT;
+        requirePublishableContent(status, request.content());
+        if (request.seriesId() != null) {
+            transactions.read(() -> {
+                Series series = seriesRepository.findById(request.seriesId())
+                        .orElseThrow(() -> new BlogException(ErrorCode.SERIES_NOT_FOUND));
+                requireSeriesOwner(series, doroUser.userId());
+                return null;
+            });
+        }
+
+        UUID postId = UUID.randomUUID();
+        return guardTuples.writeThen(
+                List.of(GuardTuples.Tuple.of("blog_post", postId.toString(), "author", "user", doroUser.userId().toString())),
+                () -> transactions.write(() -> savePost(doroUser, request, postId)));
+    }
+
+    private static void requirePublishableContent(PostStatus status, String content) {
+        if (status == PostStatus.PUBLISHED && (content == null || content.isBlank())) {
+            throw new BlogException(ErrorCode.INVALID_INPUT, "출간 시 본문 내용은 필수입니다.");
+        }
+    }
+
+    private PostSummaryResponse savePost(DoroUser doroUser, CreatePostRequest request, UUID postId) {
         BlogUser user = userService.getOrCreateUser(doroUser);
 
         String slug = SlugGenerator.unique(request.slug(), request.title(), "post",
@@ -47,9 +77,7 @@ public class PostCommandService {
         String summary = PostContent.generateSummary(request.summary(), request.content());
 
         PostStatus status = request.status() != null ? request.status() : PostStatus.DRAFT;
-        if (status == PostStatus.PUBLISHED && (request.content() == null || request.content().isBlank())) {
-            throw new BlogException(ErrorCode.INVALID_INPUT, "출간 시 본문 내용은 필수입니다.");
-        }
+        requirePublishableContent(status, request.content());
 
         Series series = null;
         Integer seriesOrder = null;
@@ -64,6 +92,7 @@ public class PostCommandService {
         String resolvedThumbnail = PostContent.resolveThumbnail(request.thumbnailUrl(), request.content());
 
         Post post = Post.builder()
+                .id(postId)
                 .user(user)
                 .series(series)
                 .seriesOrder(seriesOrder)
@@ -80,9 +109,6 @@ public class PostCommandService {
 
         // 태그 동기화
         tagService.syncPostTags(saved, request.tags(), false);
-
-        // Zanzibar ReBAC 관계 튜플 등록: blog_post:<id>#author@user:<userId>
-        guardTuples.write("blog_post", saved.getId().toString(), "author", "user", user.getId().toString());
 
         List<String> tags = tagService.getPostTagNames(saved.getId());
         return PostSummaryResponse.from(saved, tags);

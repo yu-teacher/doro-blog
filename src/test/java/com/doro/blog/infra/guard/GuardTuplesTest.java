@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,38 +43,62 @@ class GuardTuplesTest {
         syncs.forEach(s -> s.afterCompletion(committed ? TransactionSynchronization.STATUS_COMMITTED : TransactionSynchronization.STATUS_ROLLED_BACK));
     }
 
+    private static final GuardTuples.Tuple AUTHOR = GuardTuples.Tuple.of("blog_post", "p1", "author", "user", "u1");
+    private static final GuardTuples.Tuple POST = GuardTuples.Tuple.of("blog_comment", "c1", "post", "blog_post", "p1");
+
     @Test
-    @DisplayName("쓰기는 예외 전파 버전을 호출한다 (실패하면 DB 도 롤백되도록)")
-    void writeUsesThrowingVariant() {
-        tuples.write("blog_post", "p1", "author", "user", "u1");
+    @DisplayName("쓰기는 예외 전파 버전으로 먼저 하고, 그다음에 작업을 실행해 결과를 돌려준다 (튜플이 먼저, 글이 나중)")
+    void writesFirstThenRunsTheAction() {
+        List<String> order = new ArrayList<>();
+        when(client.writeTupleOrThrow(any(), any(), any(), any(), any(), any())).thenAnswer(inv -> {
+            order.add("write:" + inv.getArgument(0));
+            return 1;
+        });
+
+        String result = tuples.writeThen(List.of(AUTHOR, POST), () -> {
+            order.add("action");
+            return "done";
+        });
+
+        assertThat(result).isEqualTo("done");
+        assertThat(order).containsExactly("write:blog_post", "write:blog_comment", "action");
         verify(client).writeTupleOrThrow("blog_post", "p1", "author", "user", "u1", null);
-    }
-
-    @Test
-    @DisplayName("Guard 쓰기가 실패하면 예외가 그대로 전파되고 롤백 정리 작업은 등록되지 않는다")
-    void writeFailurePropagates() {
-        when(client.writeTupleOrThrow(any(), any(), any(), any(), any(), any()))
-                .thenThrow(new DoroGuardWriteFailedException("down", new RuntimeException()));
-
-        assertThatThrownBy(() -> tuples.write("blog_post", "p1", "author", "user", "u1"))
-                .isInstanceOf(DoroGuardWriteFailedException.class);
-        assertThat(TransactionSynchronizationManager.getSynchronizations()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("DB 가 롤백되면 이미 쓴 튜플을 지운다")
-    void rollbackRemovesWrittenTuple() {
-        tuples.write("blog_post", "p1", "author", "user", "u1");
-        complete(false);
-        verify(client).deleteTuple("blog_post", "p1", "author", "user", "u1");
-    }
-
-    @Test
-    @DisplayName("DB 가 커밋되면 쓴 튜플은 그대로 둔다")
-    void commitKeepsWrittenTuple() {
-        tuples.write("blog_post", "p1", "author", "user", "u1");
-        complete(true);
         verify(client, never()).deleteTuple(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("작업(DB 트랜잭션)이 실패하면 먼저 쓴 튜플을 모두 지우고 같은 예외를 다시 던진다")
+    void actionFailureRemovesAllWrittenTuples() {
+        RuntimeException failure = new IllegalStateException("db down");
+
+        assertThatThrownBy(() -> tuples.writeThen(List.of(AUTHOR, POST), () -> { throw failure; })).isSameAs(failure);
+
+        verify(client).deleteTuple("blog_post", "p1", "author", "user", "u1");
+        verify(client).deleteTuple("blog_comment", "c1", "post", "blog_post", "p1");
+    }
+
+    @Test
+    @DisplayName("두 번째 튜플 쓰기가 실패하면 첫 번째는 지우고, 작업은 실행하지 않는다")
+    void secondWriteFailureCleansUpTheFirstAndSkipsTheAction() {
+        when(client.writeTupleOrThrow(eq("blog_comment"), any(), any(), any(), any(), any()))
+                .thenThrow(new DoroGuardWriteFailedException("down", new RuntimeException()));
+        boolean[] ran = {false};
+
+        assertThatThrownBy(() -> tuples.writeThen(List.of(AUTHOR, POST), () -> { ran[0] = true; return null; }))
+                .isInstanceOf(DoroGuardWriteFailedException.class);
+
+        assertThat(ran[0]).as("튜플이 없으면 글을 만들지 않는다").isFalse();
+        verify(client).deleteTuple("blog_post", "p1", "author", "user", "u1");
+        verify(client, never()).deleteTuple(eq("blog_comment"), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("정리(삭제) 자체가 실패해도 원래 예외를 가리지 않는다")
+    void cleanupFailureDoesNotHideTheOriginalException() {
+        when(client.deleteTuple(any(), any(), any(), any(), any())).thenThrow(new RuntimeException("guard down"));
+        RuntimeException failure = new IllegalStateException("db down");
+
+        assertThatThrownBy(() -> tuples.writeThen(List.of(AUTHOR), () -> { throw failure; })).isSameAs(failure);
     }
 
     @Test
