@@ -3,12 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { blogApi } from '../../api/blogApi';
 import type { Series } from '../../api/types';
-import { CreateSeriesModal, SERIES_DESCRIPTION_MAX, SERIES_TITLE_MAX } from './CreateSeriesModal';
+import { SeriesFormModal, SERIES_DESCRIPTION_MAX, SERIES_TITLE_MAX } from './SeriesFormModal';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | undefined;
-const onCreated = vi.fn();
+const onSaved = vi.fn();
 const onClose = vi.fn();
 
 async function flush() {
@@ -16,9 +16,9 @@ async function flush() {
   await act(async () => { await Promise.resolve(); });
 }
 
-function render() {
+function render(series?: Series) {
   root = createRoot(document.body.appendChild(document.createElement('div')));
-  act(() => root!.render(createElement(CreateSeriesModal, { onCreated, onClose })));
+  act(() => root!.render(createElement(SeriesFormModal, { series, onSaved, onClose })));
 }
 
 const field = (id: string) => document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
@@ -39,7 +39,7 @@ const submit = async () => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  onCreated.mockReset();
+  onSaved.mockReset();
   onClose.mockReset();
 });
 
@@ -49,7 +49,7 @@ afterEach(() => {
   root = undefined;
 });
 
-describe('CreateSeriesModal', () => {
+describe('SeriesFormModal (만들기)', () => {
   it('제목이 비어 있거나 공백뿐이면 만들 수 없다', () => {
     render();
     expect(submitButton().disabled).toBe(true);
@@ -71,7 +71,7 @@ describe('CreateSeriesModal', () => {
     await submit();
 
     expect(api).toHaveBeenCalledWith({ title: '스프링 시작하기', description: undefined });
-    expect(onCreated).toHaveBeenCalledWith(created);
+    expect(onSaved).toHaveBeenCalledWith(created);
   });
 
   it('설명을 적으면 함께 보낸다', async () => {
@@ -94,7 +94,7 @@ describe('CreateSeriesModal', () => {
 
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('시리즈 제목은 필수입니다.');
     expect(field('series-title').value).toBe('제목');
-    expect(onCreated).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
     expect(submitButton().disabled).toBe(false);
   });
 
@@ -111,7 +111,7 @@ describe('CreateSeriesModal', () => {
 
     await act(async () => { finish({ id: 's1', slug: 'a' } as unknown as Series); });
     await flush();
-    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
   it('입력 길이는 서버 한도(제목 100자, 설명 2000자)로 제한된다', () => {
@@ -120,5 +120,57 @@ describe('CreateSeriesModal', () => {
     expect(field('series-description').maxLength).toBe(SERIES_DESCRIPTION_MAX);
     expect(SERIES_TITLE_MAX).toBe(100);
     expect(SERIES_DESCRIPTION_MAX).toBe(2000);
+  });
+});
+
+describe('SeriesFormModal (수정)', () => {
+  const existing = { id: 's1', slug: 'spring', title: '스프링', description: '기존 설명' } as unknown as Series;
+
+  it('기존 제목과 설명이 채워져 있고, 바꾼 것이 없으면 저장할 수 없다', () => {
+    render(existing);
+
+    expect(field('series-title').value).toBe('스프링');
+    expect(field('series-description').value).toBe('기존 설명');
+    expect(document.body.textContent).toContain('시리즈 정보 수정');
+    expect(submitButton().textContent).toBe('저장');
+    expect(submitButton().disabled).toBe(true);
+
+    type(field('series-title'), '스프링 부트');
+    expect(submitButton().disabled).toBe(false);
+  });
+
+  it('수정은 updateSeries 로 저장하고 결과를 넘긴다 (주소는 보내지 않아 바뀌지 않는다)', async () => {
+    const saved = { ...existing, title: '새 제목' } as unknown as Series;
+    const update = vi.spyOn(blogApi, 'updateSeries').mockResolvedValue(saved);
+    const create = vi.spyOn(blogApi, 'createSeries');
+    render(existing);
+
+    type(field('series-title'), '  새 제목  ');
+    await submit();
+
+    expect(update).toHaveBeenCalledWith('s1', { title: '새 제목', description: '기존 설명' });
+    expect(create).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledWith(saved);
+  });
+
+  it('설명을 지우면 빈 문자열을 보내 서버의 설명이 지워진다 (생략은 "그대로 둠"이다)', async () => {
+    const update = vi.spyOn(blogApi, 'updateSeries').mockResolvedValue(existing);
+    render(existing);
+
+    type(field('series-description'), '');
+    await submit();
+
+    expect(update).toHaveBeenCalledWith('s1', { title: '스프링', description: '' });
+  });
+
+  it('수정이 실패하면 이유를 보여 주고 대화상자를 닫지 않는다', async () => {
+    vi.spyOn(blogApi, 'updateSeries').mockRejectedValue(new Error('권한이 없습니다.'));
+    render(existing);
+    type(field('series-title'), '다른 제목');
+
+    await submit();
+
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('권한이 없습니다.');
+    expect(onSaved).not.toHaveBeenCalled();
   });
 });

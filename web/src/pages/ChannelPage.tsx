@@ -7,7 +7,7 @@ import { ChannelProfileHeader } from '../components/channel/ChannelProfileHeader
 import { ChannelTabs, type ChannelTab } from '../components/channel/ChannelTabs';
 import { PostsTab } from '../components/channel/PostsTab';
 import { SeriesTab } from '../components/channel/SeriesTab';
-import { CreateSeriesModal } from '../components/series/CreateSeriesModal';
+import { SeriesFormModal } from '../components/series/SeriesFormModal';
 import { AboutTab } from '../components/channel/AboutTab';
 import { LikedPostsTab } from '../components/channel/LikedPostsTab';
 import { FollowListModal } from '../components/FollowListModal';
@@ -236,9 +236,9 @@ export const ChannelPage: React.FC = () => {
       )}
 
       {createSeriesOpen && (
-        <CreateSeriesModal
+        <SeriesFormModal
           onClose={() => setCreateSeriesOpen(false)}
-          onCreated={(created) => {
+          onSaved={(created) => {
             seriesRes.setData((prev) => [created, ...(prev ?? [])]);
             setCreateSeriesOpen(false);
             notify.info('시리즈를 만들었습니다. 글을 추가해 보세요.');

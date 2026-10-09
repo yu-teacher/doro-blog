@@ -1,18 +1,26 @@
 import React, { useState } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
-import { BookOpen, Calendar, ArrowLeft, Lock, Settings2 } from 'lucide-react';
+import { BookOpen, Calendar, ArrowLeft, Lock, Pencil, Settings2, Trash2 } from 'lucide-react';
 import { SeriesPostManager } from '../components/series/SeriesPostManager';
+import { SeriesFormModal } from '../components/series/SeriesFormModal';
 import { useAuthStore } from '../store/authStore';
 import { formatDate } from '../utils/date';
+import { getErrorMessage } from '../utils/errors';
+import { notify } from '../utils/notify';
+
+const DELETE_CONFIRM = '이 시리즈를 삭제합니다. 시리즈 안의 글은 삭제되지 않고 독립된 글로 남습니다. 계속할까요?';
 
 export const SeriesDetailPage: React.FC = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username;
 
+  const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   // 시리즈를 만든 직후에는 ?manage=1 로 들어와 바로 관리 화면이 열린다(주인에게만 보인다)
   const [managing, setManaging] = useState(searchParams.get('manage') === '1');
@@ -62,6 +70,19 @@ export const SeriesDetailPage: React.FC = () => {
   const { series, posts } = seriesDetail;
   const isOwner = currentUser !== null && currentUser.id === series.userId;
 
+  const deleteSeries = async () => {
+    if (deleting || !window.confirm(DELETE_CONFIRM)) return;
+    setDeleting(true);
+    try {
+      await blogApi.deleteSeries(series.id);
+      notify.info('시리즈를 삭제했습니다.');
+      navigate(`/@${cleanUsername}?tab=series`);
+    } catch (err: unknown) {
+      notify.error(getErrorMessage(err, '시리즈를 삭제하지 못했습니다.'));
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Series Header */}
@@ -88,16 +109,46 @@ export const SeriesDetailPage: React.FC = () => {
         </div>
 
         {isOwner && (
-          <button
-            type="button"
-            onClick={() => setManaging((v) => !v)}
-            aria-pressed={managing}
-            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <Settings2 className="w-4 h-4" aria-hidden="true" /> {managing ? '관리 끝내기' : '시리즈 관리'}
-          </button>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setManaging((v) => !v)}
+              aria-pressed={managing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <Settings2 className="w-4 h-4" aria-hidden="true" /> {managing ? '관리 끝내기' : '시리즈 관리'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <Pencil className="w-4 h-4" aria-hidden="true" /> 정보 수정
+            </button>
+            <button
+              type="button"
+              onClick={deleteSeries}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3.5 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" /> {deleting ? '삭제 중…' : '삭제'}
+            </button>
+          </div>
         )}
       </div>
+
+      {editing && (
+        <SeriesFormModal
+          series={series}
+          onClose={() => setEditing(false)}
+          onSaved={(saved) => {
+            // 글 목록은 그대로 두고 시리즈 정보(제목·설명 등)만 바꾼다
+            setSeriesDetail((prev) => (prev ? { ...prev, series: saved } : prev));
+            setEditing(false);
+            notify.info('시리즈 정보를 저장했습니다.');
+          }}
+        />
+      )}
 
       {isOwner && managing ? (
         <SeriesPostManager detail={seriesDetail} username={cleanUsername ?? ''} onChange={setSeriesDetail} />

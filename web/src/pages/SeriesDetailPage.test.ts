@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { blogApi } from '../api/blogApi';
 import type { SeriesDetail, UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+import { clearToasts, toastMessages } from '../test/toasts';
 import { SeriesDetailPage } from './SeriesDetailPage';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,6 +35,8 @@ async function render(path = '/owner/series/serial') {
 const manageButton = () => [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('시리즈 관리'));
 
 beforeEach(() => {
+  vi.restoreAllMocks();
+  clearToasts();
   vi.spyOn(blogApi, 'getSeriesBySlug').mockResolvedValue(detail);
 });
 
@@ -83,5 +86,64 @@ describe('SeriesDetailPage 관리 모드', () => {
 
     expect(host!.querySelector('[aria-label="시리즈 글 관리"]')).toBeNull();
     expect(host!.textContent).toContain('첫 글');
+  });
+
+  it('주인은 정보 수정으로 제목을 바꾸고, 글 목록은 그대로 두고 화면의 제목만 갱신된다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'owner', username: 'owner' } as unknown as UserProfile });
+    const saved = { ...detail.series, title: '바뀐 제목' };
+    const update = vi.spyOn(blogApi, 'updateSeries').mockResolvedValue(saved as never);
+    await render();
+
+    const editButton = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('정보 수정'))!;
+    await act(async () => { editButton.click(); });
+    const title = document.getElementById('series-title') as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, '바뀐 제목');
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => { (document.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    for (let i = 0; i < 3; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    expect(update).toHaveBeenCalledWith('s1', { title: '바뀐 제목', description: '' });
+    expect(host!.textContent).toContain('바뀐 제목');
+    expect(host!.textContent).toContain('첫 글');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('삭제는 확인을 거쳐 서버에 요청하고, 취소하면 아무것도 하지 않는다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'owner', username: 'owner' } as unknown as UserProfile });
+    const del = vi.spyOn(blogApi, 'deleteSeries').mockResolvedValue(undefined);
+    await render();
+    const deleteButton = () => [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '삭제')!;
+
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await act(async () => { deleteButton().click(); });
+    expect(del).not.toHaveBeenCalled();
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => { deleteButton().click(); });
+    expect(del).toHaveBeenCalledWith('s1');
+  });
+
+  it('삭제가 실패하면 이유를 알리고 화면에 남는다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'owner', username: 'owner' } as unknown as UserProfile });
+    vi.spyOn(blogApi, 'deleteSeries').mockRejectedValue(new Error('삭제 권한이 없습니다.'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await render();
+
+    await act(async () => { [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '삭제')!.click(); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(toastMessages()).toContain('삭제 권한이 없습니다.');
+    expect(host!.textContent).toContain('연재');
+  });
+
+  it('주인이 아니면 정보 수정·삭제 버튼이 없다', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'visitor', username: 'visitor' } as unknown as UserProfile });
+    await render();
+
+    const labels = [...host!.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(labels).not.toContain('삭제');
+    expect(labels.some((l) => l?.includes('정보 수정'))).toBe(false);
   });
 });
