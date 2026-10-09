@@ -92,4 +92,37 @@ describe('ChannelPage', () => {
     expect(host!.textContent).toContain('존재하지 않는 사용자입니다.');
     expect([...host!.querySelectorAll('button')].some((b) => b.textContent?.includes('다시 시도'))).toBe(true);
   });
+  describe('탭 주소(?tab=)', () => {
+    beforeEach(() => {
+      vi.spyOn(blogApi, 'getUserProfile').mockResolvedValue(profile);
+    });
+
+    it('남의 채널 주소에 ?tab=likes 를 붙여도 내 좋아요 목록을 불러오거나 보여 주지 않고 글 탭으로 보여 준다', async () => {
+      useAuthStore.setState({ isAuthenticated: true, user: { ...profile, id: 'me', username: 'me' } as never });
+      vi.spyOn(blogApi, 'getUserPosts').mockResolvedValue(page([post('p1', '그 사람의 글')]));
+      const liked = vi.spyOn(blogApi, 'getMyLikedPosts').mockResolvedValue(page([post('x', '내가 좋아한 글')]));
+      await render('/@writer?tab=likes');
+
+      expect(liked).not.toHaveBeenCalled();
+      expect(host!.textContent).toContain('그 사람의 글');
+      expect(host!.textContent).not.toContain('내가 좋아한 글');
+    });
+
+    it('알 수 없는 tab 값이면 빈 화면이 아니라 글 탭으로 보여 준다', async () => {
+      vi.spyOn(blogApi, 'getUserPosts').mockResolvedValue(page([post('p1', '첫 번째 글')]));
+      await render('/@writer?tab=foo');
+
+      expect(host!.textContent).toContain('첫 번째 글');
+    });
+
+    it('내 채널에서는 ?tab=likes 로 좋아요 탭이 열리고 목록을 불러온다', async () => {
+      useAuthStore.setState({ isAuthenticated: true, user: { ...profile, id: 'u1', username: 'writer' } as never });
+      vi.spyOn(blogApi, 'getUserPosts').mockResolvedValue(page([]));
+      const liked = vi.spyOn(blogApi, 'getMyLikedPosts').mockResolvedValue(page([post('x', '내가 좋아한 글')]));
+      await render('/@writer?tab=likes');
+
+      expect(liked).toHaveBeenCalledTimes(1);
+      expect(host!.textContent).toContain('내가 좋아한 글');
+    });
+  });
 });

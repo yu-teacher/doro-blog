@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { blogApi } from '../api/blogApi';
 import type { NotificationItem } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
@@ -30,6 +30,11 @@ export function useNotifications(enabled: boolean): Notifications {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** 목록 요청마다 올라가는 순번. 응답이 왔을 때 그사이 더 새로운 요청이 있었다면 그 응답은 버린다. */
+  const requestSeqRef = useRef(0);
+  /** 더 보기 요청이 진행 중인가. 응답 전에 또 눌러도 같은 페이지를 다시 요청하지 않는다. */
+  const loadingMoreRef = useRef(false);
+
   const fetchUnreadCount = useCallback(async () => {
     if (!enabled) return;
     try {
@@ -41,18 +46,31 @@ export function useNotifications(enabled: boolean): Notifications {
   }, [enabled]);
 
   const loadPage = useCallback(async (targetPage: number, append: boolean) => {
+    if (append && loadingMoreRef.current) return;
+    // 처음부터 다시 불러오는 요청(열기)은 진행 중이던 더 보기를 무효로 만든다
+    const seq = ++requestSeqRef.current;
+    loadingMoreRef.current = append;
     setLoading(true);
     setError(null);
     try {
       const res = await blogApi.getNotifications(targetPage, NOTIFICATIONS_PAGE_SIZE);
-      setItems((prev) => (append ? [...prev, ...res.content] : res.content));
+      if (seq !== requestSeqRef.current) return; // 더 새로운 요청이 있었다: 이 응답은 낡았다
+      setItems((prev) => {
+        if (!append) return res.content;
+        const known = new Set(prev.map((n) => n.id));
+        return [...prev, ...res.content.filter((n) => !known.has(n.id))];
+      });
       setPage(res.number);
       setHasMore(res.number + 1 < res.totalPages);
     } catch (err: unknown) {
+      if (seq !== requestSeqRef.current) return;
       console.error('Failed to load notifications:', err);
       setError(getErrorMessage(err, '알림을 불러오지 못했습니다.'));
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        loadingMoreRef.current = false;
+        setLoading(false);
+      }
     }
   }, []);
 

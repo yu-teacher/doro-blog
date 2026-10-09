@@ -60,6 +60,8 @@ export function useDraftAutosave({ snapshot, postId, save, onCreated, paused = f
   onCreatedRef.current = onCreated;
 
   const idRef = useRef<string | null>(postId);
+  /** 편집 대상 글이 바뀔 때마다 올라간다. 저장이 끝났을 때 그사이 글이 바뀌었는지 가린다. */
+  const generationRef = useRef(0);
   const lastSavedKeyRef = useRef<string | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const queuedRef = useRef(false);
@@ -72,6 +74,7 @@ export function useDraftAutosave({ snapshot, postId, save, onCreated, paused = f
     if (postId !== idRef.current) {
       idRef.current = postId;
       lastSavedKeyRef.current = null;
+      generationRef.current += 1;
     }
   }, [postId]);
 
@@ -87,10 +90,14 @@ export function useDraftAutosave({ snapshot, postId, save, onCreated, paused = f
     if (key === lastSavedKeyRef.current) return;
 
     setSaving(true);
+    const generation = generationRef.current;
     const run = (async () => {
       try {
         const wasNew = idRef.current === null;
         const { id } = await saveRef.current(snap, idRef.current);
+        // 저장하는 동안 사용자가 다른 글을 골랐다면 이 결과는 이전 글의 것이다. 지금 글의 id·저장 기록을 덮어쓰면
+        // 이후 자동 저장이 지금 글의 내용을 이전 글에 저장한다.
+        if (generation !== generationRef.current) return;
         idRef.current = id;
         lastSavedKeyRef.current = key;
         setError(null);

@@ -1,7 +1,7 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLocalDraft, type LocalDraft, type LocalDraftControls } from './useLocalDraft';
+import { localDraftStorageKey, useLocalDraft, type LocalDraft, type LocalDraftControls } from './useLocalDraft';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -79,5 +79,36 @@ describe('useLocalDraft', () => {
     act(() => h.api().discard());
     expect(localStorage.getItem(KEY)).toBeNull();
     h.unmount();
+  });
+  it('복원 안내가 떠 있는 동안 새로 입력해도 이전 백업을 덮어쓰지 않는다 (복원하면 방금 쓴 내용이 아니라 백업이 돌아와야 한다)', () => {
+    localStorage.setItem(KEY, JSON.stringify({ title: '백업 제목', content: '백업 본문' }));
+    const h = mount({ snapshot: draft({ title: '', content: '' }), offerRestore: true });
+    expect(h.api().hasNotice).toBe(true);
+
+    h.update(draft({ title: '지금 막 쓰기 시작', content: '새 본문' }));
+    act(() => { vi.advanceTimersByTime(DELAY * 2); });
+
+    let restored: Partial<LocalDraft> | null = null;
+    act(() => { restored = h.api().restore(); });
+    expect(restored).toMatchObject({ title: '백업 제목', content: '백업 본문' });
+    h.unmount();
+  });
+
+  it('안내를 닫은 뒤(복원이나 버리기)에는 다시 입력 내용을 백업한다', () => {
+    localStorage.setItem(KEY, JSON.stringify({ title: '백업', content: '본문' }));
+    const h = mount({ snapshot: draft({ title: '', content: '' }), offerRestore: true });
+    act(() => { h.api().discard(); });
+
+    h.update(draft({ title: '새 글', content: '새 본문' }));
+    act(() => { vi.advanceTimersByTime(DELAY + 1); });
+
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toMatchObject({ title: '새 글' });
+    h.unmount();
+  });
+
+  it('기존 글을 수정할 때의 백업은 새 글 백업과 다른 키를 쓴다 (서로 덮어쓰지 않게)', () => {
+    expect(localDraftStorageKey('doro_editor_draft_me')).toBe('doro_editor_draft_me');
+    expect(localDraftStorageKey('doro_editor_draft_me', 'p1')).toBe('doro_editor_draft_me:edit:p1');
+    expect(localDraftStorageKey('doro_editor_draft_me', 'p1')).not.toBe(localDraftStorageKey('doro_editor_draft_me', 'p2'));
   });
 });

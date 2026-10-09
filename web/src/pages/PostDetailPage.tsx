@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { blogApi } from '../api/blogApi';
 import { useAuthStore } from '../store/authStore';
@@ -36,6 +36,8 @@ export const PostDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  /** 좋아요 요청이 진행 중인가. 연타로 같은 요청이 두 번 나가지 않게 한다. */
+  const likingRef = useRef(false);
   const { copied, copy: copyToClipboard } = useCopyToClipboard();
   const [authorFollowing, setAuthorFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -138,16 +140,18 @@ export const PostDetailPage: React.FC = () => {
 
 
   const handleToggleLike = async () => {
-    if (!detail) return;
+    // 응답 전에 또 눌러도 요청을 다시 보내지 않는다 (서버는 누를 때마다 상태를 뒤집으므로 두 번 가면 도로 취소된다)
+    if (!detail || likingRef.current) return;
+    likingRef.current = true;
+    const wasLiked = isLiked;
     try {
-      if (isLiked) {
-        await blogApi.unlikePost(detail.post.id);
-        setIsLiked(false);
-        setLikeCount((prev) => Math.max(0, prev - 1));
-      } else {
-        await blogApi.likePost(detail.post.id);
-        setIsLiked(true);
-        setLikeCount((prev) => prev + 1);
+      // 서버가 돌려준 결과(liked)를 그대로 따른다. 다른 탭에서 이미 눌러 화면과 서버가 어긋나 있어도 화면이 서버를 따라간다.
+      const liked = await blogApi.toggleLike(detail.post.id);
+      setIsLiked(liked);
+      if (liked !== wasLiked) {
+        setLikeCount((prev) => Math.max(0, prev + (liked ? 1 : -1)));
+      }
+      if (liked && !wasLiked) {
         trackEvent('post_like', {
           post_id: detail.post.id,
           post_title: detail.post.title,
@@ -156,6 +160,8 @@ export const PostDetailPage: React.FC = () => {
       }
     } catch (err: unknown) {
       alert(getErrorMessage(err, '좋아요 처리에 실패했습니다. 먼저 로그인해주세요.'));
+    } finally {
+      likingRef.current = false;
     }
   };
 

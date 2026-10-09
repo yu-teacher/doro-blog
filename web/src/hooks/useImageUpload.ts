@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ChangeEvent, ClipboardEvent, Dispatch, DragEvent, RefObject, SetStateAction } from 'react';
 import { blogApi } from '../api/blogApi';
 import { getErrorMessage } from '../utils/errors';
+import { altText, replacePlaceholder, uploadPlaceholder } from '../utils/uploadPlaceholder';
 
 const IMAGE_ONLY_MESSAGE = '이미지 파일(PNG, JPG, GIF, WebP, SVG)만 업로드할 수 있습니다.';
 const POST_IMAGE_FOLDER = 'posts';
@@ -40,7 +41,7 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
     }
 
     const blobUrl = URL.createObjectURL(file);
-    const placeholder = `![${file.name} 업로드 중...](${blobUrl})\n`;
+    const placeholder = uploadPlaceholder(file.name, blobUrl);
     const insertPos = textareaRef.current?.selectionStart ?? content.length;
 
     setContent(content.slice(0, insertPos) + placeholder + content.slice(insertPos));
@@ -48,11 +49,11 @@ export function useImageUpload({ content, setContent, textareaRef, setThumbnailU
 
     try {
       const res = await blogApi.uploadImage(file, POST_IMAGE_FOLDER);
-      setContent((prev) => prev.replace(placeholder, `![${res.originalFilename}](${res.url})\n`));
+      setContent((prev) => replacePlaceholder(prev, placeholder, `![${altText(res.originalFilename)}](${res.url})\n`));
     } catch (err: unknown) {
       console.error('Failed to upload image:', err);
       alert(getErrorMessage(err, '이미지 업로드에 실패했습니다.'));
-      setContent((prev) => prev.replace(placeholder, ''));
+      setContent((prev) => replacePlaceholder(prev, placeholder, ''));
     } finally {
       URL.revokeObjectURL(blobUrl);
       setUploadingEditorImage(false);

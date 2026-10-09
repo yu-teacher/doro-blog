@@ -97,4 +97,21 @@ describe('에디터의 글 상태와 시리즈', () => {
     expect(last, '출간 요청이 updatePost 로 나가야 한다').toBeDefined();
     expect((last![1] as { status?: string }).status).toBe('PUBLISHED');
   });
+  it('출간은 성공했는데 로컬 백업을 지우다 저장소 오류가 나도 "출간 실패"로 보이지 않는다 (재시도하면 글이 중복된다)', async () => {
+    const update = await openEditorFor('DRAFT');
+    update.mockClear();
+    const alertSpy = vi.mocked(window.alert);
+    alertSpy.mockClear();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    const open = buttonsWithText('출간하기');
+    await click(open[0]);
+    const confirm = buttonsWithText('출간하기');
+    await click(confirm[confirm.length - 1]);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(alertSpy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('실패'))).toEqual([]);
+  });
 });

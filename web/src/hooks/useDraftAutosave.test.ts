@@ -211,4 +211,20 @@ describe('useDraftAutosave', () => {
     await tick(DELAY + 1);
     expect(save.mock.calls[1]![1]).toBe('p2');
   });
+  it('저장 중에 다른 글로 바꿔도, 늦게 끝난 이전 글의 저장이 지금 글의 id 를 덮어쓰지 않는다', async () => {
+    const first = deferred();
+    const save = vi.fn<SaveDraft>().mockReturnValueOnce(first.promise).mockResolvedValue({ id: 'B' });
+    harness = mount(save, vi.fn(), { snapshot: snap({ content: 'a' }), postId: 'A' });
+    await tick(DELAY + 1); // A 의 저장이 시작돼 아직 끝나지 않았다
+    expect(save).toHaveBeenCalledTimes(1);
+
+    harness.update({ postId: 'B', snapshot: snap({ content: 'b' }) }); // 사용자가 임시글 B 를 골랐다
+    first.resolve('A'); // 이전 글의 저장이 뒤늦게 끝난다
+    await tick(0);
+    await tick(DELAY + 1);
+
+    const last = save.mock.calls.at(-1)!;
+    expect(last[0].content).toBe('b');
+    expect(last[1], 'B 의 내용이 A 에 저장되면 안 된다').toBe('B');
+  });
 });

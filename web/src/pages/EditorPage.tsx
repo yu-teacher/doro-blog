@@ -13,7 +13,7 @@ import { useDraftAutosave, type DraftSnapshot } from '../hooks/useDraftAutosave'
 import { formatDate } from '../utils/date';
 import { useMarkdownEditor } from '../hooks/useMarkdownEditor';
 import { useImageUpload } from '../hooks/useImageUpload';
-import { useLocalDraft } from '../hooks/useLocalDraft';
+import { localDraftStorageKey, removeLocalDraft, useLocalDraft } from '../hooks/useLocalDraft';
 import { useServerDrafts } from '../hooks/useServerDrafts';
 import { useSeriesList } from '../hooks/useSeriesList';
 import { suggestPublishDefaults } from '../utils/publishDefaults';
@@ -97,7 +97,8 @@ export const EditorPage: React.FC = () => {
 
   // 로컬 백업(입력이 멈추면 저장)과 새 글 화면의 복원 안내
   const localDraft = useLocalDraft({
-    draftKey,
+    // 수정 중인 글의 백업은 새 글 백업과 따로 둔다(서로 덮어쓰지 않게)
+    draftKey: localDraftStorageKey(draftKey, id),
     offerRestore: !id,
     snapshot: { title, content, tags, summary, thumbnailUrl },
     delayMs: LOCAL_AUTOSAVE_DELAY_MS,
@@ -195,12 +196,25 @@ export const EditorPage: React.FC = () => {
     }
   };
 
+  // 처음부터 로그인하지 않은 채 열었다면 지킬 내용이 없으니 안내하고 첫 화면으로 보낸다.
+  // 글을 쓰는 중에 세션이 끝난 경우에는 떠나지 않는다: 쓰던 내용을 잃지 않게 화면에 머물고, 다시 로그인하라고 알려 준다
+  // (내용은 이 브라우저의 로컬 백업에도 남아 있다. 401 에서 화면을 옮기지 않는다는 apiClient 의 설계와 같은 이유다).
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+  const [sessionExpired, setSessionExpired] = useState(false);
   useEffect(() => {
-    if (!isAuthenticated) {
-      alert('로그인이 필요한 서비스입니다.');
-      navigate('/');
+    if (isAuthenticated) {
+      wasAuthenticatedRef.current = true;
+      setSessionExpired(false);
+      return;
     }
+    if (wasAuthenticatedRef.current) {
+      setSessionExpired(true);
+      return;
+    }
+    alert('로그인이 필요한 서비스입니다.');
+    navigate('/');
   }, [isAuthenticated, navigate]);
+  const login = useAuthStore((state) => state.login);
 
   const { series: seriesList, create: createSeries } = useSeriesList(user?.username, isAuthenticated);
 
@@ -315,6 +329,8 @@ export const EditorPage: React.FC = () => {
         currentPostIdRef.current = created.id;
         setCurrentPostId(created.id);
       }
+      // 서버에 저장했으니 로컬 백업은 정리한다(남겨 두면 다음에 새 글을 열 때 이미 저장한 내용의 복원 안내가 뜬다)
+      removeLocalDraft(localDraftStorageKey(draftKey, id));
       alert('임시 저장되었습니다.');
       navigate('/me/posts?tab=draft');
     } catch (err: unknown) {
@@ -359,7 +375,7 @@ export const EditorPage: React.FC = () => {
       });
 
       // Clear local draft upon successful publication
-      localStorage.removeItem(draftKey);
+      removeLocalDraft(localDraftStorageKey(draftKey, id));
 
       setShowPublishModal(false);
       navigate(`/@${user?.username}/${encodeURIComponent(finalSlug)}`);
@@ -391,6 +407,14 @@ export const EditorPage: React.FC = () => {
         className="hidden"
       />
 
+      {sessionExpired && (
+        <div role="alert" className="mx-6 mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200">
+          <span>로그인이 만료되었습니다. 쓰던 내용은 이 브라우저에 백업되어 있으니, 다시 로그인한 뒤 이어서 저장하거나 출간해 주세요.</span>
+          <button type="button" onClick={() => login()} className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+            다시 로그인
+          </button>
+        </div>
+      )}
       {localDraft.hasNotice && <DraftRestoreBanner onRestore={handleRestoreDraft} onDiscard={localDraft.discard} />}
 
       {/* Top Split Editor Area */}

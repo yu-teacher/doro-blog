@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Shield,
   Terminal,
@@ -38,36 +38,47 @@ export const DevelopersPage: React.FC = () => {
 
   // Code Snippet Active Tab
 
+  // 요청마다 올라가는 순번. 응답이 왔을 때 그사이 더 새로운 요청이 나갔다면 그 응답은 낡은 것이라 버린다
+  // (키 A 를 고른 뒤 B 를 골랐는데 A 의 응답이 늦게 와서 B 자리에 보이는 일, 발급·폐기 직후 목록 요청끼리 덮어쓰는 일을 막는다).
+  const keysSeqRef = useRef(0);
+  const logsSeqRef = useRef(0);
+
   // Fetch Keys
   const fetchKeys = useCallback(async () => {
     if (!isAuthenticated) return;
+    const seq = ++keysSeqRef.current;
     try {
       setLoadingKeys(true);
       const data = await blogApi.getMyApiKeys();
+      if (seq !== keysSeqRef.current) return;
       setKeys(data);
       setKeysError(null);
     } catch (err) {
+      if (seq !== keysSeqRef.current) return;
       console.error('Failed to load API keys:', err);
       // 조회 실패를 빈 목록처럼 보여 주지 않는다(데이터가 사라진 것으로 오해하게 된다).
       setKeysError(getErrorMessage(err, '일시적인 오류'));
     } finally {
-      setLoadingKeys(false);
+      if (seq === keysSeqRef.current) setLoadingKeys(false);
     }
   }, [isAuthenticated]);
 
   // Fetch Logs
   const fetchLogs = useCallback(async (keyId?: string) => {
     if (!isAuthenticated) return;
+    const seq = ++logsSeqRef.current;
     try {
       setLoadingLogs(true);
       const pageRes = await blogApi.getApiKeyLogs(keyId || undefined, 0, API_LOGS_PAGE_SIZE);
+      if (seq !== logsSeqRef.current) return;
       setLogs(pageRes.content);
       setLogsError(null);
     } catch (err) {
+      if (seq !== logsSeqRef.current) return;
       console.error('Failed to load API logs:', err);
       setLogsError(getErrorMessage(err, '일시적인 오류'));
     } finally {
-      setLoadingLogs(false);
+      if (seq === logsSeqRef.current) setLoadingLogs(false);
     }
   }, [isAuthenticated]);
 
@@ -175,6 +186,8 @@ export const DevelopersPage: React.FC = () => {
         selectedKeyId={selectedKeyId}
         onSelectKey={(keyId) => {
           setSelectedKeyId(keyId);
+          // 다른 키로 바꾸면 이전 키의 로그는 이 키의 것이 아니므로 비운다(조회가 실패해도 남의 로그가 보이지 않게)
+          setLogs([]);
           fetchLogs(keyId);
         }}
         onRefresh={() => fetchLogs(selectedKeyId)}

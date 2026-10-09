@@ -5,6 +5,7 @@ import { blogApi } from '../api/blogApi';
 import type { FollowUser } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import { useAsyncResource } from '../hooks/useAsyncResource';
+import { listState } from '../utils/listState';
 import { X, UserPlus, UserCheck, UserMinus, Loader2, User } from 'lucide-react';
 
 const FOLLOW_LIST_SIZE = 50;
@@ -28,9 +29,11 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
   const [tab, setTab] = useState<'followers' | 'following'>(initialTab);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // 열고 닫을 때마다 요청한 탭으로 되돌린다. initialTab 만 보면 부모가 같은 값을 다시 줄 때(팔로잉 탭을 보다 닫고 팔로워 수를 눌렀을 때)
+  // effect 가 다시 돌지 않아 이전에 보던 탭이 남고, 닫힌 동안 미리 되돌려 두지 않으면 다시 열 때 잘못된 탭의 목록을 한 번 요청한다.
   useEffect(() => {
     setTab(initialTab);
-  }, [initialTab]);
+  }, [isOpen, initialTab]);
 
   // 열려 있는 동안 탭/사용자가 바뀌면 이전 요청을 취소하고 새로 불러온다
   const list = useAsyncResource(
@@ -42,7 +45,9 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
     { enabled: isOpen }
   );
   const users: FollowUser[] = list.data?.content ?? [];
-  const loading = list.loading;
+  const totalCount = list.data?.totalElements ?? users.length;
+  // 조회 실패를 "팔로워 없음"으로 보여 주지 않는다 (사람들이 사라진 것으로 오해한다)
+  const state = listState({ loading: list.loading, error: list.error, count: users.length });
 
   const updateUser = (id: string, patch: Partial<FollowUser>) =>
     list.setData((prev) => (prev ? { ...prev, content: prev.content.map((u) => (u.id === id ? { ...u, ...patch } : u)) } : prev));
@@ -109,10 +114,17 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
 
         {/* User List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {loading ? (
+          {state === 'loading' ? (
             <div className="py-12 flex items-center justify-center gap-2 text-slate-400 text-sm">
               <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
               <span>불러오는 중...</span>
+            </div>
+          ) : state === 'error' ? (
+            <div role="alert" className="py-12 text-center text-sm text-amber-700 dark:text-amber-300">
+              <p>목록을 불러오지 못했습니다. 저장된 데이터는 그대로입니다.</p>
+              <button type="button" onClick={() => list.reload()} className="mt-3 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold">
+                다시 시도
+              </button>
             </div>
           ) : users.length === 0 ? (
             <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-sm">
@@ -183,6 +195,11 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                 </div>
               );
             })
+          )}
+          {state === 'list' && totalCount > users.length && (
+            <p className="pt-1 text-center text-xs text-slate-400 dark:text-slate-500">
+              전체 {totalCount}명 중 {users.length}명만 보여 줍니다.
+            </p>
           )}
         </div>
       </ModalShell>

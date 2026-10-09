@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { UserActivity } from '../api/types';
 import { Calendar } from 'lucide-react';
+import { buildHeatmapGrid } from '../utils/heatmap';
 
 interface ActivityHeatmapProps {
   activities: UserActivity[];
@@ -11,54 +12,8 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ activities, au
   const [hoveredCell, setHoveredCell] = useState<{ date: string; count: number; x: number; y: number } | null>(null);
 
   const { calendarGrid, totalPosts } = useMemo(() => {
-    const activityMap = new Map<string, number>();
-    let total = 0;
-    activities.forEach((a) => {
-      activityMap.set(a.date, a.count);
-      total += a.count;
-    });
-
-    // Generate past 52 weeks (364 days + today)
-    const today = new Date();
-    const days: { date: string; count: number; dayOfWeek: number }[] = [];
-
-    for (let i = 364; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      days.push({
-        date: dateStr,
-        count: activityMap.get(dateStr) || 0,
-        dayOfWeek: d.getDay(), // 0 = Sun, 6 = Sat
-      });
-    }
-
-    // Group into 53 weeks
-    const weeks: { date: string; count: number }[][] = [];
-    let currentWeek: { date: string; count: number }[] = [];
-
-    // Pad first week if it doesn't start on Sunday
-    const firstDayOfWeek = days[0].dayOfWeek;
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      currentWeek.push({ date: '', count: -1 }); // empty filler
-    }
-
-    days.forEach((day) => {
-      currentWeek.push({ date: day.date, count: day.count });
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-    });
-
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push({ date: '', count: -1 });
-      }
-      weeks.push(currentWeek);
-    }
-
-    return { calendarGrid: weeks, totalPosts: total };
+    const grid = buildHeatmapGrid(activities, new Date());
+    return { calendarGrid: grid.weeks, totalPosts: grid.total };
   }, [activities]);
 
   const getColorClass = (count: number) => {

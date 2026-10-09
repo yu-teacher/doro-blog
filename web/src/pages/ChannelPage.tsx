@@ -28,7 +28,6 @@ export const ChannelPage: React.FC = () => {
   const { user: currentUser, isAuthenticated } = useAuthStore();
 
   const cleanUsername = username?.startsWith('@') ? username.substring(1) : username || '';
-  const currentTab = (searchParams.get('tab') as ChannelTab) || 'posts';
   const tagFilter = searchParams.get('tag') || '';
   const keyword = searchParams.get('q') || '';
 
@@ -56,6 +55,12 @@ export const ChannelPage: React.FC = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const isMyChannel = isAuthenticated && currentUser?.username === cleanUsername;
+
+  // 주소의 ?tab= 은 사용자가 마음대로 바꿀 수 있다. 알려진 탭만 받아들이고, 내 좋아요는 내 채널에서만 연다
+  // (남의 채널에서 내 좋아요 목록이 보이거나, 알 수 없는 값 때문에 빈 화면이 되지 않게 한다).
+  const requestedTab = searchParams.get('tab');
+  const currentTab: ChannelTab =
+    requestedTab === 'series' || requestedTab === 'about' ? requestedTab : requestedTab === 'likes' && isMyChannel ? 'likes' : 'posts';
 
   const isReserved = RESERVED_NAMES.includes(cleanUsername.toLowerCase());
   const channelReady = Boolean(cleanUsername) && !isReserved;

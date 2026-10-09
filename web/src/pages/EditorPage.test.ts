@@ -162,4 +162,27 @@ describe('EditorPage (분리된 훅/컴포넌트 연결)', () => {
 
     expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ title: '초안 제목', status: 'DRAFT' }));
   });
+  it('글을 쓰는 중에 세션이 끝나도 화면을 떠나지 않고 쓰던 내용을 그대로 두며, 다시 로그인하라고 알려 준다', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    await render('/write');
+    typeInto(textarea(), '쓰던 중인 본문');
+    await flush();
+
+    await act(async () => { useAuthStore.getState().markSignedOut(); });
+    await flush();
+
+    expect(textarea(), '편집기가 그대로 남아 있어야 한다').not.toBeNull();
+    expect(textarea().value).toBe('쓰던 중인 본문');
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(host!.textContent).toContain('로그인이 만료');
+  });
+
+  it('처음부터 로그인하지 않고 글쓰기 화면을 열면 안내하고 첫 화면으로 보낸다', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    useAuthStore.setState({ isAuthenticated: false, user: null });
+    await render('/write');
+    await flush();
+
+    expect(alertSpy).toHaveBeenCalledWith('로그인이 필요한 서비스입니다.');
+  });
 });

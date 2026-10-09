@@ -111,4 +111,28 @@ describe('useMarkdownEditor', () => {
     act(() => h!.editor().insertFormatting('[', ']', 'x'));
     expect(h.value()).toBe('ab[x]');
   });
+  it('첫 줄이 빈 줄이고 커서가 맨 앞에 있어도 제목 표시가 그 줄 앞에 정확히 붙는다', () => {
+    h = mount('\nabc');
+    h.select(0);
+    act(() => h!.editor().insertHeading(1));
+    expect(h.value()).toBe('# \nabc');
+  });
+
+  it('줄 중간에 커서가 있어도 그 줄 맨 앞에 제목 표시를 붙이고, 이미 제목이면 단계만 바꾼다', () => {
+    h = mount('first\nsecond line');
+    h.select(8);
+    act(() => h!.editor().insertHeading(2));
+    expect(h.value()).toBe('first\n## second line');
+    act(() => h!.editor().insertHeading(3));
+    expect(h.value()).toBe('first\n### second line');
+  });
+
+  it('입력한 직후(기록 지연 시간 전에) 되돌리기를 눌러도 방금 입력이 취소되고, 다시 실행하면 돌아온다', () => {
+    h = mount('base');
+    h.type('base abc');
+    act(() => h!.editor().handleUndo());
+    expect(h.value()).toBe('base');
+    act(() => h!.editor().handleRedo());
+    expect(h.value()).toBe('base abc');
+  });
 });

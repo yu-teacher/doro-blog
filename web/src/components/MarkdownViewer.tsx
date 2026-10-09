@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Check, Copy } from 'lucide-react';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { nodeText } from '../utils/reactText';
 
 interface MarkdownViewerProps {
   content: string;
@@ -17,9 +18,11 @@ const PreBlock = ({ children }: { children?: React.ReactNode }) => {
 const CodeBlock = ({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) => {
   const { copied, copy } = useCopyToClipboard();
   const match = /language-(\w+)/.exec(className || '');
-  const isBlock = Boolean(match) || String(children).includes('\n');
+  // 문법 강조된 코드는 자식이 <span> 요소 배열이다. String(children) 은 "[object Object]" 가 되므로 글자를 꺼내서 쓴다
+  const sourceText = nodeText(children);
+  const isBlock = Boolean(match) || sourceText.includes('\n');
   const language = match ? match[1] : '';
-  const textContent = String(children).replace(/\n$/, '');
+  const textContent = sourceText.replace(/\n$/, '');
 
   const handleCopy = () => {
     void copy(textContent);

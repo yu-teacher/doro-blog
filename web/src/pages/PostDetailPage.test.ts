@@ -94,4 +94,35 @@ describe('PostDetailPage', () => {
     await act(async () => { share.click(); });
     expect(writeText).toHaveBeenCalledWith(window.location.href);
   });
+  describe('좋아요', () => {
+    const likeButton = () => [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === '좋아요' || b.getAttribute('aria-label') === '좋아요 취소') as HTMLButtonElement;
+    const likeCountText = () => likeButton().textContent?.trim();
+
+    it('연달아 눌러도(응답 전) 서버에는 한 번만 요청하고 숫자는 한 번만 오른다', async () => {
+      vi.spyOn(blogApi, 'getPostBySlug').mockResolvedValue(detail({ likeCount: 2 }));
+      let resolve!: (liked: boolean) => void;
+      const toggle = vi.spyOn(blogApi, 'toggleLike').mockReturnValue(new Promise<boolean>((res) => { resolve = res; }));
+      await render();
+
+      await act(async () => { likeButton().click(); likeButton().click(); });
+      await act(async () => { resolve(true); await Promise.resolve(); });
+
+      expect(toggle).toHaveBeenCalledTimes(1);
+      expect(likeButton().getAttribute('aria-label')).toBe('좋아요 취소');
+      expect(likeCountText()).toContain('3');
+    });
+
+    it('화면과 서버의 상태가 어긋나 있어도(다른 탭에서 이미 눌렀다) 서버가 돌려준 결과를 따른다', async () => {
+      // 화면은 "안 눌렀음"인데 실제로는 이미 좋아요 상태였다: 토글하면 서버는 취소(false)로 바꾼다
+      vi.spyOn(blogApi, 'getPostBySlug').mockResolvedValue(detail({ likeCount: 2 }));
+      vi.spyOn(blogApi, 'toggleLike').mockResolvedValue(false);
+      await render();
+
+      await act(async () => { likeButton().click(); await Promise.resolve(); });
+
+      expect(blogApi.toggleLike).toHaveBeenCalledTimes(1);
+      expect(likeButton().getAttribute('aria-label')).toBe('좋아요');
+      expect(likeCountText(), '서버 결과와 화면이 같으면 숫자를 지어내지 않는다').toContain('2');
+    });
+  });
 });

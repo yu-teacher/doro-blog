@@ -3,6 +3,33 @@ import type { DependencyList, Dispatch, SetStateAction } from 'react';
 import type { PageResponse } from '../api/types';
 import { getErrorMessage, isCancelled } from '../utils/errors';
 
+/** 항목의 id. id 가 있는 항목은 이어 붙일 때 이미 받은 항목을 걸러 내는 데 쓴다. 없으면(문자열 등) 거르지 않는다. */
+function itemKey(item: unknown): string | null {
+  if (typeof item === 'object' && item !== null && 'id' in item) {
+    const id = (item as { id: unknown }).id;
+    if (typeof id === 'string' || typeof id === 'number') return String(id);
+  }
+  return null;
+}
+
+/** 다음 페이지를 이어 붙인다. 목록이 밀려 앞 페이지의 항목이 다시 오면(같은 id) 한 번만 보여 준다. */
+function appendPage<T>(prev: T[], next: T[]): T[] {
+  const known = new Set<string>();
+  for (const item of prev) {
+    const key = itemKey(item);
+    if (key !== null) known.add(key);
+  }
+  return [...prev, ...next.filter((item) => {
+    const key = itemKey(item);
+    return key === null || !known.has(key);
+  })];
+}
+
+/** 더 불러올 페이지가 있는가. 서버가 last=false 라고 해도 내용이 빈 페이지면 끝이다(무한 스크롤이 빈 요청을 계속 보내지 않게). */
+function hasNextPage<T>(res: PageResponse<T>): boolean {
+  return !res.last && (res.content?.length ?? 0) > 0;
+}
+
 export type PageFetcher<T> = (page: number, signal: AbortSignal) => Promise<PageResponse<T>>;
 
 interface Options<T> {
@@ -89,8 +116,8 @@ export function usePaginatedList<T>(
         if (controller.signal.aborted) return;
         setItems(res.content ?? []);
         setTotalElements(res.totalElements);
-        hasMoreRef.current = !res.last;
-        setHasMore(!res.last);
+        hasMoreRef.current = hasNextPage(res);
+        setHasMore(hasNextPage(res));
         onFirstPageRef.current?.(res);
       })
       .catch((err: unknown) => {
@@ -119,9 +146,9 @@ export function usePaginatedList<T>(
       .then((res) => {
         if (controller.signal.aborted) return;
         pageRef.current = nextPage;
-        setItems((prev) => [...prev, ...(res.content ?? [])]);
-        hasMoreRef.current = !res.last;
-        setHasMore(!res.last);
+        setItems((prev) => appendPage(prev, res.content ?? []));
+        hasMoreRef.current = hasNextPage(res);
+        setHasMore(hasNextPage(res));
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted || isCancelled(err)) return;

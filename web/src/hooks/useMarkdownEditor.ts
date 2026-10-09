@@ -116,6 +116,13 @@ export function useMarkdownEditor({ content, setContent, textareaRef, resetKey }
 
   const stepHistory = useCallback(
     (direction: -1 | 1) => {
+      // 입력 후 기록 지연 시간이 지나기 전이면 방금 입력이 아직 기록되지 않았다. 먼저 기록해 두어야
+      // 되돌리기가 방금 입력을 취소하고, 다시 실행으로 돌아올 수 있다(그렇지 않으면 입력이 건너뛰어지고 되돌릴 수도 없다).
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+        pushHistory(contentRef.current, textareaRef.current?.selectionStart ?? contentRef.current.length);
+      }
       const nextIndex = historyIndexRef.current + direction;
       if (nextIndex < 0 || nextIndex > historyRef.current.length - 1) return;
       historyIndexRef.current = nextIndex;
@@ -123,7 +130,7 @@ export function useMarkdownEditor({ content, setContent, textareaRef, resetKey }
       isUndoRedoRef.current = true;
       replaceContent(entry.content, { start: entry.cursor, end: entry.cursor });
     },
-    [replaceContent]
+    [replaceContent, pushHistory, textareaRef]
   );
 
   const handleUndo = useCallback(() => stepHistory(-1), [stepHistory]);
@@ -172,7 +179,8 @@ export function useMarkdownEditor({ content, setContent, textareaRef, resetKey }
     const current = textarea.value;
     const hashes = '#'.repeat(level) + ' ';
 
-    const lineStart = current.lastIndexOf('\n', start - 1) + 1;
+    // lastIndexOf 에 음수를 주면 0 으로 취급돼 맨 앞이 빈 줄일 때 줄 시작을 잘못 찾는다: 커서가 맨 앞이면 그 줄의 시작은 0 이다
+    const lineStart = start === 0 ? 0 : current.lastIndexOf('\n', start - 1) + 1;
     const lineEnd = current.indexOf('\n', end);
     const actualLineEnd = lineEnd === -1 ? current.length : lineEnd;
     // 이미 제목 표시가 있으면 교체한다
