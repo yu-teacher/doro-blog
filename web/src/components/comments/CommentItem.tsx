@@ -34,16 +34,16 @@ export const CommentItem: React.FC<CommentItemProps> = ({
 
   return (
     <div className="border-b border-slate-100 dark:border-slate-800/80 pb-6 last:border-0">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-3">
           <CommentAvatar
             nickname={comment.nickname}
             profileImageUrl={comment.profileImageUrl}
             className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-sm border border-emerald-200 dark:border-emerald-800"
           />
-          <div>
-            <span className="font-semibold text-slate-900 dark:text-slate-200 text-sm">{comment.nickname}</span>
-            <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">@{comment.username}</span>
+          <div className="min-w-0">
+            <span className="font-semibold text-slate-900 dark:text-slate-200 text-sm break-words">{comment.nickname}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 ml-2 break-all">@{comment.username}</span>
             <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(comment.createdAt, 'dateTime')}</p>
           </div>
         </div>
@@ -64,7 +64,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         {comment.isDeleted ? (
           <span className="text-slate-400 dark:text-slate-500 italic">삭제된 댓글입니다.</span>
         ) : (
-          <p className="whitespace-pre-wrap">{comment.content}</p>
+          <p className="whitespace-pre-wrap break-words">{comment.content}</p>
         )}
       </div>
 

@@ -16,11 +16,11 @@ interface ChannelTabsProps {
 export const ChannelTabs: React.FC<ChannelTabsProps> = ({ currentTab, isMyChannel, searchInput, setSearchInput, onTabChange, onSearchSubmit }) => (
   <>
     {/* 3 Main Tabs: 글 / 시리즈 / 소개 */}
-    <div className="flex items-center justify-between mt-8 mb-6 border-b border-slate-200 dark:border-slate-800">
-      <div className="flex items-center gap-8">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 mt-8 mb-6 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center gap-5 sm:gap-8 overflow-x-auto">
         <button
           onClick={() => onTabChange('posts')}
-          className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
+          className={`flex items-center gap-2 pb-3 text-base sm:text-lg font-bold whitespace-nowrap shrink-0 transition-all relative ${
             currentTab === 'posts'
               ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
               : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -32,7 +32,7 @@ export const ChannelTabs: React.FC<ChannelTabsProps> = ({ currentTab, isMyChanne
 
         <button
           onClick={() => onTabChange('series')}
-          className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
+          className={`flex items-center gap-2 pb-3 text-base sm:text-lg font-bold whitespace-nowrap shrink-0 transition-all relative ${
             currentTab === 'series'
               ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
               : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -44,7 +44,7 @@ export const ChannelTabs: React.FC<ChannelTabsProps> = ({ currentTab, isMyChanne
 
         <button
           onClick={() => onTabChange('about')}
-          className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
+          className={`flex items-center gap-2 pb-3 text-base sm:text-lg font-bold whitespace-nowrap shrink-0 transition-all relative ${
             currentTab === 'about'
               ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
               : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -57,7 +57,7 @@ export const ChannelTabs: React.FC<ChannelTabsProps> = ({ currentTab, isMyChanne
         {isMyChannel && (
           <button
             onClick={() => onTabChange('likes')}
-            className={`flex items-center gap-2 pb-3 text-lg font-bold transition-all relative ${
+            className={`flex items-center gap-2 pb-3 text-base sm:text-lg font-bold whitespace-nowrap shrink-0 transition-all relative ${
               currentTab === 'likes'
                 ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400'
                 : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -71,7 +71,7 @@ export const ChannelTabs: React.FC<ChannelTabsProps> = ({ currentTab, isMyChanne
 
       {/* In-channel search input (when on Posts tab) */}
       {currentTab === 'posts' && (
-        <form onSubmit={onSearchSubmit} className="relative w-44 sm:w-60 pb-2">
+        <form onSubmit={onSearchSubmit} className="relative w-full sm:w-60 order-last sm:order-none pb-2">
           <input
             type="text"
             placeholder="블로그 내 검색..."

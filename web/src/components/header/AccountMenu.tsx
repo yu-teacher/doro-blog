@@ -133,10 +133,10 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
         </div>
       </>
     ) : (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <button
           onClick={onLogin}
-          className="px-3.5 py-1.5 rounded-full text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="whitespace-nowrap px-2 sm:px-3.5 py-1.5 rounded-full text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           로그인
         </button>
@@ -144,7 +144,7 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
           href={DORO_SIGNUP_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-xs"
+          className="hidden sm:inline-flex whitespace-nowrap items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-xs"
         >
           <span>회원가입</span>
           <ExternalLink className="w-3.5 h-3.5 opacity-85" />

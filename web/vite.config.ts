@@ -92,7 +92,7 @@ export default defineConfig(({ mode }) => {
     proxy: {
       // base 가 하위 경로(/blog)면 브라우저가 /blog/api/... 를 부른다. 게이트웨이가 접두사를 떼는 것과 같이 /api/... 로 바꿔 백엔드로 보낸다.
       [`${BASE_WITHOUT_SLASH}/api`]: {
-        target: 'http://localhost:8082',
+        target: env.VITE_DEV_API_TARGET || 'http://localhost:8082',
         changeOrigin: true,
         rewrite: (p: string) => p.slice(BASE_WITHOUT_SLASH.length),
       },

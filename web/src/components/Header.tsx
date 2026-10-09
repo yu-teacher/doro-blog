@@ -26,7 +26,7 @@ export const Header: React.FC = () => {
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 transition-colors">
         <div className="max-w-[1728px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 font-black text-2xl tracking-tighter text-gray-900 dark:text-white group">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 font-black text-xl sm:text-2xl tracking-tighter text-gray-900 dark:text-white group shrink-0">
             <img
               src={assetUrl('doro-logo.png')}
               alt="DORO"
@@ -43,7 +43,7 @@ export const Header: React.FC = () => {
           )}
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
             <AppLauncher
               isOpen={openMenu === 'apps'}
               isAdmin={isAdmin}
@@ -74,7 +74,7 @@ export const Header: React.FC = () => {
             {/* Developers API Link */}
             <Link
               to="/developers"
-              className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors flex items-center gap-1 text-xs font-semibold"
+              className="hidden sm:flex p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors items-center gap-1 text-xs font-semibold"
               title="개발자 센터 (API & 자동화)"
             >
               <Terminal className="w-4 h-4 text-emerald-500" />
