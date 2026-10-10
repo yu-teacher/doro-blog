@@ -108,4 +108,33 @@ describe('NotificationDropdown', () => {
     await flush();
     expect(host!.textContent).not.toContain('안 읽음');
   });
+  describe('모바일 레이아웃', () => {
+    it('좁은 화면에서는 패널이 화면 가장자리에 맞춰 뜨고, 넓은 화면에서만 종 아이콘 아래에 붙는다', async () => {
+      vi.spyOn(blogApi, 'getNotifications').mockResolvedValue(page([item('n1')]));
+      await render();
+      await act(async () => { bell().click(); });
+      await flush();
+
+      const panel = host!.querySelector('div.rounded-2xl') as HTMLElement;
+      // 종 아이콘은 헤더 오른쪽 가운데쯤이라 absolute right-0 w-80 이면 375px 폰에서 왼쪽이 잘린다
+      expect(panel.className).toContain('fixed inset-x-2');
+      expect(panel.className).toContain('sm:absolute');
+      expect(panel.className).not.toMatch(/(^|\s)w-80(\s|$)/);
+    });
+
+    it('터치 화면에서는 삭제 버튼이 항상 보이고 누르기 쉬운 크기이며, 긴 닉네임은 줄바꿈된다', async () => {
+      vi.spyOn(blogApi, 'getNotifications').mockResolvedValue(
+        page([item('n1', { sender: { id: 's', username: 'sender', nickname: 'A'.repeat(60) } })]),
+      );
+      await render();
+      await act(async () => { bell().click(); });
+      await flush();
+
+      const del = host!.querySelector('button[aria-label="알림 삭제"]') as HTMLElement;
+      expect(del.className).toContain('pointer-coarse:opacity-100');
+      expect(del.className).toContain('pointer-coarse:p-2.5');
+      const text = [...host!.querySelectorAll('div')].find((d) => d.className.includes('min-w-0')) as HTMLElement;
+      expect(text.className).toContain('break-words');
+    });
+  });
 });

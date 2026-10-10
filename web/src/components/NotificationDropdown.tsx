@@ -57,7 +57,7 @@ export const NotificationDropdown: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-slate-900 dark:text-slate-100">알림</span>
@@ -71,7 +71,7 @@ export const NotificationDropdown: React.FC = () => {
             {unreadCount > 0 && (
               <button
                 onClick={() => void notifications.markAllRead()}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer pointer-coarse:min-h-9 pointer-coarse:px-1"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 모두 읽음
@@ -79,7 +79,7 @@ export const NotificationDropdown: React.FC = () => {
             )}
           </div>
 
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="max-h-[min(380px,calc(100dvh-9rem))] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
             {loading && items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
@@ -107,7 +107,7 @@ export const NotificationDropdown: React.FC = () => {
                   type="button"
                   disabled={loading}
                   onClick={notifications.loadMore}
-                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50 pointer-coarse:min-h-9 pointer-coarse:px-3"
                 >
                   {loading ? '불러오는 중...' : '이전 알림 더보기'}
                 </button>

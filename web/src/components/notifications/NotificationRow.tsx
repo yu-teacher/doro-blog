@@ -48,7 +48,7 @@ export const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick,
         </span>
       </div>
 
-      <div className="flex-1 min-w-0 pr-4 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+      <div className="flex-1 min-w-0 pr-4 pointer-coarse:pr-8 break-words text-xs leading-relaxed text-slate-600 dark:text-slate-300">
         <div>
           <span className="font-bold text-slate-900 dark:text-slate-100">{item.sender.nickname}</span>
           <span>
@@ -78,7 +78,7 @@ export const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick,
         title="알림 삭제"
         aria-label="알림 삭제"
         onClick={(e) => onDelete(e, item.id, item.isRead)}
-        className="absolute bottom-2 right-2 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+        className="absolute bottom-2 right-2 p-1 pointer-coarse:p-2.5 pointer-coarse:bottom-0 pointer-coarse:right-0 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors opacity-0 pointer-coarse:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
