@@ -99,8 +99,8 @@ export const SeriesDetailPage: React.FC = () => {
           <span className="text-sm uppercase tracking-wider">SERIES</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mb-4">{series.title}</h1>
-        {series.description && <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">{series.description}</p>}
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mb-4 break-words">{series.title}</h1>
+        {series.description && <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-4 break-words">{series.description}</p>}
 
         <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
           <span className="font-semibold text-slate-700 dark:text-slate-300">총 {series.postCount}화</span>
@@ -170,7 +170,7 @@ export const SeriesDetailPage: React.FC = () => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500 transition-colors">
+                  <h3 className="min-w-0 break-words text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500 transition-colors">
                     {post.title}
                   </h3>
                   {post.status === 'PRIVATE' && (

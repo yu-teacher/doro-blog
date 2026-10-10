@@ -26,16 +26,16 @@ export const ChannelProfileHeader: React.FC<ChannelProfileHeaderProps> = ({ clea
         )}
       </div>
 
-      <div className="flex-1 text-center sm:text-left min-w-0">
+      <div className="w-full max-w-full flex-1 text-center sm:text-left min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center justify-center sm:justify-start gap-3">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1">
+              <h1 className="min-w-0 break-all text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
                 {profile?.nickname || cleanUsername}
               </h1>
-              <span className="text-sm font-mono text-slate-400 dark:text-slate-500">@{cleanUsername}</span>
+              <span className="min-w-0 break-all text-sm font-mono text-slate-400 dark:text-slate-500">@{cleanUsername}</span>
             </div>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1 break-words">
               {profile?.blogTitle}
             </p>
           </div>
@@ -80,7 +80,7 @@ export const ChannelProfileHeader: React.FC<ChannelProfileHeaderProps> = ({ clea
           </div>
         </div>
 
-        <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base mt-3 max-w-2xl leading-relaxed">
+        <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base mt-3 max-w-2xl leading-relaxed break-words">
           {profile?.bio || '아직 소개글이 작성되지 않았습니다.'}
         </p>
 

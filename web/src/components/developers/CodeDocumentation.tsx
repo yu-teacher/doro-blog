@@ -30,8 +30,8 @@ export const CodeDocumentation: React.FC<CodeDocumentationProps> = ({ apiEndpoin
 
       {/* Code Tabs Container */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-900 text-slate-100 overflow-hidden shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5 bg-slate-950/70">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5 bg-slate-950/70">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveCodeTab('curl')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${

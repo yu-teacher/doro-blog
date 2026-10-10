@@ -85,7 +85,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, channelUsername }) => 
                   key={tag}
                   to={getTagLink(tag)}
                   onClick={(e) => e.stopPropagation()}
-                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] rounded-md font-medium hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  className="min-w-0 max-w-full truncate px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] rounded-md font-medium hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 >
                   #{tag}
                 </Link>

@@ -15,13 +15,13 @@ export const PostHeader: React.FC<PostHeaderProps> = ({ post, isAuthor, onDelete
   <>
     {/* Article Header */}
     <header className="mb-8">
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 leading-tight tracking-tight mb-4">
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 leading-tight tracking-tight mb-4 break-words">
         {post.title}
       </h1>
 
       <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500 dark:text-slate-400 pb-6 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <Link to={`/@${post.username}`} className="font-bold text-slate-800 dark:text-slate-200 hover:underline">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1">
+          <Link to={`/@${post.username}`} className="min-w-0 break-all font-bold text-slate-800 dark:text-slate-200 hover:underline">
             {post.nickname}
           </Link>
           <span>·</span>
@@ -61,7 +61,7 @@ export const PostHeader: React.FC<PostHeaderProps> = ({ post, isAuthor, onDelete
             <Link
               key={tag}
               to={`/?tag=${encodeURIComponent(tag)}`}
-              className="text-xs font-semibold px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-full transition-colors"
+              className="max-w-full break-all text-xs font-semibold px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-full transition-colors"
             >
               #{tag}
             </Link>

@@ -144,9 +144,9 @@ export const TagSearchPage: React.FC = () => {
                 <button
                   key={co.name}
                   onClick={() => handleAddTag(co.name)}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-300 rounded-full text-xs font-semibold border border-transparent hover:border-emerald-300 dark:hover:border-emerald-700 transition-all"
+                  className="inline-flex max-w-full items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-300 rounded-full text-xs font-semibold border border-transparent hover:border-emerald-300 dark:hover:border-emerald-700 transition-all"
                 >
-                  <span>+ #{co.name}</span>
+                  <span className="min-w-0 break-all text-left">+ #{co.name}</span>
                   <span className="opacity-60 text-[10px]">({co.count})</span>
                 </button>
               ))}
@@ -165,9 +165,9 @@ export const TagSearchPage: React.FC = () => {
                 <button
                   key={pt.id}
                   onClick={() => handleAddTag(pt.name)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-full text-xs font-semibold transition-all"
+                  className="inline-flex max-w-full items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-full text-xs font-semibold transition-all"
                 >
-                  <span>#{pt.name}</span>
+                  <span className="min-w-0 break-all text-left">#{pt.name}</span>
                   <span className="opacity-70 text-[11px]">({pt.postCount})</span>
                 </button>
               ))}

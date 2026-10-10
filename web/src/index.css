@@ -155,3 +155,35 @@
 .hljs-variable, .hljs-params { color: #ffa657; }
 .hljs-function { color: #d2a8ff; }
 .hljs-punctuation { color: #c9d1d9; }
+
+/* 마크다운 표: 열이 많거나 값이 길면 화면을 넘지 않고 표 안에서 가로로 스크롤한다. */
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/*
+ * 터치 화면(폰)에서의 최소한의 사용성 규칙. 모바일 회귀 테스트(e2e/*.e2e.ts)가 실제 브라우저에서 측정해 이 규칙이 유지되는지 확인한다.
+ *  - 입력창 글꼴이 16px 미만이면 iOS Safari 가 포커스할 때 화면을 확대하고 되돌리지 않는다. 터치 화면에서만 16px 로 올린다.
+ *  - 버튼과 (인라인이 아닌) 링크의 눌리는 영역을 32px 이상으로 한다. 글자 크기는 그대로 두고 영역만 키운다.
+ * 유틸리티 클래스보다 우선하도록 레이어 밖(unlayered)에 둔다. 스위치처럼 모양이 크기 자체인 요소는 제외한다.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select {
+    min-height: 36px;
+  }
+
+  button:not([role='switch']),
+  a[href] {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
