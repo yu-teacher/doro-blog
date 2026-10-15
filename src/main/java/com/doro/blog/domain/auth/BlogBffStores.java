@@ -1,5 +1,6 @@
 package com.doro.blog.domain.auth;
 
+import com.doro.blog.config.ConditionalOnEmbeddedBff;
 import com.doro.blog.domain.auth.entity.AuthSession;
 import com.doro.blog.domain.auth.entity.LoginAttempt;
 import com.doro.blog.domain.auth.repository.AuthSessionRepository;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 /** SDK BFF 의 저장소 계약({@link BffSessionStore}, {@link BffLoginAttemptStore})을 블로그 DB(JPA)로 구현한다. 메서드마다 짧은 트랜잭션이다. */
 @Component
+@ConditionalOnEmbeddedBff
 @RequiredArgsConstructor
 public class BlogBffStores implements BffSessionStore, BffLoginAttemptStore {
 
