@@ -12,8 +12,10 @@ import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.post.service.PostCommandService;
 import com.doro.blog.domain.upload.service.StorageService;
 import com.doro.blog.domain.user.service.FollowService;
-import com.doro.blog.domain.user.sync.DoroIamClient.DeletedUser;
-import com.doro.blog.domain.user.sync.DoroIamClient.DeletedUsersPage;
+import com.hunnit_beasts.doro.sdk.sync.DeletedUsersClient;
+import com.hunnit_beasts.doro.sdk.sync.DeletedUsersClient.DeletedUser;
+import com.hunnit_beasts.doro.sdk.sync.DeletedUsersClient.DeletedUsersPage;
+import com.hunnit_beasts.doro.sdk.sync.DeletedUsersSync;
 import com.hunnit_beasts.doro.sdk.domain.DoroUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,8 +45,11 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(properties = "blog.deleted-sync.page-size=2")
 class DeletedAccountSyncTest {
 
+    /** SDK 동기화가 기준 시각을 저장하는 이름(기본값). */
+    private static final String STATE_NAME = "iam-deleted-users";
+
     @Autowired private DeletedAccountAnonymizer anonymizer;
-    @Autowired private DeletedAccountSync sync;
+    @Autowired private DeletedUsersSync sync;
     @Autowired private IamSyncStateRepository states;
     @Autowired private PostCommandService posts;
     @Autowired private CommentService comments;
@@ -52,7 +57,7 @@ class DeletedAccountSyncTest {
     @Autowired private ApiKeyService apiKeys;
     @Autowired private AuthSessionRepository authSessions;
     @Autowired private JdbcTemplate jdbc;
-    @MockitoBean private DoroIamClient iam;
+    @MockitoBean private DeletedUsersClient iam;
     @MockitoBean private StorageService storage;
 
     @BeforeEach
@@ -208,8 +213,8 @@ class DeletedAccountSyncTest {
         assertThat(sync.sync()).isEqualTo(1);
 
         assertThat(blogUser(user.userId()).get("deleted_at")).isNotNull();
-        assertThat(states.findById(DeletedAccountSync.STATE_NAME)).isPresent();
-        assertThat(states.findById(DeletedAccountSync.STATE_NAME).orElseThrow().getCursorAt()).isBefore(deletedAt);
+        assertThat(states.findById(STATE_NAME)).isPresent();
+        assertThat(states.findById(STATE_NAME).orElseThrow().getCursorAt()).isBefore(deletedAt);
     }
 
     @Test
@@ -248,7 +253,7 @@ class DeletedAccountSyncTest {
         sync.scheduledRun();
 
         assertThat(blogUser(user.userId()).get("deleted_at")).isNull();
-        assertThat(states.findById(DeletedAccountSync.STATE_NAME)).isEmpty();
+        assertThat(states.findById(STATE_NAME)).isEmpty();
     }
 
     @Test
