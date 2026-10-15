@@ -12,9 +12,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * BFF 로그인 설정. 로그인 로직(세션·로그인 CSRF·토큰 갱신·로그아웃)은 SDK(doro-sdk 의 bff 패키지)가 맡고, 블로그는 설정 값과
- * 저장소({@link com.doro.blog.domain.auth.BlogBffStores}), 로그인 직후의 사용자 생성만 제공한다.
- * 설정 키는 그대로 {@code blog.auth.*}, 환경변수 이름도 그대로다.
+ * BFF 로그인 설정. 두 가지 모드가 있다({@code blog.auth.mode}).
+ * <ul>
+ *   <li>{@code embedded}(기본): 로그인 로직(세션·로그인 CSRF·토큰 갱신·로그아웃)은 SDK(doro-sdk 의 bff 패키지)가 이 서비스 안에서 돌고,
+ *       블로그는 설정 값과 저장소({@link com.doro.blog.domain.auth.BlogBffStores}), 로그인 직후의 사용자 생성만 제공한다.
+ *       설정 키는 {@code blog.auth.*}, 환경변수 이름도 그대로다.</li>
+ *   <li>{@code gateway}: 로그인·세션·토큰 갱신은 별도 서비스(doro-bff)가 맡는다. 게이트웨이가 쿠키를 토큰으로 바꿔 요청마다
+ *       {@code Authorization: Bearer} 로 붙여 주므로, 이 서비스에는 BFF 빈·세션 저장소가 없고 Bearer 만 검증한다.</li>
+ * </ul>
  */
 @Configuration
 @EnableScheduling
@@ -22,6 +27,7 @@ public class BffConfig {
 
     /** 블로그의 기본값을 깔고 {@code blog.auth.*} 설정이 그 위에 덮어쓴다. */
     @Bean
+    @ConditionalOnEmbeddedBff
     @ConfigurationProperties(prefix = "blog.auth")
     public BffProperties bffProperties() {
         return defaults();
@@ -50,8 +56,9 @@ public class BffConfig {
         return anonymizer::anonymize;
     }
 
-    /** 로그인에 성공하면 블로그 사용자 행을 만들거나 갱신한다. */
+    /** 로그인에 성공하면 블로그 사용자 행을 만든다. (gateway 모드에서는 첫 인증 요청이 {@code /api/v1/bff/session} 에서 만든다) */
     @Bean
+    @ConditionalOnEmbeddedBff
     public BffUserHook bffUserHook(BlogUserService userService) {
         return user -> userService.getOrCreateUser(user);
     }
