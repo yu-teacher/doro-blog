@@ -91,6 +91,14 @@ blog:
   api-key:
     # API 키 사용 기록(요청마다 한 행)을 이 기간만 보관한다. 지난 기록은 주기적으로 지운다.
     log-retention-days: ${BLOG_API_KEY_LOG_RETENTION_DAYS:90}
+    # 키 소유자의 도로 계정 상태 확인: 정지·탈퇴 유예 중에는 키를 쓸 수 없다(IAM 내부 API, 서비스 토큰 필요).
+    # 정상은 cache-ttl, 그 밖의 상태는 inactive-cache-ttl 동안만 캐시한다(정지 해제가 빨리 반영된다).
+    # IAM 에 닿지 못하면 stale-ttl 안의 이전 판정을 쓰고, 없으면 거부(503)한다.
+    account-status:
+      enabled: ${BLOG_API_KEY_ACCOUNT_STATUS_ENABLED:true}
+      cache-ttl: ${BLOG_API_KEY_ACCOUNT_STATUS_CACHE_TTL:PT60S}
+      inactive-cache-ttl: ${BLOG_API_KEY_ACCOUNT_STATUS_INACTIVE_CACHE_TTL:PT10S}
+      stale-ttl: ${BLOG_API_KEY_ACCOUNT_STATUS_STALE_TTL:PT10M}
   auth:
     client-id: ${BLOG_OAUTH_CLIENT_ID:doro-blog}
     authorize-url: ${BLOG_OAUTH_AUTHORIZE_URL:http://localhost:28080/oauth2/authorize}

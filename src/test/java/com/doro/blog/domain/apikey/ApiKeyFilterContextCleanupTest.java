@@ -47,7 +47,10 @@ class ApiKeyFilterContextCleanupTest {
         doThrow(new IllegalStateException("log insert failed")).when(service)
                 .recordLog(any(), any(), anyString(), anyString(), anyInt(), anyString(), any(), anyLong(), any());
 
-        ApiKeyAuthFilter filter = new ApiKeyAuthFilter(service);
+        // 계정 상태 확인은 이 시험의 관심사가 아니다(항상 정상)
+        com.doro.blog.domain.apikey.security.AccountStatusChecker accountStatus = mock(com.doro.blog.domain.apikey.security.AccountStatusChecker.class);
+        when(accountStatus.check(any())).thenReturn(com.doro.blog.domain.apikey.security.AccountStatusChecker.Status.ACTIVE);
+        ApiKeyAuthFilter filter = new ApiKeyAuthFilter(service, accountStatus);
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/posts/me");
         request.addHeader("X-API-Key", "doro_live_" + "a".repeat(48));
         FilterChain chain = (req, res) -> {

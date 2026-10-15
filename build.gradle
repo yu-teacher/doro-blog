@@ -68,6 +68,8 @@ tasks.named('test') {
     environment 'DB_PASSWORD', System.getenv('DB_PASSWORD') ?: 'doro_secret'
     environment 'MINIO_SECRET_KEY', System.getenv('MINIO_SECRET_KEY') ?: 'doro_secret'
     // 테스트 전용 세션 암호화 키(운영 키가 아니다)
+    // 기존 시험은 IAM 없이 돈다. 계정 상태 확인(API 키)은 그것을 시험하는 클래스만 켠다.
+    environment 'BLOG_API_KEY_ACCOUNT_STATUS_ENABLED', 'false'
     environment 'BLOG_SESSION_KEY', System.getenv('BLOG_SESSION_KEY') ?: 'dGVzdC1vbmx5LWtleS0wMTIzNDU2Nzg5MDEyMzQ1Njc='
 }
 

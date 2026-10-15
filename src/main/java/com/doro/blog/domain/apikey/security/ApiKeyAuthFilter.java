@@ -33,6 +33,7 @@ import java.util.UUID;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final ApiKeyService apiKeyService;
+    private final AccountStatusChecker accountStatus;
     // 필터는 Spring MVC 의 메시지 컨버터를 거치지 않으므로, Instant(timestamp)를 직렬화할 수 있는 매퍼를 직접 구성한다
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -80,6 +81,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         ApiKey apiKey = optKey.get();
         BlogUser owner = apiKey.getUser();
+
+        // 소유자의 도로 계정이 정지되거나 탈퇴 유예에 들어가면 키도 쓸 수 없다(키는 IAM 세션과 무관하게 오래 쓰는 자격 증명이다).
+        // 확인하지 못하면(IAM 장애이고 최근 판정도 없음) 거부한다. 정지가 풀리면 키는 다시 쓸 수 있다.
+        AccountStatusChecker.Status accountState = accountStatus.check(owner.getId());
+        if (accountState != AccountStatusChecker.Status.ACTIVE) {
+            boolean unavailable = accountState == AccountStatusChecker.Status.UNAVAILABLE;
+            log.warn("API Key refused because of the owner's account state: keyId={}, ip={}, state={}", apiKey.getId(), clientIp, accountState);
+            response.setStatus(unavailable ? HttpStatus.SERVICE_UNAVAILABLE.value() : HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(objectMapper.writeValueAsString(unavailable
+                    ? ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE, "AUTH-503-01", "계정 상태를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.")
+                    : ApiResponse.error(HttpStatus.FORBIDDEN, "AUTH-403-04", "계정을 지금 사용할 수 없어 API 키를 쓸 수 없습니다.")));
+            return;
+        }
 
         // API 키는 글 자동 발행용 범위로 제한한다 (키 발급/폐기, 계정 변경 등 관리 API 는 JWT 로만)
         if (!ApiKeyScope.allows(uri)) {
