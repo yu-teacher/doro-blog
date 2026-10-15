@@ -1,6 +1,11 @@
 package com.doro.blog.domain.auth;
 
-import com.doro.blog.domain.user.service.BlogUserService;
+import com.hunnit_beasts.doro.sdk.bff.BffAuthService;
+import com.hunnit_beasts.doro.sdk.bff.BffProperties;
+import com.hunnit_beasts.doro.sdk.bff.BffController;
+import com.hunnit_beasts.doro.sdk.bff.BffCookies;
+
+import com.doro.blog.config.BffConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class BffWebBasePathTest {
 
     private static BffProperties props(String basePath) {
-        BffProperties props = new BffProperties();
+        BffProperties props = BffConfig.defaults();
         props.setWebBasePath(basePath);
         return props;
     }
@@ -36,7 +41,7 @@ class BffWebBasePathTest {
     @Test
     @DisplayName("공개 경로를 설정하지 않으면(null 포함) 지금과 같은 루트 기준이다")
     void defaultsToRoot() {
-        BffProperties unset = new BffProperties();
+        BffProperties unset = BffConfig.defaults();
         assertThat(unset.webPath("/")).isEqualTo("/");
         assertThat(unset.loginCookiePath()).isEqualTo("/api/v1/bff");
         unset.setWebBasePath(null);
@@ -44,7 +49,7 @@ class BffWebBasePathTest {
     }
 
     private static MockMvc mockMvc(String basePath) {
-        BffController controller = new BffController(mock(BffAuthService.class), props(basePath), mock(BlogUserService.class));
+        BffController controller = new BffController(mock(BffAuthService.class), props(basePath), new BffCookies(props(basePath)));
         return MockMvcBuilders.standaloneSetup(controller).build();
     }
 

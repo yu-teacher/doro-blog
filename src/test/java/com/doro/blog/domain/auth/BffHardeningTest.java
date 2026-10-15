@@ -1,5 +1,8 @@
 package com.doro.blog.domain.auth;
 
+import com.hunnit_beasts.doro.sdk.bff.BffAuthService;
+import com.hunnit_beasts.doro.sdk.bff.BffCrypto;
+
 import com.doro.blog.domain.auth.repository.AuthSessionRepository;
 import com.hunnit_beasts.doro.sdk.security.jwks.JwksKeyProvider;
 import jakarta.servlet.http.Cookie;
@@ -66,7 +69,7 @@ class BffHardeningTest {
     @Autowired private JwksKeyProvider jwks;
     @Autowired private AuthSessionRepository sessions;
     @Autowired private JdbcTemplate jdbc;
-    @Autowired private SessionCrypto crypto;
+    @Autowired private BffCrypto crypto;
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     @BeforeEach

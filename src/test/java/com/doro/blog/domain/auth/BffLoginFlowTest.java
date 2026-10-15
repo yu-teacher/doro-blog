@@ -1,5 +1,7 @@
 package com.doro.blog.domain.auth;
 
+import com.hunnit_beasts.doro.sdk.bff.BffAuthService;
+
 import com.doro.blog.domain.auth.repository.AuthSessionRepository;
 import com.doro.blog.domain.auth.repository.LoginAttemptRepository;
 import com.hunnit_beasts.doro.sdk.security.jwks.JwksKeyProvider;
