@@ -5,7 +5,7 @@
 #   scripts/deploy.sh              # 테스트 -> 빌드 -> 롤백 스냅샷 -> DB 백업 -> 전송 -> 재기동 -> 헬스체크
 #   scripts/deploy.sh --skip-tests # 테스트를 건너뛴다 (이미 통과를 확인한 경우만)
 #
-# 서버의 docker-compose.prod.yml 은 로컬 사본과 다르다(MinIO 서비스 포함). 절대 덮어쓰지 않는다.
+# 서버의 docker-compose.prod.yml 은 서버 전용 파일이다(로컬 사본은 같은 구성을 담은 참고용이고, 서버 쪽에만 있는 수정이 있을 수 있다). 절대 덮어쓰지 않는다.
 # 롤백: 서버의 ~/backups/pre-blog-deploy-<ts> 에 이전 jar/dist 가, 이미지 태그 doro-blog-rollback:* 가 남는다.
 set -Eeuo pipefail
 

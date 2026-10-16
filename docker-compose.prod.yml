@@ -1,5 +1,24 @@
+# 운영 배포용 compose. 서버(mini)에서 쓰는 파일과 같은 구성이다(서버의 파일은 배포가 덮어쓰지 않으므로, 구성을 바꾸면 서버 쪽도 함께 맞춘다).
+# 비밀 값은 서버의 .env 에만 둔다. 이 파일의 `:?` 는 값이 없으면 시작하지 않게 하는 필수 항목이다.
 services:
-  # 1. DORO Blog Spring Boot Backend
+  # 1. MinIO Object Storage (블로그·파티·게임의 이미지 저장소로 공용)
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: doro-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-doro_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - doro-network
+
+  # 2. DORO Blog Spring Boot Backend
   blog-backend:
     build:
       context: .
@@ -7,7 +26,7 @@ services:
     container_name: doro-blog-backend
     restart: unless-stopped
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -17,7 +36,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       IAM_HOST: auth-api
       IAM_PORT: 8080
-      # Doro IAM 내부 API(탈퇴 사용자 목록) 호출자 토큰. IAM 의 DORO_IAM_INTERNAL_TOKENS 에 'blog:<토큰>' 으로 등록한 값이다.
+      # Doro IAM 내부 API 호출자 서비스 토큰(IAM 의 DORO_IAM_INTERNAL_TOKENS 에 'blog:<토큰>' 으로 등록한 값, 값은 .env 에만 둔다)
       DORO_IAM_INTERNAL_TOKEN: ${DORO_IAM_INTERNAL_TOKEN:-}
       GUARD_GRPC_HOST: guard-api
       GUARD_GRPC_PORT: 9090
@@ -29,6 +48,20 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
       MINIO_BUCKET: doro-blog-media
       MINIO_PUBLIC_URL: /media
+      # 로그인(Doro OAuth). embedded(기본): 이 서비스가 로그인·세션을 처리한다. gateway: 별도 BFF(doro-bff)가 처리하고 게이트웨이가 Bearer 를 붙여 준다.
+      # gateway 모드에서는 아래 OAuth·세션 값은 쓰이지 않지만 되돌릴 수 있게 남겨 둔다(doro-bff 설계는 Doro 저장소의 docs/BFF.md).
+      BLOG_AUTH_MODE: ${BLOG_AUTH_MODE:-embedded}
+      BLOG_SESSION_KEY: ${BLOG_SESSION_KEY:?BLOG_SESSION_KEY must be set in .env}
+      BLOG_OAUTH_CLIENT_ID: doro-blog
+      BLOG_OAUTH_AUTHORIZE_URL: ${BLOG_PUBLIC_ORIGIN:?BLOG_PUBLIC_ORIGIN must be set in .env}/oauth2/authorize
+      BLOG_OAUTH_TOKEN_URL: http://auth-api:8080/oauth2/token
+      BLOG_OAUTH_REVOKE_URL: http://auth-api:8080/oauth2/revoke
+      BLOG_OAUTH_REDIRECT_URI: ${BLOG_PUBLIC_ORIGIN}${BLOG_WEB_BASE_PATH:-}/api/v1/bff/callback
+      # 웹이 마운트된 공개 하위 경로(예: /blog). .env 의 BLOG_WEB_BASE_PATH 와 같은 값이다. 비어 있으면 루트.
+      BLOG_WEB_BASE_PATH: ${BLOG_WEB_BASE_PATH:-}
+      BLOG_COOKIE_SECURE: "true"
+    depends_on:
+      - minio
     networks:
       - doro-network
 
@@ -40,9 +73,10 @@ services:
     container_name: doro-blog-web
     restart: unless-stopped
     ports:
-      - "3002:80"
+      - "127.0.0.1:3002:80"
     environment:
-      VITE_DORO_PORTAL_URL: http://192.168.0.101:3000
+      # 포털(허브) 주소. 서버에서는 실제 주소로 바꿔 쓴다.
+      VITE_DORO_PORTAL_URL: ${VITE_DORO_PORTAL_URL:-http://localhost:3000}
     depends_on:
       - blog-backend
     networks:
@@ -52,3 +86,7 @@ networks:
   doro-network:
     external: true
     name: doro_doro-network
+
+volumes:
+  minio_data:
+    name: doro_miniodata
