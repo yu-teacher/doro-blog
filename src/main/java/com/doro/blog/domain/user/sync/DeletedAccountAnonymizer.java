@@ -40,6 +40,12 @@ public class DeletedAccountAnonymizer {
     private final PostRepository postRepository;
     private final PostCommandService postCommands;
 
+    /** 아직 익명화하지 않은 블로그 사용자인가(없거나 이미 처리됐으면 false). 동기화가 같은 ID 를 다시 받을 때 Guard 를 또 부르지 않게 한다. */
+    @Transactional(readOnly = true)
+    public boolean needsAnonymization(UUID userId) {
+        return users.findById(userId).map(u -> !u.isDeleted()).orElse(false);
+    }
+
     /** @return 이번 호출에서 익명화했으면 true, 블로그 사용자가 아니거나 이미 처리됐으면 false */
     @Transactional
     public boolean anonymize(UUID userId, Instant now) {

@@ -24,6 +24,10 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @Query("select p.id from Post p where p.user.id = :userId and p.status <> com.doro.blog.domain.post.entity.PostStatus.PUBLISHED")
     List<UUID> findNonPublishedIdsByUserId(@Param("userId") UUID userId);
 
+    /** 작성자의 모든 글 ID(상태 무관). 탈퇴 시 Guard 작성자 튜플을 지울 대상을 찾는다. */
+    @Query("select p.id from Post p where p.user.id = :userId")
+    List<UUID> findIdsByUserId(@Param("userId") UUID userId);
+
     /** 시리즈를 지울 때 소속 글의 연결을 한 번의 UPDATE 로 풀어 준다 (글을 전부 읽어 하나씩 고치지 않는다). */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update Post p set p.series = null, p.seriesOrder = null where p.series.id = :seriesId")

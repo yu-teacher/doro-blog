@@ -25,6 +25,10 @@ public interface SeriesRepository extends JpaRepository<Series, UUID> {
     @Query("select s from Series s where s.id = :id")
     Optional<Series> findByIdForUpdate(@Param("id") UUID id);
 
+    /** 소유자의 모든 시리즈 ID. 탈퇴 시 Guard 소유 튜플을 지울 대상을 찾는다. */
+    @Query("select s.id from Series s where s.user.id = :userId")
+    List<UUID> findIdsByUserId(@Param("userId") UUID userId);
+
     List<Series> findAllByUserIdOrderByCreatedAtDescIdDesc(UUID userId);
     Optional<Series> findByUserIdAndSlug(UUID userId, String slug);
     boolean existsByUserIdAndSlug(UUID userId, String slug);

@@ -23,6 +23,10 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
     /** 이 글 말고 다른 글의 댓글 본문이 key 를 담고 있는가. 지우는 글의 댓글은 글과 함께 사라지므로 뺀다. */
     boolean existsByContentContainingAndPostIdNot(String key, UUID postId);
 
+    /** 작성자의 모든 댓글·답글 ID. 탈퇴 시 Guard 작성자 튜플을 지울 대상을 찾는다. */
+    @Query("SELECT c.id FROM Comment c WHERE c.user.id = :userId")
+    List<UUID> findIdsByUserId(@Param("userId") UUID userId);
+
     /** 삭제 처리를 직렬화하려고 행을 잠그고 읽는다. 동시에 같은 댓글을 지우는 요청이 서로의 결과를 보고 판단하게 한다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Comment c WHERE c.id = :id")

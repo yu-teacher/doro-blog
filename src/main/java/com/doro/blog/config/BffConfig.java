@@ -4,6 +4,7 @@ import com.doro.blog.domain.user.service.BlogUserService;
 import com.doro.blog.domain.user.sync.DeletedAccountAnonymizer;
 import com.hunnit_beasts.doro.sdk.bff.BffProperties;
 import com.hunnit_beasts.doro.sdk.bff.BffUserHook;
+import com.doro.blog.domain.user.sync.DeletedAccountGuardCleaner;
 import com.hunnit_beasts.doro.sdk.sync.DeletedUserHandler;
 import com.hunnit_beasts.doro.sdk.sync.DeletedUsersProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -50,10 +51,20 @@ public class BffConfig {
         return new DeletedUsersProperties();
     }
 
-    /** Doro 에서 영구 탈퇴한 사용자의 블로그 데이터를 익명화한다(멱등). */
+    /**
+     * Doro 에서 영구 탈퇴한 사용자의 블로그 데이터를 익명화한다(멱등). 익명화 전에 Guard 튜플을 먼저 지운다.
+     * Guard 삭제가 실패하면 예외가 동기화로 전파돼 기준 시각이 나아가지 않고 다음 주기에 같은 사용자를 다시 처리한다
+     * (익명화를 먼저 하면 '처리 완료'로 보여 남은 튜플을 다시 찾지 못한다).
+     */
     @Bean
-    public DeletedUserHandler deletedUserHandler(DeletedAccountAnonymizer anonymizer) {
-        return anonymizer::anonymize;
+    public DeletedUserHandler deletedUserHandler(DeletedAccountAnonymizer anonymizer, DeletedAccountGuardCleaner guardCleaner) {
+        return (userId, now) -> {
+            if (!anonymizer.needsAnonymization(userId)) {
+                return false;
+            }
+            guardCleaner.removeTuplesOrThrow(userId);
+            return anonymizer.anonymize(userId, now);
+        };
     }
 
     /** 로그인에 성공하면 블로그 사용자 행을 만든다. (gateway 모드에서는 첫 인증 요청이 {@code /api/v1/bff/session} 에서 만든다) */
