@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Code2, LayoutGrid, ShieldCheck, Terminal } from 'lucide-react';
+import { BookOpen, Code2, Home, LayoutGrid, ShieldCheck, Terminal } from 'lucide-react';
 
 interface AppLauncherProps {
   isOpen: boolean;
@@ -47,7 +47,19 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
             )}
           </div>
 
-          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+          <div className="grid grid-cols-2 gap-2">
+            {/* 허브(/)는 이 앱의 라우터 밖이라 일반 링크로 이동한다. 파티·게임·메뉴 등 다른 서비스는 허브에서 한눈에 보인다 */}
+            <a
+              href="/"
+              className="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 transition-all text-center border border-transparent"
+            >
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 mb-1.5 shadow-xs group-hover:shadow-md transition-shadow">
+                <Home className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Doro 홈</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">모든 서비스 한눈에</span>
+            </a>
+
             <a
               href="/account"
               className="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 transition-all text-center border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50"
