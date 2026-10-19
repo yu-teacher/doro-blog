@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   Terminal,
+  LayoutGrid,
 } from 'lucide-react';
 import { assetUrl } from '../config';
 
@@ -56,6 +57,18 @@ export const Header: React.FC = () => {
                 onClose={() => setOpenMenu(null)}
               />
             </div>
+
+            {/* 로그인하지 않은 모바일에는 앱 런처도 사용자 메뉴도 없어서, 허브(모든 서비스)로 가는 아이콘을 따로 둔다 */}
+            {!isAuthenticated && (
+              <a
+                href="/"
+                className="sm:hidden p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                title="DORO 서비스 전체 보기"
+                aria-label="DORO 서비스 전체 보기"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </a>
+            )}
 
             {/* Theme Toggle Button */}
             <button

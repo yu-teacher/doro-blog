@@ -155,6 +155,30 @@ describe('Header', () => {
       expect(hub.getAttribute('href')).toBe('/');
     });
 
+    it('비로그인 모바일에는 허브(모든 서비스)로 가는 아이콘이 있고, 로그인하면 사용자 메뉴가 대신한다', async () => {
+      await render();
+      const hub = host!.querySelector('a[aria-label="DORO 서비스 전체 보기"]') as HTMLAnchorElement;
+      expect(hub).not.toBeNull();
+      expect(hub.getAttribute('href')).toBe('/'); // 블로그 라우터 밖이라 일반 링크
+      expect(hub.className).toContain('sm:hidden'); // 넓은 화면에는 앱 런처가 있다
+
+      act(() => root?.unmount());
+      host?.remove();
+      signedIn();
+      await render();
+      expect(host!.querySelector('a[aria-label="DORO 서비스 전체 보기"]')).toBeNull();
+    });
+
+    it('앱 런처에 Doro 홈(허브)이 있고 블로그 라우터 밖의 일반 링크다', async () => {
+      await render();
+      const launcher = host!.querySelector('button[aria-label^="DORO 서비스 바로가기"]') as HTMLButtonElement;
+      await act(async () => { launcher.click(); });
+
+      const home = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('Doro 홈')) as HTMLAnchorElement;
+      expect(home).toBeDefined();
+      expect(home.getAttribute('href')).toBe('/');
+    });
+
     it('로그인한 모바일에서는 테마 전환을 사용자 메뉴에서 한다 (헤더 버튼은 넓은 화면 전용)', async () => {
       signedIn();
       await render();
