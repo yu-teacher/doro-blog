@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { loadServices, type LauncherService } from '../../utils/servicesManifest';
 import { BookOpen, Code2, Home, LayoutGrid, ShieldCheck, Terminal } from 'lucide-react';
 
 interface AppLauncherProps {
@@ -10,7 +11,33 @@ interface AppLauncherProps {
 }
 
 /** 구글 스타일 9점 앱 런처: DORO 서비스 바로가기 (관리자에게는 관제 로그도 보인다). */
-export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onToggle, onClose }) => (
+const CURRENT_SERVICE_ID = 'blog';
+
+export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onToggle, onClose }) => {
+  // 서비스 목록은 허브의 /services.json 에서 열 때 읽는다(코드에 두지 않는다). null = 읽는 중, 빈 배열 = 못 읽음.
+  const [services, setServices] = useState<LauncherService[] | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || services !== null) return;
+    let active = true;
+    void loadServices().then((list) => {
+      if (active) setServices(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, services]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  return (
   <>
     {/* App Launcher Button (Google-style 9-dots LayoutGrid) */}
     <div className="relative">
@@ -59,6 +86,27 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Doro 홈</span>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">모든 서비스 한눈에</span>
             </a>
+
+            {/* 허브가 주는 서비스 목록. 현재 서비스(blog)는 강조한다. 허브·다른 서비스는 라우터 밖이라 일반 링크다 */}
+            {(services ?? []).map((service) => (
+              <a
+                key={service.id}
+                href={service.href}
+                // index.css 의 (pointer: coarse) a[href] 규칙(min-height 32px, 레이어 밖)이 min-h-11 을 이기므로 44px 는 style 로 건다.
+                style={{ minHeight: 44 }}
+                aria-current={service.id === CURRENT_SERVICE_ID ? 'page' : undefined}
+                className={`col-span-2 flex min-h-11 flex-col justify-center rounded-2xl px-3 py-1.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60 ${
+                  service.id === CURRENT_SERVICE_ID ? 'bg-emerald-50 dark:bg-emerald-950/40' : ''
+                }`}
+              >
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{service.name}</span>
+                {service.desc !== '' && <span className="text-[10px] text-slate-500 dark:text-slate-400">{service.desc}</span>}
+              </a>
+            ))}
+            {services === null && <p className="col-span-2 px-3 py-1 text-[10px] text-slate-500 dark:text-slate-400">서비스 목록을 불러오는 중…</p>}
+            {services !== null && services.length === 0 && (
+              <p className="col-span-2 px-3 py-1 text-[10px] text-slate-500 dark:text-slate-400">서비스 목록을 불러오지 못했어요. Doro 홈에서 모두 볼 수 있어요.</p>
+            )}
 
             <a
               href="/account"
@@ -114,4 +162,5 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
       )}
     </div>
   </>
-);
+  );
+};
