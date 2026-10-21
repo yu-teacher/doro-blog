@@ -40,12 +40,13 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
   return (
   <>
     {/* App Launcher Button (Google-style 9-dots LayoutGrid) */}
-    <div className="relative">
+    {/* 모바일(<640px)에서는 래퍼를 기준점으로 삼지 않아 팝오버가 (sticky) 헤더 기준으로 우측 여백에 붙는다. 래퍼 기준이면 헤더 중간 버튼 오른쪽 끝에 맞춰 320px 에서 왼쪽 밖으로 나간다. */}
+    <div className="sm:relative">
       <button
         onClick={() => {
           onToggle();
         }}
-        className={`p-2 rounded-full transition-colors relative z-50 ${
+        className={`inline-flex items-center justify-center w-11 h-11 sm:w-auto sm:h-auto p-2 rounded-full transition-colors relative z-50 ${
           isOpen
             ? 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400'
             : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800'
@@ -58,7 +59,7 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-4 z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 mr-4 sm:mr-0 top-full mt-1 sm:top-auto sm:mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-4 z-50 animate-in fade-in zoom-in-95 duration-100"
           onClick={() => onClose()}
         >
           <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-gray-100 dark:border-slate-800">

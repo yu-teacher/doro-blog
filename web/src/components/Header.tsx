@@ -11,7 +11,6 @@ import {
   Sun,
   Moon,
   Terminal,
-  LayoutGrid,
 } from 'lucide-react';
 import { assetUrl } from '../config';
 
@@ -25,9 +24,9 @@ export const Header: React.FC = () => {
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 transition-colors">
-        <div className="max-w-[1728px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-[1728px] mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 font-black text-xl sm:text-2xl tracking-tighter text-gray-900 dark:text-white group shrink-0">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 font-black text-lg sm:text-2xl tracking-tighter text-gray-900 dark:text-white group shrink-0">
             <img
               src={assetUrl('doro-logo.png')}
               alt="DORO"
@@ -44,31 +43,14 @@ export const Header: React.FC = () => {
           )}
 
           {/* Right Actions */}
-          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
-            {/*
-              서비스 바로가기(앱 런처)는 넓은 화면에서만 둔다. 모바일에서는 헤더 공간을 차지하는데, 내용(포털 홈·개발자 센터·관제 로그)이
-              사용자 메뉴에 이미 있다. 모바일에서는 그 자리에 글쓰기 아이콘을 둔다(AccountMenu).
-            */}
-            <div className="hidden sm:block">
-              <AppLauncher
-                isOpen={openMenu === 'apps'}
-                isAdmin={isAdmin}
-                onToggle={() => setOpenMenu(openMenu === 'apps' ? null : 'apps')}
-                onClose={() => setOpenMenu(null)}
-              />
-            </div>
-
-            {/* 로그인하지 않은 모바일에는 앱 런처도 사용자 메뉴도 없어서, 허브(모든 서비스)로 가는 아이콘을 따로 둔다 */}
-            {!isAuthenticated && (
-              <a
-                href="/"
-                className="sm:hidden p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                title="DORO 서비스 전체 보기"
-                aria-label="DORO 서비스 전체 보기"
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </a>
-            )}
+          <div className="flex items-center gap-0 sm:gap-3 min-w-0">
+            {/* 서비스 바로가기(앱 런처): 모든 너비에서 하나만 둔다. 목록 맨 위의 'Doro 홈'이 허브(/)로 가는 길이다 */}
+            <AppLauncher
+              isOpen={openMenu === 'apps'}
+              isAdmin={isAdmin}
+              onToggle={() => setOpenMenu(openMenu === 'apps' ? null : 'apps')}
+              onClose={() => setOpenMenu(null)}
+            />
 
             {/* Theme Toggle Button */}
             <button
