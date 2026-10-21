@@ -21,10 +21,27 @@ const manifest = {
 
 const button = (page: Page) => page.getByRole('button', { name: 'DORO 서비스 바로가기 (앱 런처)' });
 
-// 앱 런처는 헤더에서 640px(sm) 이상일 때만 보인다(좁은 화면에는 사용자 메뉴가 같은 역할을 한다).
-test.beforeEach(async ({ page }) => {
-  test.skip((page.viewportSize()?.width ?? 0) < 640, `640px 미만에서는 앱 런처가 없다`);
-  await mockApi(page, { loggedIn: false });
+// 앱 런처는 모든 너비(폰 포함)에서 헤더에 하나 있다. 로그인·비로그인 둘 다 확인한다.
+for (const loggedIn of [false, true]) {
+const who = loggedIn ? '로그인' : '비로그인';
+test.describe(`앱 런처: ${who}`, () => {
+test.beforeEach(async ({ page }) => mockApi(page, { loggedIn }));
+
+test('헤더에 그리드 버튼이 하나, 44px 이상이고 가로로 넘치지 않는다', async ({ page }) => {
+  await mockServices(page, manifest);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await expect(button(page)).toBeVisible();
+  await expect(page.getByRole('button', { name: /DORO 서비스 바로가기/ })).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'DORO 서비스 전체 보기' })).toHaveCount(0);
+  const box = await button(page).boundingBox();
+  // 44px 터치 영역은 폰 세로(<640px)에서만 요구한다. 넓은 화면은 기존 36px 아이콘 버튼이다.
+  const min = (page.viewportSize()?.width ?? 0) < 640 ? 44 : 32;
+  expect(box && box.width >= min && box.height >= min, `버튼이 ${min}px 미만이다: ${JSON.stringify(box)}`).toBe(true);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - (window.visualViewport?.width ?? window.innerWidth));
+  expect(overflow, '헤더 때문에 가로 스크롤이 생겼다').toBeLessThanOrEqual(0);
+  const violations = await auditMobile(page);
+  expect(violations, `모바일에서 깨지는 곳이 있습니다:\n${formatViolations(violations)}`).toEqual([]);
 });
 
 for (const theme of ['dark', 'light'] as const) {
@@ -35,7 +52,7 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*dark).*$/);
     await button(page).click();
 
-    const popover = page.locator('div.absolute.right-0').filter({ hasText: 'DORO 서비스' });
+    const popover = page.locator('header div.absolute.right-0').filter({ hasText: 'DORO 서비스' });
     await expect(popover.getByRole('link', { name: /Doro 홈/ })).toHaveAttribute('href', '/');
     await expect(popover.getByRole('link', { name: /도로 면접/ })).toHaveAttribute('href', '/interview/');
     await expect(popover.getByRole('link', { name: /통합 포털 홈/ })).toBeVisible();
@@ -75,3 +92,6 @@ test('Esc 와 바깥 클릭으로 닫는다', async ({ page }) => {
   await page.mouse.click(5, 30);
   await expect(page.getByRole('link', { name: /Doro 홈/ })).toHaveCount(0);
 });
+
+});
+}

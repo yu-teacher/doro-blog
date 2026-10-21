@@ -135,14 +135,12 @@ describe('Header', () => {
       expect(host!.querySelector('a[aria-label="새 글 작성"]')).toBeNull();
     });
 
-    it('서비스 바로가기(앱 런처)는 모바일에서 숨겨지고 넓은 화면에서만 보인다', async () => {
+    it('서비스 바로가기(앱 런처)는 모든 너비에서 보인다(숨기는 래퍼가 없다)', async () => {
       await render();
 
       const launcher = host!.querySelector('button[aria-label^="DORO 서비스 바로가기"]') as HTMLButtonElement;
       expect(launcher).not.toBeNull();
-      const wrapper = launcher.closest('div.hidden');
-      expect(wrapper, '런처를 감싼 요소가 모바일에서 숨겨져야 한다').not.toBeNull();
-      expect(wrapper!.className).toContain('sm:block');
+      expect(launcher.closest('div.hidden'), '런처를 감싼 요소가 숨겨지면 안 된다').toBeNull();
     });
 
     it('사용자 메뉴에서 포털 허브(다른 서비스)로 갈 수 있다', async () => {
@@ -155,18 +153,10 @@ describe('Header', () => {
       expect(hub.getAttribute('href')).toBe('/');
     });
 
-    it('비로그인 모바일에는 허브(모든 서비스)로 가는 아이콘이 있고, 로그인하면 사용자 메뉴가 대신한다', async () => {
-      await render();
-      const hub = host!.querySelector('a[aria-label="DORO 서비스 전체 보기"]') as HTMLAnchorElement;
-      expect(hub).not.toBeNull();
-      expect(hub.getAttribute('href')).toBe('/'); // 블로그 라우터 밖이라 일반 링크
-      expect(hub.className).toContain('sm:hidden'); // 넓은 화면에는 앱 런처가 있다
-
-      act(() => root?.unmount());
-      host?.remove();
-      signedIn();
+    it('헤더의 그리드 버튼은 앱 런처 하나뿐이다(별도 허브 링크 아이콘이 없다)', async () => {
       await render();
       expect(host!.querySelector('a[aria-label="DORO 서비스 전체 보기"]')).toBeNull();
+      expect(host!.querySelectorAll('button[aria-label^="DORO 서비스 바로가기"]').length).toBe(1);
     });
 
     it('앱 런처에 Doro 홈(허브)이 있고 블로그 라우터 밖의 일반 링크다', async () => {
