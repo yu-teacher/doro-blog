@@ -44,7 +44,7 @@ export const Header: React.FC = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-0 sm:gap-3 min-w-0">
-            {/* 서비스 바로가기(앱 런처): 모든 너비에서 하나만 둔다. 목록 맨 위의 'Doro 홈'이 허브(/)로 가는 길이다 */}
+            {/* Doro Dev 바로가기(앱 런처): 모든 너비에서 하나만 둔다 */}
             <AppLauncher
               isOpen={openMenu === 'apps'}
               isAdmin={isAdmin}

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { blogApi } from '../api/blogApi';
 import type { UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH } from '../utils/portalLinks';
 import { Header } from './Header';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -138,35 +139,50 @@ describe('Header', () => {
     it('서비스 바로가기(앱 런처)는 모든 너비에서 보인다(숨기는 래퍼가 없다)', async () => {
       await render();
 
-      const launcher = host!.querySelector('button[aria-label^="DORO 서비스 바로가기"]') as HTMLButtonElement;
+      const launcher = host!.querySelector('button[aria-label^="Doro Dev 바로가기"]') as HTMLButtonElement;
       expect(launcher).not.toBeNull();
       expect(launcher.closest('div.hidden'), '런처를 감싼 요소가 숨겨지면 안 된다').toBeNull();
     });
 
-    it('사용자 메뉴에서 포털 허브(다른 서비스)로 갈 수 있다', async () => {
+    it('사용자 메뉴에는 일반 서비스(허브) 링크가 없고 계정 링크는 Doro Dev 경로다', async () => {
       signedIn();
       await render();
       await openUserMenu();
 
-      const hub = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('DORO 서비스 전체 보기')) as HTMLAnchorElement;
-      expect(hub).toBeDefined();
-      expect(hub.getAttribute('href')).toBe('/');
+      const hrefs = [...host!.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+      expect(hrefs).toContain(DEV_ACCOUNT_PATH);
+      expect(host!.textContent).not.toContain('서비스 전체 보기');
     });
 
     it('헤더의 그리드 버튼은 앱 런처 하나뿐이다(별도 허브 링크 아이콘이 없다)', async () => {
       await render();
       expect(host!.querySelector('a[aria-label="DORO 서비스 전체 보기"]')).toBeNull();
-      expect(host!.querySelectorAll('button[aria-label^="DORO 서비스 바로가기"]').length).toBe(1);
+      expect(host!.querySelectorAll('button[aria-label^="Doro Dev 바로가기"]').length).toBe(1);
     });
 
-    it('앱 런처에 Doro 홈(허브)이 있고 블로그 라우터 밖의 일반 링크다', async () => {
+    it('앱 런처는 Doro Dev 홈·계정(/dev/ 경로)으로 가는 일반 링크이고 일반 서비스는 드러내지 않는다', async () => {
       await render();
-      const launcher = host!.querySelector('button[aria-label^="DORO 서비스 바로가기"]') as HTMLButtonElement;
+      const launcher = host!.querySelector('button[aria-label^="Doro Dev 바로가기"]') as HTMLButtonElement;
       await act(async () => { launcher.click(); });
 
-      const home = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('Doro 홈')) as HTMLAnchorElement;
-      expect(home).toBeDefined();
-      expect(home.getAttribute('href')).toBe('/');
+      const links = [...host!.querySelectorAll('a')];
+      const home = links.find((a) => a.textContent?.includes('Doro Dev 홈')) as HTMLAnchorElement;
+      expect(home.getAttribute('href')).toBe(DEV_HOME_PATH);
+      const account = links.find((a) => a.textContent?.includes('Doro 계정')) as HTMLAnchorElement;
+      expect(account.getAttribute('href')).toBe(DEV_ACCOUNT_PATH);
+      expect(links.some((a) => a.getAttribute('href') === DEV_LOGS_PATH)).toBe(false); // 관리자 전용
+      expect(host!.textContent).not.toMatch(/파티|게임|메뉴|통합|모든 서비스/);
+    });
+
+    it('관리자에게만 앱 런처에 관제 로그(/dev/logs)가 보인다', async () => {
+      signedIn();
+      useAuthStore.setState({ isAdmin: true });
+      await render();
+      const launcher = host!.querySelector('button[aria-label^="Doro Dev 바로가기"]') as HTMLButtonElement;
+      await act(async () => { launcher.click(); });
+
+      const logs = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('관제 로그')) as HTMLAnchorElement;
+      expect(logs.getAttribute('href')).toBe(DEV_LOGS_PATH);
     });
 
     it('로그인한 모바일에서는 테마 전환을 사용자 메뉴에서 한다 (헤더 버튼은 넓은 화면 전용)', async () => {
