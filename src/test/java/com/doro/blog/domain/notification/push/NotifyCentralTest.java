@@ -159,6 +159,7 @@ class NotifyCentralTest {
                 new NotifyClient(new NotifyProperties("http://127.0.0.1:" + NOTIFY.getAddress().getPort(), TOKEN, "/blog", null, null, null))).register()).isTrue();
         Seen request = SEEN.stream().filter(s -> s.method().equals("PUT") && s.path().equals("/internal/v1/apps/blog/types")).findFirst().orElseThrow();
         assertThat(request.token()).isEqualTo(TOKEN);
+        assertThat(JSON.readTree(request.body()).path("scopePath").asText()).isEqualTo("/blog/");   // 공개 경로도 알린다(옮겨져도 알림 주소 검증이 맞게)
         JsonNode types = JSON.readTree(request.body()).path("types");
         assertThat(types).hasSize(4);
         assertThat(List.of(types.get(0).path("type").asText(), types.get(1).path("type").asText(), types.get(2).path("type").asText(), types.get(3).path("type").asText()))

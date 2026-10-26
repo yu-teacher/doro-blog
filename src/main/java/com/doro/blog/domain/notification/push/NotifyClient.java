@@ -88,9 +88,9 @@ public class NotifyClient {
         return call("POST", "/internal/v1/notifications", request, null);
     }
 
-    /** 이 앱의 알림 종류를 등록한다(멱등). 보낸 목록이 현재 쓰는 종류 전체다. */
+    /** 이 앱의 알림 종류를 등록한다(멱등). 보낸 목록이 현재 쓰는 종류 전체다. 공개 경로(scopePath)도 함께 알려 블로그가 새 주소로 옮겨져도 알림 주소 검증이 맞게 한다. */
     public Reply registerTypes(List<Map<String, Object>> types) {
-        return call("PUT", "/internal/v1/apps/" + APP + "/types", Map.of("types", types), null);
+        return call("PUT", "/internal/v1/apps/" + APP + "/types", Map.of("types", types, "scopePath", properties.scopePath()), null);
     }
 
     // ------------------------------------------------------------------ 사용자 대신 다루는 API
