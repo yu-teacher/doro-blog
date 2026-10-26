@@ -18,6 +18,7 @@ import { usePaginatedList } from '../hooks/usePaginatedList';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { ErrorState } from '../components/ErrorState';
 import { notify } from '../utils/notify';
+import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH } from '../utils/portalLinks';
 
 /** 사용자 채널 경로(/@name)로 해석하면 안 되는 시스템 경로 */
 const RESERVED_NAMES = ['logs', 'portal', 'account', 'login', 'signup', 'api', 'media', 'loki'];
@@ -38,9 +39,9 @@ export const ChannelPage: React.FC = () => {
   useEffect(() => {
     const lower = cleanUsername.toLowerCase();
     const reservedRedirects: Record<string, string> = {
-      logs: '/logs',
-      portal: '/portal',
-      account: '/portal/account',
+      logs: DEV_LOGS_PATH,
+      portal: DEV_HOME_PATH,
+      account: DEV_ACCOUNT_PATH,
       login: '/portal/login',
       signup: '/portal/signup',
     };
