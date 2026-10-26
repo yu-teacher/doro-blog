@@ -5,8 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { blogApi } from '../api/blogApi';
 import type { UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+import * as pushClient from '../push/pushClient';
 import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH } from '../utils/portalLinks';
 import { Header } from './Header';
+
+vi.mock('../push/pushClient');
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -98,6 +101,15 @@ describe('Header', () => {
     expect(lastLocation).toBe(`/search?q=${encodeURIComponent('docker 입문')}`);
   });
 
+  async function clickLogout(signOut: () => Promise<void>) {
+    useAuthStore.setState({ isAuthenticated: true, user, signOut });
+    await render();
+    const toggle = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === '테') as HTMLButtonElement;
+    act(() => toggle.click());
+    const out = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('로그아웃')) as HTMLButtonElement;
+    await act(async () => { out.click(); });
+  }
+
   it('로그인 상태에서는 글쓰기 링크와 사용자 메뉴가 있고, 메뉴에서 로그아웃할 수 있다', async () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
     useAuthStore.setState({ isAuthenticated: true, user, signOut });
@@ -110,7 +122,22 @@ describe('Header', () => {
     expect(host!.textContent).toContain('로그아웃');
 
     const out = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('로그아웃')) as HTMLButtonElement;
-    act(() => out.click());
+    await act(async () => { out.click(); });
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('로그아웃하기 전에 이 기기의 푸시 구독을 서버에서 먼저 뗀다', async () => {
+    const order: string[] = [];
+    vi.mocked(pushClient.detachThisDevice).mockImplementation(async () => { order.push('detach'); });
+    await clickLogout(vi.fn(async () => { order.push('signOut'); }));
+    expect(order).toEqual(['detach', 'signOut']);
+  });
+
+  it('푸시 구독을 떼지 못해도 로그아웃은 진행된다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.mocked(pushClient.detachThisDevice).mockRejectedValue(new Error('network'));
+    const signOut = vi.fn().mockResolvedValue(undefined);
+    await clickLogout(signOut);
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 

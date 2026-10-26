@@ -65,6 +65,17 @@ test.describe('블로그: 로그인 전용 화면', () => {
     await expectMobileFriendly(page);
   });
 
+  test('푸시 알림 설정 대화상자', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: '알림', exact: true }).click();
+    await page.getByRole('button', { name: /이 기기 푸시 알림 설정/ }).click();
+    const dialog = page.getByRole('dialog', { name: '푸시 알림' });
+    await expect(dialog).toBeVisible();
+    // 헤드리스 브라우저는 알림 권한이 막혀 있어(denied) 안내 문구가 나온다. 켜기·종류 설정 화면은 단위 시험에서 확인한다.
+    await expect(dialog.getByRole('status')).toContainText('알림이 막혀 있어요');
+    await expectMobileFriendly(page);
+  });
+
   test('글쓰기', async ({ page }) => {
     await page.goto('/write');
     await expect(page.getByRole('button', { name: /발행|저장|출간/ }).first()).toBeVisible();

@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { LoginErrorNotice } from './components/LoginErrorNotice';
+import { PushSync } from './components/PushSync';
 import { ToastHost } from './components/ToastHost';
 import { FeedPage } from './pages/FeedPage';
 import { ROUTER_BASENAME } from './config';
@@ -31,6 +32,7 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <LoginErrorNotice />
       <ToastHost />
+      <PushSync />
       {!isEditor && <Header />}
 
       <main className="flex-1">
