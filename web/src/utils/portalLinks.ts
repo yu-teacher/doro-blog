@@ -5,3 +5,5 @@
 export const DEV_HOME_PATH = '/dev/';
 export const DEV_ACCOUNT_PATH = '/dev/account';
 export const DEV_LOGS_PATH = '/dev/logs';
+/** 관리자 전용: 일반 서비스 허브 입구. 일반 사용자 화면에는 쓰지 않는다. */
+export const HUB_HOME_PATH = '/';

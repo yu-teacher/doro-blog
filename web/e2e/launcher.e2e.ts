@@ -35,7 +35,7 @@ for (const theme of ['dark', 'light'] as const) {
     const popover = page.locator('header div.absolute.right-0').filter({ hasText: '개발자 서비스 한눈에' });
     await expect(popover.getByRole('link', { name: /Doro Dev 홈/ })).toHaveAttribute('href', '/dev/');
     await expect(popover.getByRole('link', { name: /Doro 계정/ })).toHaveAttribute('href', '/dev/account');
-    await expect(popover.getByText(/파티|게임|통합/)).toHaveCount(0);
+    await expect(popover.getByText(/파티|게임|통합|허브/)).toHaveCount(0);
 
     await page.waitForLoadState('networkidle');
     const box = await popover.boundingBox();
@@ -64,3 +64,17 @@ test('Esc 와 바깥 클릭으로 닫는다', async ({ page }) => {
 
 });
 }
+
+// 관리자에게만 일반 서비스 허브(/)로 돌아가는 타일이 보인다.
+test.describe('앱 런처: 관리자', () => {
+  for (const role of ['ADMIN', 'SUPER_ADMIN']) {
+    test(`${role} 에게는 Doro 허브 타일(href=/)이 보인다`, async ({ page }) => {
+      await mockApi(page, { loggedIn: true, role });
+      await page.goto('/');
+      await button(page).click();
+      const popover = page.locator('header div.absolute.right-0').filter({ hasText: '개발자 서비스 한눈에' });
+      await expect(popover.getByRole('link', { name: /Doro 허브/ })).toHaveAttribute('href', '/');
+      await expect(popover.getByRole('link', { name: /Doro Dev 홈/ })).toHaveAttribute('href', '/dev/');
+    });
+  }
+});
