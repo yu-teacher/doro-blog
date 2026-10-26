@@ -13,6 +13,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { assetUrl } from '../config';
+import { detachThisDevice } from '../push/pushClient';
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, isAdmin, login, signOut } = useAuthStore();
@@ -20,6 +21,16 @@ export const Header: React.FC = () => {
   // 앱 런처와 사용자 메뉴는 동시에 하나만 열린다
   const [openMenu, setOpenMenu] = useState<'apps' | 'user' | null>(null);
   const search = useHeaderSearch();
+
+  /** 로그아웃 전에 이 기기를 서버에서 먼저 뗀다(안 떼면 다음에 이 기기로 로그인한 사람에게 이전 계정의 알림이 간다). 실패해도 로그아웃은 막지 않는다. */
+  const logout = async () => {
+    try {
+      await detachThisDevice();
+    } catch (error) {
+      console.warn('Failed to detach this device from push notifications', error);
+    }
+    await signOut();
+  };
 
   return (
     <>
@@ -91,7 +102,7 @@ export const Header: React.FC = () => {
               onToggle={() => setOpenMenu(openMenu === 'user' ? null : 'user')}
               onClose={() => setOpenMenu(null)}
               onLogin={login}
-              onLogout={signOut}
+              onLogout={logout}
               theme={theme}
               onToggleTheme={toggleTheme}
             />

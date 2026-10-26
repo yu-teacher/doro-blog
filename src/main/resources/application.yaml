@@ -119,3 +119,13 @@ blog:
   deleted-sync:
     enabled: ${BLOG_DELETED_SYNC_ENABLED:true}
     interval: ${BLOG_DELETED_SYNC_INTERVAL:PT1H}
+
+  # 플랫폼 알림 서비스(doro-notify)로 푸시를 요청한다. service-token 이 비어 있으면(기본) 아무것도 하지 않는다: 아웃박스에 쌓지 않고,
+  # 알림 서비스를 부르지 않고, 푸시 설정 API 는 '사용할 수 없음'으로 답한다. 토큰이 있으면 켜진다(되돌리기 = 토큰 비우기).
+  notify:
+    base-url: ${BLOG_NOTIFY_URL:http://notify-api:8089}
+    # 알림 서비스의 NOTIFY_INTERNAL_TOKENS 에 'blog:<이 토큰>' 으로 등록한 값. 값은 환경변수로만 준다.
+    service-token: ${BLOG_NOTIFY_TOKEN:}
+    # 웹이 마운트된 공개 하위 경로. 알림 주소는 이 경로로 시작하는 절대 경로여야 한다(알림 서비스의 앱 범위).
+    base-path: ${BLOG_WEB_BASE_PATH:/blog}
+    outbox-interval: ${BLOG_NOTIFY_OUTBOX_INTERVAL:PT5S}

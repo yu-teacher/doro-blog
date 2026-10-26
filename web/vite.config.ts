@@ -56,6 +56,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       workbox: {
+        // 푸시 알림 처리(push, notificationclick)는 public/push-sw.js 에 두고 workbox 가 만드는 서비스 워커가 불러온다(서비스 워커는 base 아래에 있어 상대 경로로 충분하다)
+        importScripts: ['push-sw.js'],
         // 앱 셸(정적 파일)만 캐시한다. 글·댓글·프로필 같은 API 응답과 업로드 미디어(/media/)는 캐시하지 않는다(런타임 캐시 없음).
         // 로그인(BFF) 이동은 서버 리다이렉트가 필요해 API 경로 이동은 앱 셸로 바꾸지 않는다.
         navigateFallback: `${BASE}index.html`,
