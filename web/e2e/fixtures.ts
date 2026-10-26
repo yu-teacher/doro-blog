@@ -70,17 +70,19 @@ const json = (route: Route, body: unknown, status = 200) => route.fulfill({ stat
 
 export interface MockOptions {
   loggedIn: boolean;
+  /** 로그인 시 세션 역할(기본 USER) */
+  role?: string;
 }
 
 /** 블로그 서버(BFF 세션 포함) 응답을 가짜로 대체한다. 모르는 요청은 404 로 두어 예상치 못한 호출을 드러낸다. */
-export async function mockApi(page: Page, { loggedIn }: MockOptions): Promise<void> {
+export async function mockApi(page: Page, { loggedIn, role = 'USER' }: MockOptions): Promise<void> {
   await page.route((url) => url.pathname.startsWith(API), async (route) => {
     const request = route.request();
     if (!['xhr', 'fetch'].includes(request.resourceType())) return route.fallback();
     const path = decodeURIComponent(new URL(request.url()).pathname.slice(API.length));
     const method = request.method();
 
-    if (path === '/bff/session') return json(route, envelope(loggedIn ? { authenticated: true, user: ME, role: 'USER' } : { authenticated: false, user: null }));
+    if (path === '/bff/session') return json(route, envelope(loggedIn ? { authenticated: true, user: ME, role } : { authenticated: false, user: null }));
     if (path === '/users/me') return loggedIn ? json(route, envelope(ME)) : json(route, { success: false }, 401);
     if (path === '/notifications/unread-count') return json(route, envelope({ unreadCount: loggedIn ? 3 : 0 }));
     if (path === '/notifications') return json(route, envelope(page_(notifications)));

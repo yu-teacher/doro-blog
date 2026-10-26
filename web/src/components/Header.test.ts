@@ -6,7 +6,7 @@ import { blogApi } from '../api/blogApi';
 import type { UserProfile } from '../api/types';
 import { useAuthStore } from '../store/authStore';
 import * as pushClient from '../push/pushClient';
-import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH } from '../utils/portalLinks';
+import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH, HUB_HOME_PATH } from '../utils/portalLinks';
 import { Header } from './Header';
 
 vi.mock('../push/pushClient');
@@ -210,6 +210,32 @@ describe('Header', () => {
 
       const logs = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('관제 로그')) as HTMLAnchorElement;
       expect(logs.getAttribute('href')).toBe(DEV_LOGS_PATH);
+    });
+
+    it('관리자에게만 앱 런처에 "Doro 허브"(/ 일반 링크)가 보이고 일반 사용자에게는 허브 흔적이 없다', async () => {
+      // 일반 사용자(로그인·비로그인)
+      for (const authed of [false, true]) {
+        if (authed) signedIn();
+        await render();
+        const l = host!.querySelector('button[aria-label^="Doro Dev 바로가기"]') as HTMLButtonElement;
+        await act(async () => { l.click(); });
+        expect(host!.textContent).not.toContain('Doro 허브');
+        expect(host!.textContent).not.toContain('일반 서비스 허브');
+        // 블로그 홈 Link(to="/")도 테스트의 MemoryRouter 에서는 href="/" 라 href 만으로는 구분되지 않는다. 허브 타일은 문구로 가린다.
+        expect([...host!.querySelectorAll('a')].some((a) => a.textContent?.includes('허브'))).toBe(false);
+        expect(host!.textContent).not.toMatch(/파티|게임|메뉴/);
+        act(() => root?.unmount());
+        host?.remove();
+      }
+      // 관리자
+      signedIn();
+      useAuthStore.setState({ isAdmin: true });
+      await render();
+      const launcher = host!.querySelector('button[aria-label^="Doro Dev 바로가기"]') as HTMLButtonElement;
+      await act(async () => { launcher.click(); });
+      const hub = [...host!.querySelectorAll('a')].find((a) => a.textContent?.includes('Doro 허브')) as HTMLAnchorElement;
+      expect(hub.getAttribute('href')).toBe('/');
+      expect(HUB_HOME_PATH).toBe('/');
     });
 
     it('로그인한 모바일에서는 테마 전환을 사용자 메뉴에서 한다 (헤더 버튼은 넓은 화면 전용)', async () => {

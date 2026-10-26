@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH } from '../../utils/portalLinks';
-import { BookOpen, Code2, Home, LayoutGrid, ShieldCheck, Terminal } from 'lucide-react';
+import { DEV_ACCOUNT_PATH, DEV_HOME_PATH, DEV_LOGS_PATH, HUB_HOME_PATH } from '../../utils/portalLinks';
+import { BookOpen, Code2, Home, LayoutGrid, LayoutDashboard, ShieldCheck, Terminal } from 'lucide-react';
 
 interface AppLauncherProps {
   isOpen: boolean;
@@ -119,6 +119,23 @@ export const AppLauncher: React.FC<AppLauncherProps> = ({ isOpen, isAdmin, onTog
                 </div>
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">관제 로그</span>
                 <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Loki 실시간 로그</span>
+              </a>
+            )}
+
+            {/* 관리자 전용: 일반 서비스 허브로 돌아가는 입구(허브는 이 앱의 라우터 밖이라 일반 링크) */}
+            {isAdmin && (
+              <a
+                href={HUB_HOME_PATH}
+                className="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-amber-50/60 dark:hover:bg-amber-950/30 transition-all text-center border border-transparent hover:border-amber-100 dark:hover:border-amber-900/50 relative"
+              >
+                <span className="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.2 bg-amber-500 text-white rounded-md tracking-tighter">
+                  ADMIN
+                </span>
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 mb-1.5 shadow-xs group-hover:scale-105 group-hover:shadow-md transition-all">
+                  <LayoutDashboard className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">Doro 허브</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">일반 서비스 허브</span>
               </a>
             )}
           </div>
