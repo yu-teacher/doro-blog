@@ -35,6 +35,8 @@ on_exit() {
   fi
 }
 trap on_exit EXIT
+# shellcheck source=gateway-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/gateway-url.sh"
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
@@ -125,7 +127,7 @@ reload_gateway() {
   docker exec "$gw" nginx -t >/dev/null 2>&1 || { log "ERROR: 게이트웨이 설정 검증(nginx -t) 실패 — reload 하지 않는다"; return 1; }
   docker exec "$gw" nginx -s reload >/dev/null 2>&1 || { log "ERROR: 게이트웨이 reload 실패"; return 1; }
   for i in $(seq 1 "${GATEWAY_CHECK_TRIES:-15}"); do
-    code="$(curl -sk -o /dev/null -w '%{http_code}' -m 5 "${GATEWAY_CHECK_URL:-https://127.0.0.1/api/v1/posts?page=0&size=1}" || true)"
+    code="$(curl -sk -o /dev/null -w '%{http_code}' -m 5 "$(gateway_check_url "${BASE_PATH:-}")" || true)"
     if [ "$code" = 200 ]; then log "게이트웨이 reload 후 경유 응답 확인(200)"; return 0; fi
     sleep "${GATEWAY_CHECK_SLEEP:-2}"
   done

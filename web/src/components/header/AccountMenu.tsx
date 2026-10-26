@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { UserProfile } from '../../api/types';
 import { NotificationDropdown } from '../NotificationDropdown';
-import { BookOpen, Bookmark, ChevronDown, ExternalLink, LayoutGrid, LogOut, Moon, PenSquare, ShieldCheck, Sun, Terminal, User } from 'lucide-react';
+import { DEV_ACCOUNT_PATH, DEV_LOGS_PATH } from '../../utils/portalLinks';
+import { BookOpen, Bookmark, ChevronDown, ExternalLink, LogOut, Moon, PenSquare, ShieldCheck, Sun, Terminal, User } from 'lucide-react';
 
 const DORO_SIGNUP_URL = '/portal/signup';
 
@@ -73,14 +74,14 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
                 <div className="text-xs text-gray-500 dark:text-slate-400 truncate">@{user?.username}</div>
               </div>
 
-              {/* DORO Central Portal Account Hub Link */}
+              {/* 공용 계정 페이지(포털의 Doro Dev 계정) */}
               <a
-                href="/account"
+                href={DEV_ACCOUNT_PATH}
                 className="flex items-center justify-between px-4 py-2.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 transition-colors font-semibold text-xs border-b border-gray-100 dark:border-slate-700/60"
               >
                 <span className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" />
-                  DORO 계정 관리 (중앙 홈)
+                  DORO 계정 관리
                 </span>
                 <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
               </a>
@@ -88,7 +89,7 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
               {/* 관리자(ADMIN / SUPER_ADMIN) 전용 관제 로그 바로가기 */}
               {isAdmin && (
                 <a
-                  href="/logs"
+                  href={DEV_LOGS_PATH}
                   className="flex items-center justify-between px-4 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 transition-colors font-semibold text-xs border-b border-gray-100 dark:border-slate-700/60"
                 >
                   <span className="flex items-center gap-2">
@@ -98,15 +99,6 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ isAuthenticated, isAdm
                   <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
                 </a>
               )}
-
-              {/* 다른 DORO 서비스(파티·게임·메뉴 등)는 포털 허브에 모여 있다 */}
-              <a
-                href="/"
-                className="flex items-center gap-2.5 px-4 py-2 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-              >
-                <LayoutGrid className="w-4 h-4 text-gray-400 dark:text-slate-400" />
-                DORO 서비스 전체 보기
-              </a>
 
               <Link
                 to={`/@${user?.username}`}
