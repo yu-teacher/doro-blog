@@ -5,6 +5,7 @@ import com.doro.blog.domain.notification.dto.NotificationDtos.UnreadCountRespons
 import com.doro.blog.domain.notification.entity.Notification;
 import com.doro.blog.domain.notification.entity.NotificationType;
 import com.doro.blog.domain.notification.repository.NotificationRepository;
+import com.doro.blog.domain.notification.push.NotifyEnqueuer;
 import com.doro.blog.domain.post.entity.Post;
 import com.doro.blog.domain.post.entity.PostStatus;
 import com.doro.blog.domain.user.entity.BlogUser;
@@ -31,6 +32,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final BlogUserRepository userRepository;
+    private final NotifyEnqueuer notifyEnqueuer;
 
     // Notification 컬럼 길이(V4__notifications.sql)
     private static final int TITLE_MAX_LENGTH = 255;
@@ -85,6 +87,10 @@ public class NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+
+        // 플랫폼 알림 서비스로 보낼 푸시 요청을 같은 트랜잭션에서 아웃박스에 쌓는다(INSERT 하나. 실제 요청은 재시도기가 따로 보낸다).
+        // 위 필터(자기 알림·비공개 글·반복 토글)를 통과해 알림이 실제로 저장될 때만 여기까지 온다. 꺼져 있으면(토큰 없음) 아무것도 하지 않는다.
+        notifyEnqueuer.enqueue(recipient, sender, type, post, notification.getTargetUsername(), notification.getMessage());
     }
 
     private boolean isRepeatedToggleNotification(BlogUser recipient, BlogUser sender, NotificationType type, Post post) {

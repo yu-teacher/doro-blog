@@ -6,6 +6,9 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { notificationLink } from '../utils/notifications';
 import { NotificationRow } from './notifications/NotificationRow';
+import { PushSettingsHost } from './notifications/PushSettingsModal';
+import { PushSettingsRow } from './notifications/PushSettingsRow';
+import { usePushStore } from '../store/pushStore';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 
 const MAX_BADGE_COUNT = 99;
@@ -36,6 +39,11 @@ export const NotificationDropdown: React.FC = () => {
   const handleDelete = (e: React.MouseEvent, id: string, wasRead: boolean) => {
     e.stopPropagation();
     void notifications.remove(id, wasRead);
+  };
+
+  const openPushSettings = () => {
+    setIsOpen(false);
+    usePushStore.getState().openSettings();
   };
 
   if (!isAuthenticated) return null;
@@ -114,8 +122,12 @@ export const NotificationDropdown: React.FC = () => {
               </div>
             )}
           </div>
+
+          <PushSettingsRow onOpen={openPushSettings} />
         </div>
       )}
+
+      <PushSettingsHost />
     </div>
   );
 };

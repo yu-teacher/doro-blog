@@ -62,6 +62,9 @@ const notifications = Array.from({ length: 5 }, (_, i) => ({
   sender: { id: 's', username: 'sender', nickname: i === 2 ? `닉네임${LONG}` : '보낸이' },
 }));
 
+/** 시험용 VAPID 공개 키 모양의 문자열(실제 키가 아니다) */
+const PUSH_PUBLIC_KEY = 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4';
+
 const envelope = (data: unknown) => ({ success: true, data, timestamp: NOW });
 const json = (route: Route, body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -98,6 +101,11 @@ export async function mockApi(page: Page, { loggedIn }: MockOptions): Promise<vo
     if (/^\/series\/users\/@[^/]+$/.test(path)) return json(route, envelope([series]));
     if (/^\/series\/users\/@[^/]+\/[^/]+$/.test(path) || path === '/series/s1') return json(route, envelope({ series, posts: seriesPosts }));
     if (path === '/api-keys' || path === '/api-keys/logs') return json(route, envelope(path === '/api-keys' ? [] : page_([])));
+    // 푸시 알림 설정: 서버는 켜져 있다고 응답한다(브라우저에는 구독이 없어 "꺼짐"으로 보인다)
+    if (path === '/push/config') return json(route, envelope({ enabled: true, publicKey: PUSH_PUBLIC_KEY }));
+    if (path === '/push/preferences') return json(route, envelope({ comments: true, replies: true, likes: false, follows: true }));
+    if (path === '/push/subscription') return json(route, envelope(null));
+    if (path === '/push/test') return json(route, envelope({ devices: 0, delivered: 0 }));
     return json(route, { success: false, error: { code: 'NOT_MOCKED', message: `${method} ${path}` }, timestamp: NOW }, 404);
   });
 }

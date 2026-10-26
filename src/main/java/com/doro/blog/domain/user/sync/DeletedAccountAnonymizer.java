@@ -3,6 +3,7 @@ package com.doro.blog.domain.user.sync;
 import com.doro.blog.domain.apikey.repository.ApiKeyLogRepository;
 import com.doro.blog.domain.apikey.repository.ApiKeyRepository;
 import com.doro.blog.domain.auth.repository.AuthSessionRepository;
+import com.doro.blog.domain.notification.push.NotifyOutbox;
 import com.doro.blog.domain.notification.repository.NotificationRepository;
 import com.doro.blog.domain.post.repository.PostRepository;
 import com.doro.blog.domain.post.service.PostCommandService;
@@ -37,6 +38,7 @@ public class DeletedAccountAnonymizer {
     private final ApiKeyLogRepository apiKeyLogs;
     private final AuthSessionRepository authSessions;
     private final NotificationRepository notifications;
+    private final NotifyOutbox notifyOutbox;
     private final PostRepository postRepository;
     private final PostCommandService postCommands;
 
@@ -80,6 +82,8 @@ public class DeletedAccountAnonymizer {
         apiKeys.deleteAllByUserId(userId);
         authSessions.deleteAllByUserId(userId);
         notifications.deleteAllByRecipientId(userId);
+        // 알림 서비스로 아직 보내지 못한 푸시 요청도 지운다(알림 서비스 쪽 기기·설정은 알림 서비스가 탈퇴 동기화로 지운다).
+        notifyOutbox.deleteByRecipient(userId);
 
         log.info("Blog profile anonymized after Doro account deletion: userId={}", userId);
         return true;
