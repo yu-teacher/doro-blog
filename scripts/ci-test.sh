@@ -6,7 +6,7 @@
 #   scripts/ci-test.sh backend    # 백엔드만
 #   scripts/ci-test.sh web        # 프런트만 (스택 불필요)
 #
-# 필요: Docker, Java 25, Node 24, 형제 디렉터리 ../Doro (DORO_DIR 로 변경). 포트는 CI_* 환경변수로 바꿀 수 있다.
+# 필요: Docker, Java 25, Node 24, 형제 디렉터리 ../Doro (DORO_DIR 로 변경, .doro-sdk-ref 의 태그로 체크아웃). 포트는 CI_* 환경변수로 바꿀 수 있다.
 set -Eeuo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -43,6 +43,11 @@ run_web() {
 
 run_backend() {
   [ -d "$DORO_DIR/guard" ] || die "$DORO_DIR/guard 가 없다. Doro 레포를 형제 디렉터리에 체크아웃한다 (DORO_DIR 로 경로 지정)"
+  # CI 는 .doro-sdk-ref 의 태그로 Doro 를 받는다. 로컬 체크아웃이 다른 커밋이면 결과가 CI 와 다를 수 있어 알려만 준다.
+  local want; want="$(tr -d '[:space:]' < .doro-sdk-ref)"
+  if [ "$(git -C "$DORO_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$DORO_DIR" rev-parse "$want^{commit}" 2>/dev/null)" ]; then
+    log "주의: $DORO_DIR 가 .doro-sdk-ref($want) 와 다른 커밋이다. CI 와 같게 하려면: git -C $DORO_DIR fetch --tags && git -C $DORO_DIR checkout $want"
+  fi
   # 실패했을 때만 Guard 로그를 보여 주고, 어떤 경우든 스택은 내린다
   trap 'rc=$?; [ $rc -eq 0 ] || "${COMPOSE[@]}" logs --tail 60 guard-api >&2 || true; "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true; report_failure $rc' EXIT
   log "== 격리 스택 기동 (Postgres/Redis/Guard/S3) =="

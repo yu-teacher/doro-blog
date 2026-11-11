@@ -28,13 +28,21 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 40
     steps:
-      # build.gradle 의 includeBuild('../Doro') 때문에 Doro 레포가 형제 디렉터리로 필요하다.
+      # settings.gradle 의 includeBuild('../Doro') 때문에 Doro 레포가 형제 디렉터리로 필요하다.
+      # CI 와 같은 SDK 로 빌드하도록, 배포할 커밋의 .doro-sdk-ref 에 적힌 태그로 받는다.
       - uses: actions/checkout@v4
         with:
           path: doro-blog
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Doro SDK 버전 읽기
+        id: sdk
+        run: |
+          ref="$(tr -d '[:space:]' < doro-blog/.doro-sdk-ref)"
+          [ -n "$ref" ] || { echo "::error::.doro-sdk-ref 가 비어 있다"; exit 1; }
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: yu-teacher/doro
           path: Doro
+          ref: ${{ steps.sdk.outputs.ref }}
       - run: doro-blog/scripts/deploy-on-server.sh "$GITHUB_WORKSPACE/doro-blog" "$GITHUB_WORKSPACE/Doro"

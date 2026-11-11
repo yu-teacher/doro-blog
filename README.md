@@ -5,7 +5,7 @@
 > **English summary** — A Velog-style technical blogging platform (Spring Boot 4 / React 19) and the first service built on my own identity & authorization platform, **[Doro](https://github.com/yu-teacher/doro)**. Login and permissions are delegated to Doro (OAuth 2.1 + PKCE through a BFF that keeps tokens on the server and gives the browser only an HttpOnly session cookie; authorization through a Zanzibar-style ReBAC engine), so role rules are declared in a schema instead of being scattered as `if` statements. I used it as a testbed for production-grade backend practices: lock-free atomic counters, idempotent writes, trigram-indexed search, a defense-in-depth file-upload pipeline (magic-byte detection, an allow-list SVG sanitizer, sandboxing CSP), scoped API keys, and a scripted deploy that snapshots a rollback point before every release. **532 automated tests** (282 backend + 250 frontend).
 
 마크다운으로 글을 쓰고, 시리즈로 묶고, 댓글로 소통하는 **기술 블로그 서비스**입니다.
-직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인 화면과 비밀번호 처리, 권한 규칙은 이 서비스 안에 없습니다. 이 서비스는 OAuth 코드 교환을 맡는 BFF 세션 계층만 갖고, 권한 규칙은 Guard 스키마에 선언합니다.
+직접 만든 인증·인가 플랫폼 **[Doro](https://github.com/yu-teacher/doro)** 위에서 동작하는 첫 번째 서비스이고, 로그인 화면과 비밀번호 처리, 권한 규칙은 이 서비스 안에 없습니다. 로그인(OAuth 코드 교환과 세션)은 플랫폼의 BFF 서비스(doro-bff)가 맡고 이 서비스는 게이트웨이가 붙여 주는 토큰만 검증하며, 권한 규칙은 Guard 스키마에 선언합니다.
 
 | | |
 |---|---|
@@ -64,8 +64,8 @@ guardClient.check("blog_comment", commentId, "can_delete", currentUserId)       
 - **서버 배포**(`scripts/deploy-on-server.sh`, CI 통과 커밋만 자체 호스팅 러너가 실행): 컨테이너 안에서 빌드 → 스냅샷·DB 백업 → 반영 → 헬스체크 → 게이트웨이 reload(재생성된 컨테이너 IP 재해석), 실패하면 **직전 릴리스로 자동 복구**합니다.
 
 ### 7. 로그인과 회원 탈퇴
-- **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256)를 **블로그 서버가 교환**하고, 토큰은 AES-256-GCM으로 암호화해 서버(DB)에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 주고, 상태를 바꾸는 요청에는 커스텀 CSRF 헤더(와 `Origin` 검사)를 요구합니다. 로그인 콜백은 **로그인을 시작한 그 브라우저**에서만 끝낼 수 있게 묶어(남이 시작한 로그인을 피해자에게 끝내게 하는 로그인 CSRF 방지), Doro가 잠시 응답하지 않아도 사용자의 세션은 지우지 않습니다. 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
-- **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 이 내부 API는 게이트웨이를 거치지 않는 내부 네트워크 전용이고, **호출자 서비스 토큰**(헤더 `X-Doro-Service-Token`)으로 한 번 더 지킵니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·BFF 세션·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
+- **로그인(OAuth BFF)**: 인가 코드 + PKCE(S256) 교환과 세션은 플랫폼의 **BFF 서비스(doro-bff)** 가 맡고, 토큰은 서버에만 둡니다. 브라우저에는 `HttpOnly`·`Secure`·`SameSite=Lax` 세션 쿠키만 있고, 게이트웨이가 요청마다 쿠키를 토큰으로 바꿔 `Authorization: Bearer` 로 붙여 줍니다. 블로그 백엔드는 그 토큰을 JWKS 로 검증하고 **블로그 클라이언트로 발급된 토큰만** 받아 주며, 로그인·세션 코드는 갖지 않습니다. 상태를 바꾸는 쿠키 요청에는 서비스별 CSRF 헤더(와 `Origin` 검사)가 필요하고, 프런트엔드에는 로그인 폼과 토큰 저장 코드가 없습니다.
+- **회원 탈퇴**: Doro가 30일 유예(비밀번호 재입력, 유예 중 로그인하면 취소) 뒤 계정을 익명화하고, 블로그는 **탈퇴한 사용자 ID 목록을 주기적으로 조회(pull)** 해서 자기 개인정보 사본을 익명화합니다. 이 내부 API는 게이트웨이를 거치지 않는 내부 네트워크 전용이고, **호출자 서비스 토큰**(헤더 `X-Doro-Service-Token`)으로 한 번 더 지킵니다. 글과 댓글은 "탈퇴한 사용자"로 남기고 API 키·본인 알림·팔로우는 지웁니다(멱등, 조회 커서는 겹쳐 읽어 누락을 막음).
 
 ### 8. 푸시 알림 (플랫폼 알림 서비스로 위임)
 블로그는 웹 푸시를 직접 보내지 않고, Doro 플랫폼의 **알림 서비스(doro-notify)** 에 요청만 합니다. 댓글·답글·좋아요·팔로우 알림이 DB에 저장되는 **같은 트랜잭션**에서 요청을 아웃박스(`notify_outbox`)에 한 줄 쌓고(트랜잭션 아웃박스), 재시도기가 알림 서비스로 보냅니다. 서비스가 잠깐 죽어 있어도 알림 요청을 잃지 않고(지수 백오프, 1시간 뒤 만료), 멱등 키 덕분에 다시 보내도 두 번 가지 않으며, 푸시가 실패해도 댓글·좋아요 저장에는 영향이 없습니다. 기기 등록·알림 종류 설정(`/api/v1/push/*`)은 알림 서비스의 위임 API 로 넘기는 얇은 어댑터입니다. 알림 종류 4개는 시작할 때 알림 서비스에 등록됩니다. 켜짐/꺼짐은 호출자 토큰(`BLOG_NOTIFY_TOKEN`) 하나로 정해지며, **비어 있으면(기본) 아무것도 하지 않고 기존 동작이 그대로**입니다. 되돌리려면 토큰을 비우면 됩니다(`scripts/enable-notify.sh --off --restart`).
@@ -93,7 +93,11 @@ flowchart LR
 `main` 푸시와 PR 마다 GitHub Actions 가 프런트(린트·타입·테스트·빌드)와, 격리된 Postgres·Redis·Guard 스택과 S3 호환 목 서버 위에서 백엔드 통합 테스트를 돌립니다(`scripts/ci-test.sh` 로 로컬에서도 동일하게 재현).
 
 ## 🚀 실행
+백엔드는 형제 디렉터리의 Doro 체크아웃(`../Doro`)에서 SDK 를 함께 빌드합니다(`settings.gradle` 의 `includeBuild`). CI·배포와 같은 SDK 로 빌드하려면 Doro 를 `.doro-sdk-ref` 에 적힌 태그로 맞춥니다.
+
 ```bash
+git -C ../Doro fetch --tags && git -C ../Doro checkout "$(cat .doro-sdk-ref)"   # SDK 버전 맞추기
+
 # 백엔드 (DB/MinIO/Doro 가 떠 있어야 합니다)
 DB_PASSWORD=... MINIO_SECRET_KEY=... ./gradlew bootRun
 ./gradlew test                       # 백엔드 테스트

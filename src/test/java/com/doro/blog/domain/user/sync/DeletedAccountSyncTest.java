@@ -2,8 +2,6 @@ package com.doro.blog.domain.user.sync;
 
 import com.doro.blog.domain.apikey.dto.ApiKeyDtos.CreateApiKeyRequest;
 import com.doro.blog.domain.apikey.service.ApiKeyService;
-import com.doro.blog.domain.auth.entity.AuthSession;
-import com.doro.blog.domain.auth.repository.AuthSessionRepository;
 import com.doro.blog.domain.comment.dto.CommentDtos.CreateCommentRequest;
 import com.doro.blog.domain.comment.service.CommentService;
 import com.doro.blog.domain.post.dto.PostDtos.CreatePostRequest;
@@ -25,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -55,7 +54,6 @@ class DeletedAccountSyncTest {
     @Autowired private CommentService comments;
     @Autowired private FollowService follows;
     @Autowired private ApiKeyService apiKeys;
-    @Autowired private AuthSessionRepository authSessions;
     @Autowired private JdbcTemplate jdbc;
     @MockitoBean private DeletedUsersClient iam;
     @MockitoBean private StorageService storage;
@@ -106,8 +104,10 @@ class DeletedAccountSyncTest {
         jdbc.update("update blog_users set bio = '소개', profile_image_url = 'https://img.example/me.png', "
                 + "github_url = 'https://github.com/me', public_email = 'me@example.com', about_markdown = '# me' where id = ?",
                 victim.userId());
-        authSessions.save(new AuthSession("hash-" + victim.userId(), victim.userId(), "enc", Instant.now().plusSeconds(900),
-                "enc", Instant.now(), Instant.now().plus(Duration.ofDays(30))));
+        // 예전 내장 로그인 시절에 남은 세션 행(엔티티는 없고 테이블만 남아 있다)
+        jdbc.update("insert into auth_sessions (id, session_hash, user_id, access_token_enc, access_expires_at, refresh_token_enc, expires_at) "
+                + "values (?, ?, ?, 'enc', ?, 'enc', ?)", UUID.randomUUID(), "hash-" + victim.userId(), victim.userId(),
+                Timestamp.from(Instant.now().plusSeconds(900)), Timestamp.from(Instant.now().plus(Duration.ofDays(30))));
         assertThat(count("select count(*) from notifications where recipient_id = ?", victim.userId())).isPositive();
         int authorFollowers = count("select follower_count from blog_users where id = ?", author.userId());
         int followerFollowing = count("select following_count from blog_users where id = ?", follower.userId());

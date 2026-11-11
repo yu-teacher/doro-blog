@@ -2,7 +2,6 @@ package com.doro.blog.domain.user.sync;
 
 import com.doro.blog.domain.apikey.repository.ApiKeyLogRepository;
 import com.doro.blog.domain.apikey.repository.ApiKeyRepository;
-import com.doro.blog.domain.auth.repository.AuthSessionRepository;
 import com.doro.blog.domain.notification.push.NotifyOutbox;
 import com.doro.blog.domain.notification.repository.NotificationRepository;
 import com.doro.blog.domain.post.repository.PostRepository;
@@ -12,6 +11,7 @@ import com.doro.blog.domain.user.repository.BlogUserRepository;
 import com.doro.blog.domain.user.repository.UserFollowRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * Doro 에서 영구 탈퇴한 사용자의 블로그 프로필 개인정보를 익명화한다. 글·댓글·좋아요는 남기고 작성자만
- * '탈퇴한 사용자' 로 보이게 하며, 사용자 본인에게만 의미 있던 데이터(API 키·호출 기록·BFF 세션·알림함·팔로우)는 지운다.
+ * '탈퇴한 사용자' 로 보이게 하며, 사용자 본인에게만 의미 있던 데이터(API 키·호출 기록·남아 있던 옛 BFF 세션·알림함·팔로우)는 지운다.
  * 본인만 볼 수 있던 임시저장·비공개 글은 지운다(그 안의 이미지 파일 포함, 공개 글이 같이 쓰는 파일은 남긴다).
  * 이미 처리한 사용자에게 다시 호출해도 아무것도 바꾸지 않는다(멱등).
  */
@@ -36,11 +36,11 @@ public class DeletedAccountAnonymizer {
     private final UserFollowRepository follows;
     private final ApiKeyRepository apiKeys;
     private final ApiKeyLogRepository apiKeyLogs;
-    private final AuthSessionRepository authSessions;
     private final NotificationRepository notifications;
     private final NotifyOutbox notifyOutbox;
     private final PostRepository postRepository;
     private final PostCommandService postCommands;
+    private final JdbcTemplate jdbc;
 
     /** 아직 익명화하지 않은 블로그 사용자인가(없거나 이미 처리됐으면 false). 동기화가 같은 ID 를 다시 받을 때 Guard 를 또 부르지 않게 한다. */
     @Transactional(readOnly = true)
@@ -80,7 +80,9 @@ public class DeletedAccountAnonymizer {
 
         apiKeyLogs.deleteAllByUserId(userId);
         apiKeys.deleteAllByUserId(userId);
-        authSessions.deleteAllByUserId(userId);
+        // 예전 내장 로그인(이 서비스가 세션을 갖던 시절)의 세션 행. 엔티티는 지웠지만 테이블은 일부러 남겨 두었으므로(되돌릴 수 없는 삭제는 따로 결정한다)
+        // 남은 행에 든 암호화된 토큰도 함께 지운다. 테이블을 지우는 마이그레이션을 넣을 때 이 줄도 지운다.
+        jdbc.update("delete from auth_sessions where user_id = ?", userId);
         notifications.deleteAllByRecipientId(userId);
         // 알림 서비스로 아직 보내지 못한 푸시 요청도 지운다(알림 서비스 쪽 기기·설정은 알림 서비스가 탈퇴 동기화로 지운다).
         notifyOutbox.deleteByRecipient(userId);

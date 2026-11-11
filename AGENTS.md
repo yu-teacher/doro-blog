@@ -43,9 +43,16 @@
 
 1. **하위 경로(Sub-path) 마운트 SPA의 `basename` 검증**:
    - `/portal` 등 하위 경로에 호스팅되는 React SPA는 `BrowserRouter`에 `basename="/portal"`을 지정하여 내부 네비게이션 시 루트(`/`)로 이탈하지 않도록 방어합니다.
-1-1. **블로그는 `/blog/` 아래에 산다(2026-10-09~)**: 메인(`/`)은 Doro 허브다. 웹은 `VITE_BASE_PATH=/blog`(서버 `~/doro-blog/.env` 의 `BLOG_WEB_BASE_PATH`)로 빌드하고, 백엔드는 같은 값을 `BLOG_WEB_BASE_PATH` 로 받아 로그인 쿠키 Path, 복귀 위치, OAuth 복귀 주소(`.../blog/api/v1/bff/callback`)를 만든다. 값은 `basePath.ts`/`config.ts`(웹)와 `BffProperties`(백엔드) 한 곳에서만 해석하고 코드에 `/blog` 를 하드코딩하지 않는다. 새 복귀 주소는 IAM 의 `oauth_clients.redirect_uris` 에 등록돼 있어야 한다(`scripts/add-oauth-redirect-uri.sh`). 옛 루트 주소는 게이트웨이가 `/blog` 로 302 이동시킨다.
+1-1. **블로그는 `/blog/` 아래에 산다(2026-10-09~)**: 메인(`/`)은 Doro 허브다. 웹은 `VITE_BASE_PATH=/blog`(서버 `~/doro-blog/.env` 의 `BLOG_WEB_BASE_PATH`)로 빌드하고, 백엔드는 같은 값을 `BLOG_WEB_BASE_PATH` 로 받아 알림 링크 주소를 만든다. 로그인 쿠키 Path·복귀 위치·OAuth 복귀 주소(`.../blog/api/v1/bff/callback`)는 플랫폼 BFF(doro-bff)의 블로그 설정이 같은 경로로 맞춘다. 웹에서는 `basePath.ts`/`config.ts` 한 곳에서만 해석하고 코드에 `/blog` 를 하드코딩하지 않는다. 복귀 주소는 IAM 의 `oauth_clients.redirect_uris` 에 등록돼 있어야 한다(`scripts/add-oauth-redirect-uri.sh`). 옛 루트 주소는 게이트웨이가 `/blog` 로 302 이동시킨다.
 2. **정적 에셋(Assets) 충돌 방지**:
    - Vite/Webpack 빌드 시 `base` 설정과 게이트웨이의 라우팅이 일치하여 `/assets/index-*.js` 요청이 올바른 웹 컨테이너로 전달되는지 확인합니다.
 3. **로그인은 Doro OAuth 로 위임 (자체 로그인 폼 금지)**:
-   - 블로그는 비밀번호와 토큰을 직접 다루지 않습니다. 로그인 버튼은 `/api/v1/bff/login` 으로 이동시키고, 서버(BFF)가 인가 코드 + PKCE 로 토큰을 받아 **HttpOnly 세션 쿠키**만 브라우저에 줍니다.
+   - 블로그는 비밀번호와 토큰을 직접 다루지 않습니다. 로그인 버튼은 `/api/v1/bff/login` 으로 이동시키고, 플랫폼 BFF(doro-bff, 게이트웨이가 이 경로를 보낸다)가 인가 코드 + PKCE 로 토큰을 받아 **HttpOnly 세션 쿠키**만 브라우저에 줍니다. 게이트웨이가 요청마다 쿠키를 토큰으로 바꿔 `Authorization: Bearer` 로 붙여 주므로, 블로그 백엔드는 Bearer 만 검증하고 로그인·세션 코드를 갖지 않습니다(예전 내장 BFF 모드는 지웠다).
    - 프런트에 로그인/회원가입 폼, 토큰 저장(localStorage), 토큰 갱신 코드를 다시 만들지 않습니다. 쿠키로 상태를 바꾸는 요청에는 `X-Blog-Csrf` 헤더가 필요합니다(`api/csrf.ts`).
+
+---
+
+## 4. 🧩 Doro SDK 버전 고정
+
+- 백엔드는 `settings.gradle` 의 `includeBuild('../Doro')` 로 형제 디렉터리의 Doro 체크아웃에서 SDK 를 빌드한다. CI·배포는 Doro 를 `main` 이 아니라 **`.doro-sdk-ref` 에 적힌 태그**(예: `sdk-v0.1.0`)로 받는다.
+- 로컬에서 빌드·시험할 때도 `../Doro` 를 그 태그로 맞춘다: `git -C ../Doro fetch --tags && git -C ../Doro checkout $(cat .doro-sdk-ref)`. SDK 를 올릴 때는 이 파일의 태그만 바꾸고 CI 를 통과시킨다.
