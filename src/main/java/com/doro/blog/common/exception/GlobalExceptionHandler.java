@@ -9,6 +9,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -88,11 +89,16 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "요청 본문(Body) 형식이 올바르지 않거나 누락되었습니다."));
     }
 
-    /** 존재하지 않는 경로(스캐너의 /.env, /.git 탐색 등)는 서버 오류가 아니므로 ERROR 로그 없이 404 로 응답한다. */
+    /**
+     * 존재하지 않는 경로(스캐너의 /.env, /.git 탐색 등)는 서버 오류가 아니므로 ERROR 로그 없이 404 로 응답한다.
+     * 스캐너는 JSON 을 받지 않는 Accept(text/html, image/* 등)를 자주 보내므로 응답 형식을 JSON 으로 못박아
+     * 형식 협상을 건너뛴다(그러지 않으면 이 핸들러가 HttpMediaTypeNotAcceptableException 으로 실패한다).
+     */
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException e) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."));
     }
 
@@ -150,12 +156,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getCode(), "필수 항목이 누락되었습니다: " + e.getRequestPartName()));
     }
 
-    /** 클라이언트가 받을 수 없는 응답 형식(Accept)을 요구한 경우. */
+    /** 클라이언트가 받을 수 없는 응답 형식(Accept)을 요구한 경우. 그 Accept 로는 협상이 다시 실패하므로 JSON 으로 못박는다. */
     @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotAcceptable(org.springframework.web.HttpMediaTypeNotAcceptableException e) {
         log.warn("HttpMediaTypeNotAcceptableException: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_ACCEPTABLE)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(HttpStatus.NOT_ACCEPTABLE, "NOT_ACCEPTABLE", "요청한 응답 형식을 제공할 수 없습니다."));
     }
 
